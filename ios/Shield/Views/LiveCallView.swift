@@ -19,16 +19,16 @@ struct LiveCallView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     ShieldEndedActions(call: call, seniorName: seniorName)
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                // Its pieces arrive one after another (see `arrives`); the screen itself is just there.
+                .transition(.identity)
             } else {
                 CallMonitor(call: call, seniorName: seniorName)
-                    .transition(.opacity)
+                    // Out of the way first, and quickly: the two screens are never drawn over each other.
+                    .transition(.asymmetric(insertion: .opacity, removal: .opacity.animation(Motion.quick)))
             }
         }
         .background(Theme.canvas.ignoresSafeArea())
-        .animation(.smooth(duration: 0.45), value: call.ending != nil)
-        .sensoryFeedback(.warning, trigger: call.warning?.at)
-        .sensoryFeedback(.success, trigger: call.ending?.at)
+        .animation(Motion.screen, value: call.ending != nil)
         .task(id: call.hasEnded) {
             // An ordinary call that ended without incident does not need to stay on screen.
             guard call.hasEnded, call.ending == nil, call.warning == nil else { return }
@@ -48,8 +48,10 @@ private struct CallHeader: View {
     let seniorName: String
 
     @Environment(ShieldStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        let isOver = call.hasEnded || call.ending != nil
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Call to \(seniorName)")
@@ -57,12 +59,13 @@ private struct CallHeader: View {
                 CallStatusLine(call: call)
             }
             Spacer(minLength: 8)
-            if call.hasEnded || call.ending != nil {
+            if isOver {
                 Button("Done") {
                     store.closeCall()
                 }
                 .fontWeight(.semibold)
                 .buttonStyle(QuietButtonStyle(height: 44))
+                .replaces(reduceMotion: reduceMotion)
             } else {
                 // The call goes on; this only puts its screen away.
                 Button {
@@ -75,42 +78,52 @@ private struct CallHeader: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Hide call")
+                .replaces(reduceMotion: reduceMotion)
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 6)
+        .animation(Motion.change, value: isOver)
     }
 }
 
 private struct CallStatusLine: View {
     let call: LiveCall
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
+        // The line takes a few seconds to drop after Shield hangs up. Don't call that "Live".
+        let phase = call.ending == nil ? call.phase : .ended
         HStack(spacing: 6) {
-            // The line takes a few seconds to drop after Shield hangs up. Don't call that "Live".
-            switch call.ending == nil ? call.phase : .ended {
-            case .ringing:
-                Text("Ringing")
-            case .talking:
-                Circle()
-                    .fill(Theme.danger)
-                    .frame(width: 8, height: 8)
-                    .accessibilityHidden(true)
-                Text("Live")
-                if let answeredAt = call.answeredAt {
-                    Text(timerInterval: answeredAt...Date.distantFuture, countsDown: false)
-                        .monospacedDigit()
+            HStack(spacing: 6) {
+                switch phase {
+                case .ringing:
+                    Text("Ringing")
+                case .talking:
+                    Circle()
+                        .fill(Theme.danger)
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
+                    Text("Live")
+                    if let answeredAt = call.answeredAt {
+                        Text(timerInterval: answeredAt...Date.distantFuture, countsDown: false)
+                            .monospacedDigit()
+                    }
+                case .ended:
+                    Text("Call ended")
                 }
-            case .ended:
-                Text("Call ended")
             }
+            .id(phase)
+            .replaces(reduceMotion: reduceMotion)
             Text("·").accessibilityHidden(true)
             Text(callerDescription(call.caller, isDemo: call.isDemo))
         }
         .font(.subheadline)
         .foregroundStyle(.secondary)
         .lineLimit(1)
+        .animation(Motion.change, value: phase)
     }
 }
 
@@ -141,15 +154,26 @@ private struct CallMonitor: View {
             // transcript is down to a few lines.
             RiskPanel(call: call)
                 .layoutPriority(1)
-            WarningArea(call: call, seniorName: seniorName)
+            if let warning = call.warning {
+                WarningCard(warning: warning, seniorName: seniorName)
+                    .transition(Unfold())
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+            }
             TranscriptArea(call: call, seniorName: seniorName)
                 .frame(minHeight: 120)
             if call.hasEnded {
                 CallOverBar(call: call)
+                    // Up from the bottom edge, in step with the transcript making room above it.
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.smooth, value: call.hasEnded)
+        // Declared on the stack, not on the piece that changes, so that what arrives and what
+        // makes room for it move as one. The warning waits a moment for the signs under the
+        // dial, which it replaces, to clear; listed first, it is the one used when Shield warns.
+        .animation(Motion.change.delay(Motion.lead), value: call.warning != nil)
+        .animation(Motion.change, value: call.rankedFlags)
+        .animation(Motion.change, value: call.hasEnded)
     }
 }
 
@@ -176,46 +200,36 @@ private struct RiskPanel: View {
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Warning signs: \(call.rankedFlags.map(\.title).formatted(.list(type: .and)))")
-                .transition(.opacity)
+                .transition(.asymmetric(insertion: .opacity, removal: .opacity.animation(Motion.quick)))
             }
         }
         .padding(.bottom, 14)
-        .animation(.smooth, value: call.rankedFlags)
-        .animation(.smooth, value: call.warning != nil)
     }
 }
 
 /// Shield's warning, with the one thing the caregiver can do about it: ring the person being called.
-private struct WarningArea: View {
-    let call: LiveCall
+private struct WarningCard: View {
+    let warning: ShieldAction
     let seniorName: String
 
     var body: some View {
-        VStack(spacing: 0) {
-            if let warning = call.warning {
-                Card {
-                    VStack(alignment: .leading, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            CardLabel(title: "Warning", symbol: "exclamationmark.triangle.fill", tint: Theme.caution)
-                            Text("This call looks suspicious")
-                                .font(.headline)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(warning.reason)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .accessibilityElement(children: .combine)
-                        CallSeniorButton(seniorName: seniorName)
-                            .controlSize(.large)
-                    }
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    CardLabel(title: "Warning", symbol: "exclamationmark.triangle.fill", tint: Theme.caution)
+                    Text("This call looks suspicious")
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(warning.reason)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityElement(children: .combine)
+                CallSeniorButton(seniorName: seniorName)
+                    .controlSize(.large)
             }
         }
-        .animation(.spring(duration: 0.45, bounce: 0.2), value: call.warning != nil)
     }
 }
 
@@ -274,7 +288,10 @@ struct ShieldEndedContent: View {
     let call: LiveCall
     let seniorName: String
 
-    @State private var hasAppeared = false
+    @State private var hasArrived = false
+    /// Set a beat after `hasArrived`, once the shield is there to be seen bouncing.
+    @State private var shieldHasLanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Explicit so the view's inputs stay clear of its private state on every SDK.
     init(call: LiveCall, seniorName: String) {
@@ -288,36 +305,50 @@ struct ShieldEndedContent: View {
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 56))
                     .foregroundStyle(Theme.safe)
-                    .symbolEffect(.bounce, value: hasAppeared)
+                    .symbolEffect(.bounce, value: shieldHasLanded)
                     .accessibilityHidden(true)
-                Text("Shield ended the call")
-                    .font(.largeTitle.weight(.bold))
-                    .multilineTextAlignment(.center)
-                Text(explanation)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .arrives(0, when: hasArrived)
+                VStack(spacing: 8) {
+                    Text("Shield ended the call")
+                        .font(.largeTitle.weight(.bold))
+                        .multilineTextAlignment(.center)
+                    Text(explanation)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .arrives(1, when: hasArrived)
             }
             .padding(.horizontal, 8)
             .padding(.top, 28)
             .padding(.bottom, 16)
 
             if let ending = call.ending {
-                ResponseTime(seconds: ending.seconds)
-                Card {
-                    VStack(alignment: .leading, spacing: 6) {
-                        CardLabel(title: "Why", symbol: "exclamationmark.triangle.fill", tint: Theme.danger)
-                        // The one sentence says it. Each sign on its own is in "What happened".
-                        Text(ending.reason)
-                            .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 12) {
+                    ResponseTime(seconds: ending.seconds)
+                    Card {
+                        VStack(alignment: .leading, spacing: 6) {
+                            CardLabel(title: "Why", symbol: "exclamationmark.triangle.fill", tint: Theme.danger)
+                            // The one sentence says it. Each sign on its own is in "What happened".
+                            Text(ending.reason)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .accessibilityElement(children: .combine)
                 }
-                .accessibilityElement(children: .combine)
+                .arrives(2, when: hasArrived)
+                // The response time is measured a moment after the hang-up. "Why" makes room for it.
+                .animation(Motion.change, value: ending.seconds)
             }
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-        .onAppear { hasAppeared = true }
+        .task {
+            hasArrived = true
+            guard !reduceMotion else { return }
+            try? await Task.sleep(for: .seconds(Motion.lead))
+            shieldHasLanded = true
+        }
     }
 
     private var explanation: String {
@@ -336,6 +367,7 @@ private struct ShieldEndedActions: View {
     let seniorName: String
 
     @Environment(ShieldStore.self) private var store
+    @State private var hasArrived = false
 
     var body: some View {
         // Side by side at one width while both labels fit; stacked for a long name or large text.
@@ -344,10 +376,12 @@ private struct ShieldEndedActions: View {
             VStack(spacing: 8) { buttons }
         }
         .controlSize(.large)
+        .arrives(3, when: hasArrived)
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(Theme.canvas)
+        .onAppear { hasArrived = true }
     }
 
     @ViewBuilder private var buttons: some View {
@@ -387,7 +421,30 @@ private struct ResponseTime: View {
                 }
             }
             .accessibilityElement(children: .combine)
+            .transition(Unfold())
         }
+    }
+}
+
+// MARK: - Arriving in order
+
+/// Brings in one piece of the "Shield ended the call" screen, a beat after the piece above it.
+/// This is the one moment in the app that is given time: it is what the caregiver was waiting for.
+private struct Arrives: ViewModifier {
+    let order: Int
+    let hasArrived: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(hasArrived ? 1 : 0)
+            // Nothing arrives until the live screen has cleared.
+            .animation(Motion.change.delay(Motion.lead + Double(order) * 0.07), value: hasArrived)
+    }
+}
+
+private extension View {
+    func arrives(_ order: Int, when hasArrived: Bool) -> some View {
+        modifier(Arrives(order: order, hasArrived: hasArrived))
     }
 }
 

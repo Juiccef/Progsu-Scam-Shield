@@ -23,6 +23,9 @@ final class ShieldStore {
     private(set) var call: LiveCall?
     /// The call shown full screen. Set when a call starts; cleared when the caregiver closes it.
     private(set) var presentedCall: LiveCall?
+    /// What Shield just did on the call in progress, for the buzz that goes with it. History
+    /// replayed when the app connects never sets it.
+    private(set) var latestAction: ShieldAction?
     /// Call summaries pushed onto the home screen's navigation stack.
     var path: [CallSummary] = []
     private(set) var history: [CallSummary] = [] {
@@ -53,6 +56,7 @@ final class ShieldStore {
         settleTask?.cancel()
         call = nil
         presentedCall = nil
+        latestAction = nil
         guard let api = ShieldAPI.fromSettings else {
             self.api = nil
             connection = .notConfigured
@@ -148,6 +152,12 @@ final class ShieldStore {
         }
         guard let call, call.id == callID else { return }
         call.apply(event)
+        if event.type == "action", isFresh {
+            latestAction = event.kind == ShieldAction.Kind.end.rawValue ? call.ending : call.warning
+            // Shield stepping in is what the caregiver has the app for: show it, even if they
+            // had put the call screen away.
+            if presentedCall == nil { presentedCall = call }
+        }
         if event.type == "call_ended", isFresh, let api {
             Task { await self.loadHistory(api) }
         }

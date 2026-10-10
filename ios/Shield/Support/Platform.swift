@@ -78,7 +78,7 @@ extension Appearance {
         }
         for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
             for window in scene.windows where window.overrideUserInterfaceStyle != style {
-                UIView.transition(with: window, duration: animated ? 0.25 : 0, options: .transitionCrossDissolve) {
+                UIView.transition(with: window, duration: animated ? Motion.quickSeconds : 0, options: .transitionCrossDissolve) {
                     window.overrideUserInterfaceStyle = style
                 }
             }

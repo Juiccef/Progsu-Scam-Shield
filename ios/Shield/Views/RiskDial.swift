@@ -8,6 +8,7 @@ struct RiskDial: View {
     let endAt: Int
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let sweep = 0.75
     private static let lineWidth: CGFloat = 12
@@ -23,8 +24,10 @@ struct RiskDial: View {
                 .font(.headline)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .id(level)
+                .replaces(reduceMotion: reduceMotion)
         }
-        .animation(.spring(duration: 0.7, bounce: 0.15), value: risk)
+        .animation(Motion.change, value: risk)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Scam risk")
         .accessibilityValue("\(risk) out of 100, \(level.title)")
@@ -40,7 +43,7 @@ struct RiskDial: View {
             Text(risk, format: .number)
                 .font(.system(size: 68, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-                .contentTransition(.numericText(value: Double(risk)))
+                .contentTransition(reduceMotion ? .opacity : .numericText(value: Double(risk)))
                 // Kept inside the ring: on a small screen the dial shrinks and the number shrinks with it.
                 .lineLimit(1)
                 .minimumScaleFactor(0.4)

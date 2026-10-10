@@ -21,6 +21,45 @@ enum Theme {
     static let cardRadius: CGFloat = 26
 }
 
+/// How things move. Nothing in Shield is thrown by a finger, so nothing bounces: every change
+/// eases to rest. These three timings are the only ones the app uses.
+enum Motion {
+    /// A whole screen arriving or leaving.
+    static let screen = Animation.smooth(duration: 0.4)
+    /// Something on a screen changing: a card arriving, the dial moving, a list growing.
+    static let change = Animation.smooth(duration: 0.35)
+    /// Content getting out of the way of what replaces it, and a pressed control letting go.
+    static let quick = Animation.easeOut(duration: quickSeconds)
+    static let quickSeconds = 0.2
+    /// How long what is leaving gets to clear before its replacement starts to arrive, so the
+    /// two are never drawn over each other.
+    static let lead = 0.15
+}
+
+/// How a card arrives between things already on screen: it is uncovered from its top edge down
+/// while what is below it moves out of the way, so the two never overlap. Kept with Reduce
+/// Motion too: what is below has to move either way, and a plain fade would land on top of it.
+struct Unfold: Transition {
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        content
+            .mask(alignment: .top) {
+                GeometryReader { proxy in
+                    RoundedRectangle(cornerRadius: Theme.cardRadius)
+                        .frame(height: phase.isIdentity ? proxy.size.height : 0)
+                }
+            }
+            .opacity(phase.isIdentity ? 1 : 0)
+    }
+}
+
+extension View {
+    /// How one word takes the place of another: the old one blurs away as the new one sharpens,
+    /// so the two are never legible on top of each other. With Reduce Motion they cross-fade.
+    func replaces(reduceMotion: Bool) -> some View {
+        transition(reduceMotion ? AnyTransition.opacity : AnyTransition(.blurReplace))
+    }
+}
+
 /// How worried the caregiver should be, given the risk score and the server's thresholds.
 enum RiskLevel: Equatable {
     case calm
@@ -135,7 +174,7 @@ struct QuietButtonStyle: ButtonStyle {
             .frame(minHeight: height)
             .background(Theme.surface, in: .capsule)
             .opacity(configuration.isPressed ? 0.55 : 1)
-            .animation(configuration.isPressed ? nil : .easeOut(duration: 0.2), value: configuration.isPressed)
+            .animation(configuration.isPressed ? nil : Motion.quick, value: configuration.isPressed)
     }
 }
 
@@ -144,6 +183,6 @@ struct RowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(configuration.isPressed ? Color.pressedRow : .clear)
-            .animation(configuration.isPressed ? nil : .easeOut(duration: 0.25), value: configuration.isPressed)
+            .animation(configuration.isPressed ? nil : Motion.quick, value: configuration.isPressed)
     }
 }

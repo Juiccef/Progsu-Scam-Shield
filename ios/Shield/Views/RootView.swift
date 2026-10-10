@@ -7,6 +7,7 @@ import SwiftUI
 struct RootView: View {
     @State private var store: ShieldStore
     @AppStorage(SettingsKey.appearance) private var appearance = Appearance.automatic
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// False when the store holds fixed sample data, which a live feed must not replace.
     private let connectsToServer: Bool
 
@@ -33,11 +34,14 @@ struct RootView: View {
             }
             if let call = store.presentedCall {
                 LiveCallView(call: call)
-                    .transition(.move(edge: .bottom))
+                    // Whatever turns up on the screen while it is still sliding in rides along
+                    // with it, instead of appearing where the screen is going to stop.
+                    .geometryGroup()
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom))
                     .zIndex(1)
             }
         }
-        .animation(.snappy(duration: 0.4), value: store.presentedCall?.id)
+        .animation(Motion.screen, value: store.presentedCall?.id)
         .alert("Couldn’t start the demo call", isPresented: $store.isShowingDemoError) {
             Button("OK") {}
         } message: {
@@ -45,6 +49,14 @@ struct RootView: View {
         }
         .environment(store)
         .tint(Theme.safe)
+        // Here rather than on the call screen, so the buzz comes whichever screen is showing.
+        .sensoryFeedback(trigger: store.latestAction) { _, action in
+            switch action?.kind {
+            case .warn: .warning
+            case .end: .success
+            case nil: nil
+            }
+        }
         .onChange(of: appearance, initial: true) { old, new in
             // At launch the two are the same: set it at once, with no fade from the wrong appearance.
             new.apply(animated: old != new)

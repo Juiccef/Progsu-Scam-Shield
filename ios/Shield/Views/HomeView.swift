@@ -162,7 +162,7 @@ private struct ActiveCallCard: View {
                 .padding(.top, 8)
             }
         }
-        .animation(.smooth, value: level)
+        .animation(Motion.change, value: level)
     }
 }
 

@@ -10,37 +10,49 @@ struct TranscriptView: View {
     private static let bottom = "bottom"
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 4) {
-                    ForEach(lines) { line in
-                        TranscriptBubble(
-                            line: line,
-                            speakerName: line.speaker == .caller ? "Caller" : seniorName,
-                            markColor: markColor
-                        )
+        if #available(iOS 18, macOS 15, *) {
+            // The system keeps the newest line in view for as long as the reader is at the
+            // bottom, and leaves the transcript alone once they scroll up to reread.
+            scroll
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .defaultScrollAnchor(.bottom, for: .sizeChanges)
+        } else {
+            ScrollViewReader { proxy in
+                scroll
+                    .onChange(of: lines.last) {
+                        withAnimation(Motion.quick) {
+                            proxy.scrollTo(Self.bottom, anchor: .bottom)
+                        }
                     }
-                    Color.clear
-                        .frame(height: 1)
-                        .id(Self.bottom)
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                    .onAppear {
+                        proxy.scrollTo(Self.bottom, anchor: .bottom)
+                    }
             }
-            .mask(alignment: .top) {
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 14)
-                    Color.black
+        }
+    }
+
+    private var scroll: some View {
+        ScrollView {
+            LazyVStack(spacing: 4) {
+                ForEach(lines) { line in
+                    TranscriptBubble(
+                        line: line,
+                        speakerName: line.speaker == .caller ? "Caller" : seniorName,
+                        markColor: markColor
+                    )
                 }
+                Color.clear
+                    .frame(height: 1)
+                    .id(Self.bottom)
             }
-            .onChange(of: lines.last) {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo(Self.bottom, anchor: .bottom)
-                }
-            }
-            .onAppear {
-                proxy.scrollTo(Self.bottom, anchor: .bottom)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+        }
+        .mask(alignment: .top) {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 14)
+                Color.black
             }
         }
     }
