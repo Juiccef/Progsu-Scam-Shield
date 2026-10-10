@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Home, with the call screen sliding over it whenever a call is in progress.
+/// The app's pages, with the call screen sliding over them whenever a call is in progress.
 ///
 /// The call screen is an overlay rather than a modal so that it can always appear at once,
 /// even if a sheet is on screen when the phone rings.
@@ -26,12 +26,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            NavigationStack(path: $store.path) {
-                HomeView()
-                    .navigationDestination(for: CallSummary.self) { call in
-                        CallDetailView(call: call)
-                    }
-            }
+            MainTabs()
             if let call = store.presentedCall {
                 LiveCallView(call: call)
                     // Whatever turns up on the screen while it is still sliding in rides along

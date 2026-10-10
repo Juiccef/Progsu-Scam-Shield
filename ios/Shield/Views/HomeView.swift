@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The caregiver's home screen: is protection on, and what has happened lately.
+/// The first page, "Summary": is protection on, and what has happened lately.
 struct HomeView: View {
     @Environment(ShieldStore.self) private var store
     @AppStorage(SettingsKey.seniorName) private var seniorName = SettingsKey.defaultSeniorName
@@ -19,13 +19,12 @@ struct HomeView: View {
                 calls: store.history,
                 // The list is fetched before the feed connects. Until then it is not known to be empty.
                 isLoaded: store.connection == .connected,
-                seniorName: seniorName,
-                demoScripts: store.demoScripts
+                seniorName: seniorName
             )
         }
         .groupedListStyle()
         .headerProminence(.increased)
-        .navigationTitle("Shield")
+        .navigationTitle("Summary")
         .toolbar {
             if !store.demoScripts.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
@@ -192,42 +191,67 @@ private struct ActiveCallCard: View {
 
 // MARK: - Recent calls
 
-/// Recent calls in one list, newest first, the way a phone lists them. With none yet, the
-/// system's own empty state: what will turn up here, and a demo call to try if the server
-/// offers them.
+/// The newest calls, the way a phone lists them. The rest are on the Calls page.
 private struct RecentCalls: View {
     let calls: [CallSummary]
     let isLoaded: Bool
     let seniorName: String
-    let demoScripts: [DemoScript]
+
+    @Environment(ShieldStore.self) private var store
+
+    private static let shown = 3
 
     var body: some View {
         if !calls.isEmpty {
-            Section("Recent Calls") {
-                ForEach(calls) { call in
+            Section {
+                ForEach(calls.prefix(Self.shown)) { call in
                     NavigationLink(value: call) {
                         CallRow(call: call)
+                    }
+                }
+            } header: {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Recent Calls")
+                    Spacer()
+                    if calls.count > Self.shown {
+                        Button("Show All") {
+                            store.tab = .calls
+                        }
+                        // An ordinary link beside the heading, not a second heading.
+                        .font(.body)
                     }
                 }
             }
         } else if isLoaded {
             Section {
-                ContentUnavailableView {
-                    Label("No Calls Yet", systemImage: "phone")
-                } description: {
-                    Text("Calls to \(seniorName)’s phone show up here.")
-                } actions: {
-                    if !demoScripts.isEmpty {
-                        DemoMenu(scripts: demoScripts) {
-                            Text("Start a Demo Call")
-                        }
-                        .cardButton()
-                    }
-                }
-                // On the canvas, as the system's empty states are, not in a list's box.
-                .listRowBackground(Color.clear)
+                NoCallsYet(seniorName: seniorName)
             }
         }
+    }
+}
+
+/// An empty list of calls, as the system's own empty state: what will turn up here, and a
+/// demo call to try if the server offers them.
+struct NoCallsYet: View {
+    let seniorName: String
+
+    @Environment(ShieldStore.self) private var store
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("No Calls Yet", systemImage: "phone")
+        } description: {
+            Text("Calls to \(seniorName)’s phone show up here.")
+        } actions: {
+            if !store.demoScripts.isEmpty {
+                DemoMenu(scripts: store.demoScripts) {
+                    Text("Start a Demo Call")
+                }
+                .cardButton()
+            }
+        }
+        // On the canvas, as the system's empty states are, not in a list's box.
+        .listRowBackground(Color.clear)
     }
 }
 
@@ -328,7 +352,7 @@ struct OutcomeLook {
 
 /// The demo calls the server offers, behind whatever label the place calls for: a symbol in
 /// the toolbar, words in the empty list.
-private struct DemoMenu<MenuLabel: View>: View {
+struct DemoMenu<MenuLabel: View>: View {
     let scripts: [DemoScript]
     @ViewBuilder let label: MenuLabel
 

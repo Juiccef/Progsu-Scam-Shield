@@ -7,6 +7,12 @@ struct CallStats: Equatable {
     var warned = 0
 }
 
+/// The app's pages, one per tab.
+enum AppTab: Hashable {
+    case home
+    case calls
+}
+
 /// The app's state: the connection to the Shield server, the call in progress, and recent calls.
 @Observable
 @MainActor
@@ -26,8 +32,11 @@ final class ShieldStore {
     /// What Shield just did on the call in progress, for the buzz that goes with it. History
     /// replayed when the app connects never sets it.
     private(set) var latestAction: ShieldAction?
-    /// Call summaries pushed onto the home screen's navigation stack.
-    var path: [CallSummary] = []
+    /// The page showing under the call screen.
+    var tab = AppTab.home
+    /// Call summaries pushed onto the Summary page's navigation stack, and onto the Calls page's.
+    var homePath: [CallSummary] = []
+    var callsPath: [CallSummary] = []
     private(set) var history: [CallSummary] = [] {
         didSet { stats = Self.stats(for: history) }
     }
@@ -85,14 +94,15 @@ final class ShieldStore {
         presentedCall = nil
     }
 
-    /// Leaves the call screen and opens the summary of that call.
+    /// Leaves the call screen and opens the summary of that call, on the Calls page.
     func showSummary(of callID: String) async {
         if let api, !history.contains(where: { $0.id == callID }) {
             await loadHistory(api)
         }
         presentedCall = nil
         if let summary = history.first(where: { $0.id == callID }) {
-            path = [summary]
+            tab = .calls
+            callsPath = [summary]
         }
     }
 

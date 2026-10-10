@@ -165,9 +165,14 @@ extension ShieldStore {
         case "suspicious": return preview(call: .suspicious, isShowingCall: true)
         case "warned-over": return preview(call: .warnedThenOver, isShowingCall: true)
         case "ended": return preview(call: .endedByShield, isShowingCall: true)
+        case "calls":
+            let store = preview(history: CallSummary.samples)
+            store.tab = .calls
+            return store
         case "detail":
             let store = preview(history: CallSummary.samples)
-            store.path = [.blocked]
+            store.tab = .calls
+            store.callsPath = [.blocked]
             return store
         default: return nil
         }

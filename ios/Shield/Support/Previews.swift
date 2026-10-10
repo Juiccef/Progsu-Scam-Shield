@@ -3,25 +3,24 @@ import SwiftUI
 
 // Xcode previews for every screen, built from SampleData. None of them touches the network.
 
-#Preview("Home") {
-    NavigationStack {
-        HomeView()
-    }
-    .environment(ShieldStore.preview(history: CallSummary.samples))
+#Preview("Summary") {
+    MainTabs()
+        .environment(ShieldStore.preview(history: CallSummary.samples))
 }
 
-#Preview("Home, no calls yet") {
-    NavigationStack {
-        HomeView()
-    }
-    .environment(ShieldStore.preview())
+#Preview("Summary, no calls yet") {
+    MainTabs()
+        .environment(ShieldStore.preview())
 }
 
-#Preview("Home, not connected") {
-    NavigationStack {
-        HomeView()
-    }
-    .environment(ShieldStore.preview(connection: .failed("Can’t reach the Shield server.")))
+#Preview("Summary, not connected") {
+    MainTabs()
+        .environment(ShieldStore.preview(connection: .failed("Can’t reach the Shield server.")))
+}
+
+#Preview("Calls") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "calls") ?? .preview())
 }
 
 #Preview("Call, ringing") {
