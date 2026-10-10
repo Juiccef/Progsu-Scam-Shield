@@ -3,7 +3,9 @@
 Palisade sits between a caller and an older adult's phone. A caller dials the Palisade
 proxy number (Twilio); Palisade bridges the call to the senior, transcribes both sides
 live, scores the caller for scam behavior, and when it is confident it warns the
-caregiver or ends the call with a short spoken message. Audio is never stored.
+caregiver or ends the call with a short spoken message. Audio is never stored. It can
+also check the texts sent to that number, and hold the risky ones for the caregiver
+("Text messages", below).
 
 Palisade was called Shield until 2026-10-10. Everything a person sees or hears says
 Palisade; the code keeps the old name where nobody sees it: the Xcode project
@@ -111,15 +113,22 @@ whether Palisade warned or ended the call, the call-control and SMS results, and
 
 | Command | What it exercises | Needs |
 |---|---|---|
-| `pytest` | decision logic, rules, LLM fallback paths, webhooks, signatures, the media WebSocket, actions | nothing |
+| `pytest` | decision logic, rules, LLM fallback paths, webhooks, signatures, the media WebSocket, actions, text protection | nothing |
 | `python eval/run_eval.py --model rules` | rules + decision logic on the 16 scripts | nothing |
 | `python eval/run_eval.py --models rules,claude-haiku-4-5,gpt-4o-mini` | adds the LLM scorer; compares models | LLM key(s) |
 | `python tools/fake_call.py scam_01` | the whole live path: signed webhooks, both audio tracks, speech-to-text, scoring, actions | running server, macOS, Deepgram key for transcripts |
+| `python tools/fake_text.py "USPS: pay the fee at https://parcel-fee.example/pay"` | a text arriving: the signed webhook, scoring, and with text protection on, holding | running server |
+| `npm --prefix photon test` | the iMessage agent, with stand-ins for Photon and the server | Node 22, and `npm --prefix photon ci --ignore-scripts` once |
+| `bash tools/test_ios_gateway.sh` | the app's handling of texts (the count, the buzz, replayed events), with the real store | Xcode |
 
 `fake_call.py` speaks an eval script with the macOS `say` voice and streams it
 exactly as Twilio would (caller on the inbound track, senior on the outbound
 track). Run the server with `DRY_RUN_ACTIONS=true` for it: the fake call does
 not exist at Twilio, so a real hang-up would fail and a real SMS would go out.
+
+`fake_text.py` sends one made-up text, signed the way Twilio signs its own, so the
+server takes it for a real one. It will not talk to a server that is set to forward
+texts to a real phone.
 
 ## Real-call checklist
 
@@ -171,20 +180,32 @@ Palisade carries on: the `action` event is the alert.
 | `POST /voice/incoming` | Twilio voice webhook. Returns disclosure, `<Start><Stream track="both_tracks">`, `<Dial>`, then goodbye. |
 | `POST /voice/status` | Status callbacks. Learns the senior leg's CallSid and when the senior answers. |
 | `POST /sms/status` | Delivery reports for caregiver texts. |
+| `POST /sms/incoming` | Twilio's webhook for a text sent to the proxy number. Answers with empty TwiML: nobody is texted back. |
+| `POST /gateway/sms/status/{job}/{attempt}` | Delivery reports for texts Palisade forwarded. |
 | `WS /media` | Twilio Media Stream (base64 mu-law, 8 kHz, one track per speaker). |
 | `GET /events` | Server-sent events: everything a dashboard or app needs. `?replay=false` skips recent history. |
 | `GET /calls` | Recent calls, newest first: outcome, flags, actions and the risk timeline. Never transcript text. Survives restarts. |
 | `GET /metrics/last` | Seconds from the triggering utterance to the most recent real action, with a per-stage breakdown. |
+| `GET /messages`, `POST /messages/analyze` | The last 50 results of texts that were only checked, and checking one now (`{"text": "..."}`). Never a text's words. |
+| `GET /gateway/messages` | Texts sent to the proxy number, with text protection on: held ones, and the 50 newest. Never a text's words. |
+| `GET /gateway/messages/{id}` | One text with its words and its sender's whole number, while the server still keeps them. |
+| `POST /gateway/messages/{id}/decision` | `{"action": "release"}` or `{"action": "discard"}` for a held text. |
 | `GET /demo/scripts`, `POST /demo/call?script=scam_01` | Demo calls, only with `DEMO_MODE=true`. See below. |
 | `GET /auth/config` | Whether this server asks for a sign-in, and the Auth0 domain and client IDs an app or the dashboard needs for it. None of it is secret. |
 | `GET /health` | Configuration summary without secrets. |
 
-All three webhooks validate `X-Twilio-Signature`. A media stream is accepted only
+Every webhook validates `X-Twilio-Signature`. A media stream is accepted only
 if it carries the one-time token that `/voice/incoming` put in the TwiML. Set
 `EVENTS_TOKEN` before exposing the tunnel to anyone: `/events` carries live transcripts.
-With `AUTH0_DOMAIN` set, `/events`, `/calls`, `/metrics/last` and the demo endpoints also
-accept an Auth0 access token, in the `Authorization` header only, from a signed-in person
-on the caregiver list (`auth.py`). The call path never asks Auth0 anything.
+With `AUTH0_DOMAIN` set, `/events`, `/calls`, `/metrics/last`, the demo endpoints and the
+text endpoints also accept an Auth0 access token, in the `Authorization` header only, from
+a signed-in person on the caregiver list (`auth.py`). The call path never asks Auth0
+anything. The `/gateway/` endpoints take the token from the header only, never from
+`?token=`: an address gets logged, and these carry a text's words.
+
+`/integrations/photon/…` is for the iMessage agent (`photon/`) on the same machine, and
+takes its own token, `PHOTON_BRIDGE_TOKEN`. On the Vultr server Caddy does not pass it
+through from outside.
 
 ### Events
 
@@ -204,136 +225,83 @@ Each event is JSON with `type`, `ts` (epoch seconds) and usually `call_sid`.
 | `sms_status` | `status`, `error_code` |
 | `stt_error` | `error` |
 | `call_ended` | `outcome` (`completed`, `warned`, `ended_by_shield`), `duration_s`, `evaluations` |
+| `message_scored` | A text that was only checked: `message_id`, `sender` (masked), `source` (`manual` for one pasted into the app, `twilio`), `risk`, `rule_risk`, `llm_risk`, `label`, `flags`, `explanation`. No `call_sid`. |
+| `gateway_message_updated` | A text under text protection changed: `message_id`, `sender` (masked), `status` (`pending`, `held`, `queued`, `sending`, `sent`, `delivered`, `delivery_failed`, `delivery_unknown`, `discarded`, `expired`), `risk`, `label`, `flags`, `hold_reason`, `expires_at`. No `call_sid`. |
+
+Neither text event ever carries a text's words or a link from it.
 
 ## Text messages
 
-### Protected SMS gateway with Photon caregiver agent
+Added on 2026-10-10, from Nabil's branch. Texts sent to the proxy number can be protected
+as calls are. It is off unless you switch it on, and it has two levels.
 
-Senders text `TWILIO_PROXY_NUMBER`, the same protected number used for calls.
-The signed Twilio webhook stores a pending encrypted record before acknowledging
-receipt; scoring then runs in the background. Scores below 30 queue an SMS to
-`SENIOR_PHONE`, sent **from the same Twilio number**. Scores of 30 or above,
-incomplete analysis, attachments (even with a benign caption), and texts that
-cannot fit with the footer are held for caregiver review in **Texts**.
+**Checking only.** Once the number's text webhook points at the server
+(`python tools/set_webhook.py --sms-only`, which leaves the voice webhook alone), a text
+sent to the proxy number is scored and nothing else is done with it: the text rules, plus
+a model if one is set, with a prompt of its own (`prompts/message-scorer-prompt.md`).
+The text is not stored, not answered and not sent on. The app lists what Palisade made of
+it under Texts. The caregiver can also paste any text into the app to have it checked.
 
-Forwarded SMS keeps the original text and appends a fixed footer:
+**Text protection** (`TEXT_GATEWAY_ENABLED=true`). The text is stored encrypted and scored.
+
+- Risk under 30: it waits to be forwarded to `SENIOR_PHONE` by SMS, from the proxy number.
+- Risk 30 or more, a check that could not finish, an attachment, or a text too long to
+  forward with its note: it is held. The caregiver releases or discards it in the app
+  within 24 hours. After that it is deleted without being sent.
+
+Nothing is forwarded until `TEXT_FORWARDING_ENABLED=true` as well; until then the approved
+texts wait. A forwarded text keeps its words and gets a fixed note under it:
 
 ```text
 Your appointment is tomorrow at 2 PM.
 
-— Shield screening —
+— Palisade screening —
 Original sender: +15555550999
 Passed automated screening: low scam risk detected.
 Sender identity has not been verified.
 Replies are not forwarded.
 ```
 
-Caregiver release replaces the low-risk sentence with **Released after caregiver
-review.** It never labels a high-risk released message as having passed screening.
-The senior needs no manual forwarding or new app. Messages from different original
-senders share one Shield thread; replies are ignored rather than routed to the
-wrong person. Texts addressed to the senior's personal number bypass Shield.
+A text the caregiver released says "Released after caregiver review." in place of the
+third line, so a risky text is never passed off as having passed.
 
-**Photon remains an iMessage agent.** Spectrum on Vultr sends body-free caregiver
-warnings and receives caregiver `HELP`, `STATUS`, and `WHY` commands. Release and
-discard happen in the authenticated app. A shared Photon line works: add the
-caregiver's actual iMessage phone/email as a Photon user, not the Twilio number.
-`PHOTON_LINE` is optional and only pins an explicitly provisioned dedicated line.
+How a text is scored: the rules always run, and the model can raise a text's risk but
+never lower it. When a model is set and does not answer, the text is held as "could not
+be checked", not waved through on the rules alone. `SCORER_MODEL=rules` checks with the
+rules only, on purpose. A link in a text is never opened.
 
-Enable `TEXT_GATEWAY_ENABLED` after configuring Twilio, distinct caregiver/bridge
-tokens, destination addresses, and a stable Fernet key. Set `TEXT_FORWARDING_ENABLED`
-only after staging; live SMS also needs `DRY_RUN_ACTIONS=false`. Both new gateway
-flags default false. The old `PHOTON_GATEWAY_ENABLED`, `PHOTON_FORWARDING_ENABLED`
-and `PHOTON_SENIOR_ADDRESS` settings no longer configure this architecture.
-See [Vultr deployment and live checks](deploy/README.md) and [Spectrum service](photon/README.md).
+What it does not do. A text sent straight to the protected person's own number never
+reaches Palisade. A reply to a forwarded text does not go back to its sender. Forwarded
+texts from different people arrive in one thread, from the proxy number, told apart by
+the note. Pictures and files are not checked: a text that has one is held and can only
+be discarded.
 
-Gateway text and original sender addresses are encrypted temporarily for review
-and delivery, then removed on successful send, discard or after 24 hours.
-Summaries/events contain no original text or links. `/gateway/messages/{id}` requires the
-caregiver bearer token to retrieve available private text. This temporary storage
-applies to the gateway; pasted checks still use the existing summary-only path.
-The app shows foreground banners and unread warnings; iMessage caregiver alerts
-provide coverage when the app is closed. Native app push is not included.
+The caregiver hears about a held text in two ways. The app shows it while it is open: a
+count on its Texts tab, a buzz, a row on Summary. And a small Node service, the iMessage
+agent in `photon/` (Photon's Spectrum SDK), sends the caregiver an iMessage and answers
+`HELP`, `STATUS` and `WHY`. That message is a fixed sentence that names the kind of
+warning, never the text's words. Releasing and discarding happen in the app only.
 
-The gateway endpoints are `GET /gateway/messages`, `GET /gateway/messages/{id}`,
-and `POST /gateway/messages/{id}/decision` (`release` or `discard`). The internal
-`/integrations/photon/` endpoints require the bridge token and stay behind the
-loopback interface/reverse-proxy restriction and can claim only caregiver alerts.
-Only the Python worker can claim approved SMS relay jobs. SQLite preserves review
-and delivery state across restarts; uncertain sends are never blindly repeated.
-`POST /gateway/sms/status/{job_id}/{attempt_id}` accepts signed Twilio delivery
-callbacks. **Sent** means accepted by Twilio; **Delivered** means a carrier delivery
-report, never confirmation that the senior read it. Later carrier rejection is
-shown as **Delivery failed**. Records from the old Photon gateway survive the
-schema upgrade but cannot be released over SMS.
+A wrong setting for text protection does not stop the server: it starts without text
+protection, logs why, and `/health` says so (`gateway.error`). Calls come first.
 
-### Text message scam checks
+To switch it on, and what to check before any text is forwarded, see
+[deploy/README.md](deploy/README.md). The settings are at the end of `.env.example`.
+To look at it with no phone, no Twilio and no model:
 
-Shield can check pasted text in the caregiver app and automatically analyze
-texts sent to the Twilio proxy number. **Texts** opens the protected inbox, checker
-and recent results. Rebuild the iPhone app and restart the backend after updating.
+```bash
+.venv/bin/python tools/demo_gateway.py     # a practice server on 127.0.0.1:8877 with two texts in it
+```
 
-With `TEXT_GATEWAY_ENABLED=false`, the existing analysis-only flow remains:
-SMS to Shield number → signed `POST /sms/incoming` webhook → SMS
-rules plus an optional SMS-specific LLM → `message_scored` event → app results.
-There is no speech-to-text step, call timer, automatic reply, or forwarding to the
-senior. The original text is not included in events or saved by Shield. Twilio and
-the configured LLM provider receive the text; their retention policies are separate.
-Results and masked sender numbers survive server restarts. This is an estimated
-risk score, not verification of a sender or website. Links are never fetched.
-
-Set up the existing SMS-capable Twilio number:
-
-1. Set `PUBLIC_HOST` to the tunnel hostname and `EVENTS_TOKEN` to a private token
-   in `.env`. Enter that token and server address in the app’s Settings.
-2. Restart the server between calls:
-   ```bash
-   .venv/bin/uvicorn main:app --port 8000 --timeout-graceful-shutdown 2
-   ```
-3. With the tunnel running, configure the incoming messaging webhook:
-   ```bash
-   .venv/bin/python tools/set_webhook.py --sms-only
-   ```
-   This updates the SMS webhook and preserves the existing voice webhook. In the
-   Twilio console the equivalent is the number’s Messaging → “A message comes in”
-   webhook: `https://PUBLIC_HOST/sms/incoming`, method **POST**. If the number belongs
-   to a Messaging Service, configure that service’s incoming webhook or choose
-   “Defer to sender’s webhook” so the number-level setting is used.
-4. Send a text from another phone to the Shield number and open **Text messages**
-   in the caregiver app. Try an ordinary appointment reminder, then a fake package
-   fee such as `USPS: your package is held. Pay the redelivery fee immediately at
-   https://parcel-fee.example/pay`. Do not use real payment details.
-
-Texts addressed to the senior’s **personal number** do not reach Twilio. They can
-be copied into the checker or manually forwarded to Shield (the forwarded sender
-will be the forwarding phone). Automatic personal-phone filtering on iOS requires
-an IdentityLookup Message Filter extension installed and enabled on the senior’s
-phone; that extension is not part of this version. Apple documents restrictions
-to SMS/MMS from unknown senders, excluding contacts and iMessage:
-https://developer.apple.com/documentation/identitylookup/sms-and-mms-message-filtering.
-Twilio incoming webhook details: https://www.twilio.com/docs/usage/webhooks/messaging-webhooks.
-
-API:
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /messages/analyze` | JSON `{"text":"...", "sender":"optional phone number"}`. Returns a result and records a summary. Uses `EVENTS_TOKEN`, like `/calls`. |
-| `GET /messages` | Latest 50 results, newest first; no original bodies or links. Uses `EVENTS_TOKEN`. |
-| `POST /sms/incoming` | Signed Twilio webhook. Checks the destination matches `TWILIO_PROXY_NUMBER`; returns empty TwiML without replying. |
-
-Rules run without API keys. An LLM uses the existing `SCORER_MODEL` setting and
-`prompts/message-scorer-prompt.md`, with a separate scorer from live calls.
-In analysis-only mode, MMS attachments are not analyzed: a text caption is marked `text_only`, and
-media-only messages are rejected. Recent webhook duplicates (within the retained
-50 results) are ignored, including after a restart. State remains in one process;
-keep the existing single-worker setup. SMS accuracy needs validation on a larger
-independent message dataset before using this to automatically filter messages.
+In the app's Settings, the address is `http://127.0.0.1:8877` and the access token
+`demo-caregiver`. Nothing is sent anywhere by it.
 
 ## iPhone app
 
 `ios/` holds the caregiver's app (SwiftUI): the call in progress, the "Palisade ended the
-call" screen, and recent calls. See [ios/README.md](ios/README.md) for how to run it
-and what it looks like. It needs Xcode to build.
+call" screen, recent calls, and the texts held for review. See
+[ios/README.md](ios/README.md) for how to run it and what it looks like. It needs Xcode
+to build.
 
 ### Demo calls
 
@@ -437,8 +405,17 @@ python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --sc
   flags and timings, never transcript text, model evidence or explanations.
 - Phone numbers are masked to the last four digits in every log line and event.
 - Caregiver texts and the spoken message are fixed templates filled from flag IDs. Nothing the
-  caller said and nothing the model wrote is ever sent or spoken.
-- The only numbers Palisade calls or texts are `SENIOR_PHONE` and `CAREGIVER_PHONE`.
+  caller said and nothing the model wrote is ever sent or spoken. The same goes for the
+  iMessage about a held text: a fixed sentence and the kinds of warning, never its words.
+- The only numbers Palisade calls or texts are `SENIOR_PHONE` and `CAREGIVER_PHONE`. The
+  iMessage agent writes only to `PHOTON_CAREGIVER_ADDRESS`, which is the caregiver too.
+  Nobody who texts the proxy number is ever texted back.
+- **Text protection stores what was written, which calls never do.** With it on, a text
+  and its sender's whole number are kept in `logs/gateway/queue.sqlite3`, encrypted with
+  `GATEWAY_ENCRYPTION_KEY`, until the text is forwarded, discarded or 24 hours old. After
+  that only the risk, the warning signs and the sender's last four digits remain. With
+  text protection off, a text is scored and not stored at all. Events and
+  `logs/events.jsonl` never carry a text's words in either case.
 
 ## Layout
 
@@ -450,13 +427,21 @@ events.py          event bus, JSONL log, phone masking
 transcript.py      in-memory transcript window
 config.py          settings from the environment
 stt/               streaming speech-to-text (Deepgram)
-scorer/            rules.py, llm.py (+ providers/), decision.py, pipeline.py
-prompts/           the LLM scorer prompt
+scorer/            rules.py, llm.py (+ providers/), decision.py, pipeline.py,
+                   messages.py (scores one text)
+prompts/           the LLM scorer prompt, and the one for texts
 eval/              eval scripts, run_eval.py, results/
 history.py         recent-call summaries for GET /calls
 demo.py            demo calls (DEMO_MODE)
-tools/             fake_call.py, watch.py, set_webhook.py, vultr_deploy.py
-deploy/            vultr-setup.sh, which sets Palisade up on the Vultr server
+auth.py            sign-in: checks a caregiver's Auth0 token
+messages.py        results of texts that were only checked, for GET /messages
+gateway.py         text protection: the encrypted queue, holding, release, the routes
+gateway_sms.py     forwards an approved text by SMS
+photon/            the caregiver's iMessage agent (Node, Photon's Spectrum SDK)
+tools/             fake_call.py, fake_text.py, watch.py, set_webhook.py, vultr_deploy.py,
+                   demo_gateway.py, test_ios_gateway.sh
+deploy/            vultr-setup.sh, which sets Palisade up on the Vultr server, and the
+                   steps for text protection there (README.md, shield-spectrum.service)
 ios/               the iPhone app
 tests/             pytest suite
 ```

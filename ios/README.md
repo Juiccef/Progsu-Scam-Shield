@@ -1,30 +1,15 @@
 # Palisade for iPhone
 
-The **Texts** tab now supports the Twilio protected-number gateway: held texts,
-private review, Release/Discard, delivery status, foreground banners, and unread
-warnings. Enter the Vultr HTTPS URL and caregiver access token in Settings.
-Closed-app warnings arrive through caregiver iMessage rather than native push.
-Twilio forwards approved texts to the senior's normal Messages app with the
-original sender and screening footer. Photon is the caregiver's iMessage agent;
-its shared line is sufficient. Replies to forwarded SMS are not relayed.
-See [deployment setup](../deploy/README.md) for service configuration and
-temporary encrypted text storage. The existing manual paste checker remains
-available beneath the protected inbox.
-
-The [October 10 text-feature review](../docs/text-feature-review.md) includes
-test results, remaining live acceptance checks, and simulator screenshots.
-Run the focused gateway state-store regressions with
-`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer bash tools/test_ios_gateway.sh`.
-These use the real Swift store/models and an in-memory transport; no texts are sent.
-
 The caregiver's app. It shows the call in progress (risk dial, warning signs, live
-transcript), takes over the screen when Palisade ends a scam call, and keeps a list of
-recent calls. It has three pages behind a tab bar: Summary, Calls and Scam Signs. The
-protected person needs no app at all.
+transcript), takes over the screen when Palisade ends a scam call, keeps a list of
+recent calls, and holds the texts Palisade stopped until the caregiver releases or
+discards them. It has five pages behind a tab bar: Summary, Notifications, Calls, Texts
+and Scam Signs. The protected person needs no app at all.
 
 It is a SwiftUI app for iOS 17 and later. It has one dependency, Auth0's library for
 signing in, which Xcode fetches by itself as a Swift package. It reads the Palisade
-server's `GET /events` feed and `GET /calls` list.
+server's `GET /events` feed, its `GET /calls` list and, for texts, `GET /messages` and
+`GET /gateway/messages`.
 
 ## Status
 
@@ -68,16 +53,20 @@ server's `GET /events` feed and `GET /calls` list.
   Auth0's answer, and the new screens were looked at in light, in dark and at a large
   text size. A token-only server was run through as before, with a demo call. **A whole
   sign-in has not been made yet**: the Auth0 account was not finished that day.
+- Texts, on 2026-10-10. Nabil built text protection on a branch from the app's first
+  commit (a Texts tab, a review screen, a paste checker, a banner). Merged into main, his
+  screens were rebuilt in the look the app has now, and two things were added at the
+  user's request: a Notifications page, and, in place of the banner, a count on the Texts
+  tab, a buzz, and a "Texts to Review" section on Summary. Checked in a simulator made
+  for the job, in light, in dark and at an accessibility text size, with sample data and
+  against a practice server fed made-up texts: a scam text arriving on Summary, released
+  and discarded from the app, a text arriving behind the call screen, a relaunch. **No
+  real text has gone through it**: that needs the server's text protection switched on
+  (`deploy/README.md`).
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
 - Not yet looked at: iPhones smaller than the 17e.
 
 ## Screens
-
-The **Texts** tab: paste a text to check it, or review results for
-texts received by the Shield Twilio number. The screen receives result updates
-through the existing event feed and refreshes from `GET /messages`. Message bodies
-are not kept in history. This version does not read the personal phone’s Messages
-inbox or install a Message Filter extension; see the backend README for SMS setup.
 
 From the iPhone 17e simulator, with sample data.
 
@@ -88,6 +77,15 @@ From the iPhone 17e simulator, with sample data.
 | Call in progress | Palisade ended the call | What happened |
 |---|---|---|
 | ![Call in progress](screens/live-call.png) | ![Palisade ended the call](screens/palisade-ended-the-call.png) | ![What happened](screens/what-happened.png) |
+
+| Texts | A held text | Notifications |
+|---|---|---|
+| ![Texts](screens/texts-inbox.png) | ![A held text](screens/text-review-held.png) | ![Notifications](screens/notifications.png) |
+
+More: Summary with texts to review ([screens/text-live-alert.png](screens/text-live-alert.png)),
+a text after it was released ([screens/text-review-queued.png](screens/text-review-queued.png)),
+and the call screen left alone while a scam text arrives behind it
+([screens/text-alert-active-call.png](screens/text-alert-active-call.png)).
 
 Dark mode: [screens/live-call-dark.png](screens/live-call-dark.png).
 
@@ -105,6 +103,30 @@ leads with the caller, written "Number ending 2233" (the server masks numbers to
 last four digits), says what came of the call under it, and ends with when it came in:
 the time if that was today, then "Yesterday", the day of the week, or the date. At
 large text sizes the day moves under the rest of the row.
+
+Texts starts with a card like Summary's: whose texts, how their protection stands in a
+word ("Protected", "Forwarding Paused", "Not Set Up"), and one line saying which number
+is protected. Under it, the texts waiting for a decision ("Needs Review"), the ones that
+have gone through ("Recent"), and the ones the caregiver pasted in to check ("Checked by
+You", from the button at the top of the page). A row is a call's row: the sender as
+"Number ending 0199", what came of the text, and when.
+
+A held text opens on a page of its own: what Palisade made of it, the sender's whole
+number, the text itself, the warning signs, the server's advice, and "Release to
+<name>" and "Discard" pinned at the bottom. Each asks once before it acts, because
+neither can be undone. A link in the text cannot be tapped. The text is fetched when its
+page opens and dropped when the page is left or the app goes behind another one, and it
+is gone from the server after 24 hours whatever happens. A text with an attachment can
+only be discarded.
+
+When Palisade holds a text while the app is open, the phone buzzes once, the Texts tab
+shows how many held texts have not been looked at, and Summary lists them under "Texts
+to Review". Nothing is drawn over the screen for it, and a call screen is left alone.
+
+Notifications is one list, newest first, of everything Palisade stepped into: a call it
+warned about or ended, a text it held, a text it could not get delivered. A row opens the
+call's summary or the text. It says what happened at the time ("Scam Text Held"),
+whatever was decided afterwards.
 
 Scam Signs says what Palisade does about a risky call and lists everything it listens
 for, in the order a scam call tends to go. The two risk numbers on that page are the
@@ -185,7 +207,10 @@ Every screen also has an Xcode preview with sample data (`Support/Previews.swift
 so the UI can be worked on with no server running. A debug build shows the same sample
 screens on a simulator or phone with the launch argument `-sample <name>`: `home`,
 `home-empty`, `home-offline`, `home-call`, `calls`, `signs`, `ringing`, `calm`,
-`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. Three more are a server
+`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. For texts: `texts`,
+`texts-paused`, `texts-empty`, `texts-off`, `text-held`, `text-released`,
+`text-delivered`, `notifications` and `home-texts`; a decision on a sample text changes
+it, so Release and Discard can be tried with no server. Three more are a server
 that asks for a sign-in: `home-signed-in`, `home-signed-out` and `home-refused`; open
 Settings on them to see the Account section. `-appearance light` or `-appearance dark`
 sets the appearance for that launch.
@@ -210,12 +235,15 @@ cannot receive push notifications, so keep it open during a demo.
 ```
 Shield/
   ShieldApp.swift            entry point
-  Model/                     ShieldEvent (feed), LiveCall (call state), CallSummary, Flag
+  Model/                     ShieldEvent (feed), LiveCall (call state), CallSummary, Flag,
+                             GatewayMessage (a text sent to the protected number),
+                             MessageSummary (a text that was only checked)
   Services/ShieldAPI.swift   HTTP + the event feed
-  Services/ShieldStore.swift app state: connection, sign-in, current call, history
+  Services/ShieldStore.swift app state: connection, sign-in, current call, history, texts
   Services/SignIn.swift      the caregiver's sign-in with Auth0, kept in the Keychain
   Views/                     RootView (pages under the call screen), MainTabs (tab bar),
-                             HomeView (Summary), CallsView, SignsView, CallDetailView,
+                             HomeView (Summary), NotificationsView, CallsView, TextsView,
+                             TextDetailView, CheckTextView, SignsView, CallDetailView,
                              LiveCallView, SettingsView, SignInButton, RiskDial, FlagViews,
                              TranscriptView
   Support/                   Theme, Platform (iOS/macOS differences), SampleData, Previews
@@ -228,6 +256,11 @@ the icon three times: as it is by default, with nothing behind the stakes for th
 Screen's dark look (the system draws the tile), and in gray for the tinted look (the
 system colors it). With only the first, iOS 27 leaves the icon a white tile in the
 dark, clear and tinted looks.
+
+`ios/Tests/ShieldStoreGatewayTests.swift` checks the store's handling of texts (the buzz
+for a text just held, the count, what a replayed event must not do) against a stand-in
+server, with the real store and models. `bash tools/test_ios_gateway.sh` runs it; it
+needs no simulator and sends nothing.
 
 `LiveCall.apply(_:)` is the one place where feed events become screen state. Demo
 calls say "Demo Call" everywhere and are left out of Summary's counts.

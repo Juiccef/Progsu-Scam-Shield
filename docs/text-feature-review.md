@@ -1,5 +1,15 @@
 # Text gateway merge review — October 10, 2026
 
+> **Written on the `Nabil-text` branch, before it was merged into main.** It is kept as
+> the record of that review, and reads as it did then, product name included. Since
+> (2026-10-10): the product is called Palisade; the screens described here were rebuilt in
+> main's look, which settled the two points under "Remaining feedback" (the setup card is
+> three lines now, and Discard is no longer tinted like Release) and they were checked in
+> dark and at a large text size; the banner gave way to a count on the Texts tab, a buzz
+> and a list on Summary; the pictures linked at the end were retaken from the app as it is
+> now; and "Vultr deployment" means [deploy/README.md](../deploy/README.md), for the server
+> main already runs on. The counts below are the branch's. `HANDOFF.md` has today's.
+
 Local validation passes. Merge with forwarding disabled; enable live senior
 forwarding only after the real Twilio/Photon exchange described below succeeds.
 All messages and phone numbers in the screenshots are fake demo fixtures.
