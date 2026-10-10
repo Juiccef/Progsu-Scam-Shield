@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "description": "Genuine calls that sound like scams: an authority, a deadline, a threat or money comes up, but nothing is asked that a real organization would not ask, and the caller invites the senior to check. The legit scripts in eval-scripts.json are all gentle, so a scorer that ends calls on authority plus pressure alone looks perfect there. These are what it would get wrong. Written on 2026-10-10 for comparing scorers; all organizations, names and amounts are fictional.",
+    "speakers": "caller = the person who phoned the senior; senior = the protected person",
+    "t": "approximate seconds from call start when the turn begins",
+    "trigger_turn": "null: none of these is a scam",
+    "label": "legit. Every script here should go through untouched: no WARN, no END."
+  },
+  "scripts": [
+    {
+      "id": "pushy_01_utility_disconnection",
+      "label": "legit",
+      "category": "utility_collections",
+      "trigger_turn": null,
+      "notes": "A real past-due notice with a disconnection date and a deadline, but payment goes through the company's own channels and the caller says to call the number on the bill.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi, this is Dana from Peach State Electric's customer accounts department, calling for Margaret Ellis about your account."},
+        {"t": 7, "speaker": "senior", "text": "This is Margaret."},
+        {"t": 9, "speaker": "caller", "text": "Your account is sixty days past due, two hundred eighteen dollars, and it is scheduled for disconnection this Thursday."},
+        {"t": 17, "speaker": "senior", "text": "Thursday? I didn't know it was that late."},
+        {"t": 21, "speaker": "caller", "text": "I understand. To keep the power on, the payment needs to post by Wednesday at five. You can pay in your online account, at a payment kiosk, or by calling the number printed on your bill."},
+        {"t": 33, "speaker": "senior", "text": "Can I call you back about it?"},
+        {"t": 36, "speaker": "caller", "text": "Absolutely. Call the number on your bill or on our website and they can set up an extension or a payment plan. I just don't want you to lose power."}
+      ]
+    },
+    {
+      "id": "pushy_02_bank_fraud_desk",
+      "label": "legit",
+      "category": "bank_fraud_desk",
+      "trigger_turn": null,
+      "notes": "A real fraud team: a hold on the card, charges to confirm, urgency. It asks only yes or no about the charges, says it will never ask for a PIN, password or code, and tells the senior to call the number on the card.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "This is the fraud prevention team at Riverside Credit Union. We've put a temporary hold on your debit card because of two charges we think may be fraud, and I need to go over them with you right away."},
+        {"t": 11, "speaker": "senior", "text": "Oh no. What charges?"},
+        {"t": 14, "speaker": "caller", "text": "Four hundred and twelve dollars at an electronics store in Ohio this morning, and ninety-nine dollars online. Did you make either of those?"},
+        {"t": 23, "speaker": "senior", "text": "No, I didn't make those."},
+        {"t": 26, "speaker": "caller", "text": "Okay. I'm cancelling that card now and a new one will arrive in five to seven business days. You won't be charged for either purchase."},
+        {"t": 34, "speaker": "caller", "text": "We will never ask you for your PIN, your online banking password or a code sent to your phone. If you want to be sure this is us, hang up and call the number on the back of your card."},
+        {"t": 45, "speaker": "senior", "text": "Thank you, I will."}
+      ]
+    },
+    {
+      "id": "pushy_03_medicare_plan_agent",
+      "label": "legit",
+      "category": "insurance_sales",
+      "trigger_turn": null,
+      "notes": "A pushy but lawful sales call about Medicare plans, with a real enrollment deadline. The agent asks for no numbers, offers to mail the details and points to the official site.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi, this is Tom, a licensed agent with Silver Path Insurance. You asked for information about Medicare Advantage plans. Do you have a few minutes?"},
+        {"t": 9, "speaker": "senior", "text": "I suppose so."},
+        {"t": 11, "speaker": "caller", "text": "Open enrollment closes December seventh, so you really don't want to wait on this. The plan I'd recommend has a zero dollar premium and it covers dental."},
+        {"t": 21, "speaker": "senior", "text": "I'd want to talk to my daughter first."},
+        {"t": 24, "speaker": "caller", "text": "That's a good idea. I'll mail you the plan summary today, and you can compare plans yourself on medicare dot gov. I won't ask for your Medicare number on this call."},
+        {"t": 35, "speaker": "senior", "text": "Okay, send it to me."}
+      ]
+    },
+    {
+      "id": "pushy_04_grandchild_car_repair",
+      "label": "legit",
+      "category": "family",
+      "trigger_turn": null,
+      "notes": "A real grandchild in a real bind asks for money the same day. No secrecy: she brings up her mother and suggests calling her, and offers paying the shop directly. The hardest case here, since family plus money plus urgency is the grandparent scam's shape.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi Grandpa, it's Emily. My car broke down on the way back to school."},
+        {"t": 5, "speaker": "senior", "text": "Oh no, are you all right, sweetheart?"},
+        {"t": 8, "speaker": "caller", "text": "I'm fine, I'm at a repair shop in Macon. It's going to be about three hundred dollars and I'm short this month. Mom said to ask you since she's at work."},
+        {"t": 19, "speaker": "senior", "text": "Of course. How do I send it?"},
+        {"t": 22, "speaker": "caller", "text": "You could pay the shop with your card, I'll text you their number, or send it on Venmo like you did at Christmas. And call Mom if you want, she knows all about it."},
+        {"t": 34, "speaker": "senior", "text": "I'll call your mother and then pay the shop."},
+        {"t": 38, "speaker": "caller", "text": "Thank you so much, Grandpa. Love you."}
+      ]
+    },
+    {
+      "id": "pushy_05_doctor_urgent_results",
+      "label": "legit",
+      "category": "medical_office",
+      "trigger_turn": null,
+      "notes": "A doctor's office with urgent test results: identity check by date of birth and strong urgency, but no money, no secrets, and the number on the appointment card to call back.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, this is Karen, a nurse at Dr. Alvarez's office, calling for Harold Brooks. Can you confirm your date of birth for me?"},
+        {"t": 8, "speaker": "senior", "text": "June ninth, nineteen forty-eight."},
+        {"t": 12, "speaker": "caller", "text": "Thank you. Your blood test came back and Dr. Alvarez wants to see you today. Please don't put this off. We have an opening at three this afternoon."},
+        {"t": 22, "speaker": "senior", "text": "Is something wrong?"},
+        {"t": 24, "speaker": "caller", "text": "Your potassium is high and she wants to recheck it right away. If you can't come at three, please go to urgent care tonight."},
+        {"t": 32, "speaker": "caller", "text": "If you have any questions, call the office back at the number on your appointment card."},
+        {"t": 38, "speaker": "senior", "text": "I'll be there at three."}
+      ]
+    }
+  ]
+}
