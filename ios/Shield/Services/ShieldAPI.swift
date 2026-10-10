@@ -15,12 +15,15 @@ enum SettingsKey {
 
 enum ShieldAPIError: LocalizedError {
     case unauthorized
+    /// The server knows who is signed in and does not let them watch calls. Its own sentence says why.
+    case refused(String)
     case server(Int)
     case notAShieldServer
 
     var errorDescription: String? {
         switch self {
         case .unauthorized: "The access token was not accepted."
+        case .refused(let reason): reason
         case .server(let status): "The server answered with error \(status)."
         case .notAShieldServer: "That address did not answer like a Palisade server."
         }
@@ -35,7 +38,7 @@ struct ShieldAPI: Equatable, Sendable {
     }
 
     let baseURL: URL
-    let token: String
+    private(set) var token: String
 
     /// Builds a client from what the caregiver typed. Accepts "palisade.ngrok-free.app" or a full URL.
     init?(address: String, token: String) {
@@ -56,10 +59,27 @@ struct ShieldAPI: Equatable, Sendable {
         )
     }
 
+    /// The same server, asked with another token: the one a signed-in caregiver gets from Auth0.
+    func with(token: String) -> ShieldAPI {
+        var copy = self
+        copy.token = token
+        return copy
+    }
+
     func health() async throws -> ServerHealth {
         let health: ServerHealth = try await get("health")
         guard health.ok else { throw ShieldAPIError.notAShieldServer }
         return health
+    }
+
+    /// Whether this server wants a sign-in, and with which Auth0 tenant. Throws only when the
+    /// server is out of reach: one from before sign-in has no such page, and asks for none.
+    func signInConfig() async throws -> SignInConfig {
+        do {
+            return try await get("auth/config")
+        } catch is ShieldAPIError {
+            return .off
+        }
     }
 
     func calls() async throws -> [CallSummary] {
@@ -75,8 +95,8 @@ struct ShieldAPI: Equatable, Sendable {
     func startDemoCall(scriptID: String) async throws {
         var request = request("demo/call", query: [URLQueryItem(name: "script", value: scriptID)])
         request.httpMethod = "POST"
-        let (_, response) = try await URLSession.shared.data(for: request)
-        try Self.check(response)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.check(response, body: data)
     }
 
     /// The live event feed. Starts with recent events, so a call already in progress can be rebuilt.
@@ -88,6 +108,12 @@ struct ShieldAPI: Equatable, Sendable {
             let task = Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    if (response as? HTTPURLResponse)?.statusCode == 403 {
+                        // A refusal carries the server's reason, in a line of JSON.
+                        var body = Data()
+                        for try await byte in bytes.prefix(2048) { body.append(byte) }
+                        try Self.check(response, body: body)
+                    }
                     try Self.check(response)
                     continuation.yield(.connected)
                     let decoder = JSONDecoder()
@@ -107,7 +133,7 @@ struct ShieldAPI: Equatable, Sendable {
 
     private func get<Value: Decodable>(_ path: String) async throws -> Value {
         let (data, response) = try await URLSession.shared.data(for: request(path))
-        try Self.check(response)
+        try Self.check(response, body: data)
         do {
             return try JSONDecoder().decode(Value.self, from: data)
         } catch {
@@ -126,9 +152,17 @@ struct ShieldAPI: Equatable, Sendable {
         return request
     }
 
-    private static func check(_ response: URLResponse) throws {
+    private static func check(_ response: URLResponse, body: Data? = nil) throws {
         guard let status = (response as? HTTPURLResponse)?.statusCode else { return }
         if status == 401 { throw ShieldAPIError.unauthorized }
+        if status == 403, let body, let refusal = try? JSONDecoder().decode(Refusal.self, from: body) {
+            throw ShieldAPIError.refused(refusal.detail.hasSuffix(".") ? refusal.detail : refusal.detail + ".")
+        }
         guard (200..<300).contains(status) else { throw ShieldAPIError.server(status) }
+    }
+
+    /// How the server words a refusal: `{"detail": "This account is not on the caregiver list"}`.
+    private struct Refusal: Decodable {
+        let detail: String
     }
 }

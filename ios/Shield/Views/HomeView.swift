@@ -92,17 +92,16 @@ private struct StatusCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
-            if needsSettings {
+            switch connection {
+            case .signedOut:
+                SignInButton(isOnCard: true)
+            case .notConfigured, .refused, .failed:
+                // Settings is also where someone the server turned down can sign out.
                 Button("Open Settings", action: openSettings)
                     .cardButton()
+            case .connecting, .connected:
+                EmptyView()
             }
-        }
-    }
-
-    private var needsSettings: Bool {
-        switch connection {
-        case .notConfigured, .failed: true
-        case .connecting, .connected: false
         }
     }
 
@@ -110,7 +109,7 @@ private struct StatusCard: View {
         switch connection {
         case .connected: "checkmark.shield.fill"
         case .connecting: "shield.lefthalf.filled"
-        case .notConfigured, .failed: "exclamationmark.shield.fill"
+        case .notConfigured, .signedOut, .refused, .failed: "exclamationmark.shield.fill"
         }
     }
 
@@ -118,7 +117,7 @@ private struct StatusCard: View {
         switch connection {
         case .connected: Theme.safe
         case .connecting: Theme.watchful
-        case .notConfigured, .failed: Theme.caution
+        case .notConfigured, .signedOut, .refused, .failed: Theme.caution
         }
     }
 
@@ -126,6 +125,8 @@ private struct StatusCard: View {
         switch connection {
         case .connected: "Protected"
         case .connecting: "Connecting"
+        case .signedOut: "Not Signed In"
+        case .refused: "No Access"
         case .notConfigured, .failed: "Not Connected"
         }
     }
@@ -138,6 +139,10 @@ private struct StatusCard: View {
             "Reaching your Palisade server."
         case .notConfigured:
             "Add your Palisade server’s address in Settings."
+        case .signedOut:
+            "Sign in to see calls to this phone."
+        case .refused(let reason):
+            reason
         case .failed(let reason):
             "\(reason) Check the address in Settings."
         }

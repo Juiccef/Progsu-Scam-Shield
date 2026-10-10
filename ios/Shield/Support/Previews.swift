@@ -18,6 +18,16 @@ import SwiftUI
         .environment(ShieldStore.preview(connection: .failed("Can’t reach the Palisade server.")))
 }
 
+#Preview("Summary, not signed in") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "home-signed-out") ?? .preview())
+}
+
+#Preview("Settings, signed in") {
+    SettingsView()
+        .environment(ShieldStore.sample(named: "home-signed-in") ?? .preview())
+}
+
 #Preview("Calls") {
     MainTabs()
         .environment(ShieldStore.sample(named: "calls") ?? .preview())

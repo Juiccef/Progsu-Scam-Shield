@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5A0000000000000000000022 /* Auth0 in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0000000000000000000021 /* Auth0 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5A0000000000000000000001 /* Shield.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Shield.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A0000000000000000000002 /* Shield-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Shield-Info.plist"; sourceTree = "<group>"; };
@@ -24,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A0000000000000000000022 /* Auth0 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +72,7 @@
 			);
 			name = Shield;
 			packageProductDependencies = (
+				5A0000000000000000000021 /* Auth0 */,
 			);
 			productName = Shield;
 			productReference = 5A0000000000000000000001 /* Shield.app */;
@@ -96,6 +102,9 @@
 			);
 			mainGroup = 5A0000000000000000000005;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A0000000000000000000020 /* XCRemoteSwiftPackageReference "Auth0.swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A0000000000000000000006 /* Products */;
 			projectDirPath = "";
@@ -247,6 +256,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A0000000000000000000020 /* XCRemoteSwiftPackageReference "Auth0.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/Auth0.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A0000000000000000000021 /* Auth0 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0000000000000000000020 /* XCRemoteSwiftPackageReference "Auth0.swift" */;
+			productName = Auth0;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A000000000000000000000A /* Project object */;
 }

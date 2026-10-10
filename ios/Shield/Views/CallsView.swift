@@ -37,6 +37,20 @@ struct CallsView: View {
                             description: Text("Calls show up here once Palisade reaches its server.")
                         )
                         .listRowBackground(Color.clear)
+                    case .signedOut:
+                        ContentUnavailableView(
+                            "Not Signed In",
+                            systemImage: "exclamationmark.shield",
+                            description: Text("Calls show up here once you sign in.")
+                        )
+                        .listRowBackground(Color.clear)
+                    case .refused:
+                        ContentUnavailableView(
+                            "No Access",
+                            systemImage: "exclamationmark.shield",
+                            description: Text("Calls show up here once your Palisade server lets this account in.")
+                        )
+                        .listRowBackground(Color.clear)
                     case .connecting:
                         // Not known to be empty yet: say nothing for the moment it takes.
                         EmptyView()

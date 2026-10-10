@@ -22,10 +22,20 @@ final class ShieldStore {
         case notConfigured
         case connecting
         case connected
+        /// The server asks each caregiver to sign in, and nobody is signed in on this phone.
+        case signedOut
+        /// The server turned down whoever is signed in. Why, in a sentence.
+        case refused(String)
         case failed(String)
     }
 
     private(set) var connection: Connection = .connecting
+    /// True when the server asks each caregiver to sign in, in place of the Access Token in Settings.
+    private(set) var offersSignIn = false
+    /// Who is signed in on this phone: their email. Nil when nobody is.
+    private(set) var account: String?
+    /// True while a sign-in or a sign-out is under way, so that neither is started twice.
+    private(set) var isSigningInOrOut = false
     /// The call in progress, or the one that just ended.
     private(set) var call: LiveCall?
     /// The call shown full screen. Set when a call starts; cleared when the caregiver closes it.
@@ -53,7 +63,10 @@ final class ShieldStore {
         set { if !newValue { demoError = nil } }
     }
 
+    /// The server as Settings describes it: its address, and the Access Token if one was typed.
     @ObservationIgnored private var api: ShieldAPI?
+    /// The caregiver's sign-in, when the server asks for one.
+    @ObservationIgnored private var session: SignIn?
     /// False for a store of fixed sample data, which must never be replaced by a live feed.
     @ObservationIgnored private var followsSettings = true
     @ObservationIgnored private var feedTask: Task<Void, Never>?
@@ -71,9 +84,12 @@ final class ShieldStore {
         latestAction = nil
         guard let api = ShieldAPI.fromSettings else {
             self.api = nil
+            forgetSignIn()
             connection = .notConfigured
             return
         }
+        // Another server: what the last one said about signing in no longer holds.
+        if api.baseURL != self.api?.baseURL { forgetSignIn() }
         self.api = api
         connection = .connecting
         feedTask = Task { await self.follow(api) }
@@ -85,8 +101,34 @@ final class ShieldStore {
     }
 
     func refresh() async {
-        guard let api else { return }
+        guard let api = await currentAPI() else { return }
         await loadServerInfo(api)
+    }
+
+    /// Opens Auth0's sign-in page and, once someone has signed in, connects as them. Answers
+    /// what went wrong, in a sentence. Nil when it worked, or when they closed the page themselves.
+    func signIn() async -> String? {
+        guard let session, !isSigningInOrOut else { return nil }
+        isSigningInOrOut = true
+        defer { isSigningInOrOut = false }
+        do {
+            try await session.signIn()
+        } catch is CancellationError {
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+        connect()
+        return nil
+    }
+
+    /// Signs the caregiver out of this phone, which stops showing calls at once.
+    func signOut() async {
+        guard let session, !isSigningInOrOut else { return }
+        isSigningInOrOut = true
+        defer { isSigningInOrOut = false }
+        await session.signOut()
+        connect()
     }
 
     func showCall() {
@@ -99,8 +141,8 @@ final class ShieldStore {
 
     /// Leaves the call screen and opens the summary of that call, on the Calls page.
     func showSummary(of callID: String) async {
-        if let api, !history.contains(where: { $0.id == callID }) {
-            await loadHistory(api)
+        if !history.contains(where: { $0.id == callID }) {
+            await reloadHistory()
         }
         presentedCall = nil
         if let summary = history.first(where: { $0.id == callID }) {
@@ -110,7 +152,7 @@ final class ShieldStore {
     }
 
     func startDemoCall(_ script: DemoScript) async {
-        guard let api else { return }
+        guard let api = await currentAPI() else { return }
         do {
             try await api.startDemoCall(scriptID: script.id)
             demoError = nil
@@ -121,11 +163,19 @@ final class ShieldStore {
 
     // MARK: - Feed
 
-    private func follow(_ api: ShieldAPI) async {
+    private func follow(_ server: ShieldAPI) async {
         var retryDelay = 1.0
         while !Task.isCancelled {
-            await loadServerInfo(api)
             do {
+                // Asked on every attempt: the server may have had sign-in switched on or off
+                // since the last one.
+                try await askAboutSignIn(server)
+                guard let api = try await authorized(server) else {
+                    // Signing in connects again, so there is nothing to keep trying here.
+                    lockOut(.signedOut)
+                    return
+                }
+                await loadServerInfo(api)
                 var connectedAt = Date.now
                 for try await item in api.events() {
                     switch item {
@@ -142,11 +192,68 @@ final class ShieldStore {
                 connection = .connecting  // the server closed the feed; reconnect
             } catch {
                 if Task.isCancelled { return }
-                connection = .failed(Self.describe(error))
+                switch error {
+                case ShieldAPIError.refused(let reason):
+                    lockOut(.refused(reason))
+                case ShieldAPIError.unauthorized where session != nil:
+                    // A token Auth0 had just handed over: the server and Auth0 are set up differently.
+                    lockOut(.refused("The server did not accept this sign-in."))
+                default:
+                    connection = .failed(Self.describe(error))
+                }
             }
+            // A refusal is tried again too: being put on the server's list is what ends it.
             try? await Task.sleep(for: .seconds(retryDelay))
             retryDelay = min(retryDelay * 2, 8)
         }
+    }
+
+    // MARK: - Sign-in
+
+    /// Asks the server whether it wants a sign-in, and with which Auth0 tenant.
+    private func askAboutSignIn(_ server: ShieldAPI) async throws {
+        let config = try await server.signInConfig()
+        try Task.checkCancellation()
+        // The same `SignIn` for as long as the answer is the same (see `SignIn`).
+        if session?.config != config { session = SignIn(config) }
+        offersSignIn = session != nil
+        account = session?.account
+    }
+
+    /// The server, asked as someone it lets in: the signed-in caregiver where it wants a
+    /// sign-in, whoever holds the Access Token from Settings where it does not. Nil when it
+    /// wants a sign-in and nobody is signed in.
+    private func authorized(_ server: ShieldAPI) async throws -> ShieldAPI? {
+        guard let session else { return server }
+        let token = try await session.accessToken()
+        try Task.checkCancellation()
+        guard let token else {
+            account = nil  // a sign-in that has run out is over
+            return nil
+        }
+        return server.with(token: token)
+    }
+
+    /// The server to ask right now, with a token that has not run out. Nil when there is no
+    /// server, or it wants a sign-in and nobody is signed in.
+    private func currentAPI() async -> ShieldAPI? {
+        guard let api else { return nil }
+        return try? await authorized(api)
+    }
+
+    /// Nobody on this phone may watch calls: put away what the last person to watch could see.
+    private func lockOut(_ state: Connection) {
+        connection = state
+        call = nil
+        presentedCall = nil
+        history = []
+        demoScripts = []
+    }
+
+    private func forgetSignIn() {
+        session = nil
+        offersSignIn = false
+        account = nil
     }
 
     private func handle(_ event: ShieldEvent, isFresh: Bool) {
@@ -171,8 +278,8 @@ final class ShieldStore {
             // had put the call screen away.
             if presentedCall == nil { presentedCall = call }
         }
-        if event.type == "call_ended", isFresh, let api {
-            Task { await self.loadHistory(api) }
+        if event.type == "call_ended", isFresh {
+            Task { await self.reloadHistory() }
         }
     }
 
@@ -205,6 +312,10 @@ final class ShieldStore {
         if let calls = try? await api.calls() {
             history = calls
         }
+    }
+
+    private func reloadHistory() async {
+        if let api = await currentAPI() { await loadHistory(api) }
     }
 
     private static func stats(for calls: [CallSummary]) -> CallStats {
@@ -240,11 +351,15 @@ extension ShieldStore {
         isShowingCall: Bool = false,
         history: [CallSummary] = [],
         demoScripts: [DemoScript] = [],
-        isPracticeMode: Bool = false
+        isPracticeMode: Bool = false,
+        offersSignIn: Bool = false,
+        account: String? = nil
     ) -> ShieldStore {
         let store = ShieldStore()
         store.followsSettings = false
         store.connection = connection
+        store.offersSignIn = offersSignIn
+        store.account = account
         store.isPracticeMode = isPracticeMode
         store.call = call
         store.presentedCall = isShowingCall ? call : nil

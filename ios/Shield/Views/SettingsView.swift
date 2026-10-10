@@ -17,14 +17,40 @@ struct SettingsView: View {
                         TextField("Address", text: $serverURL, prompt: Text("palisade.example.com"))
                             .literalEntry()
                     }
-                    NamedField(name: "Access Token") {
-                        SecureField("Access Token", text: $accessToken, prompt: Text("Only if your server has one"))
+                    // A server that asks each caregiver to sign in has no use for a shared token.
+                    if !store.offersSignIn {
+                        NamedField(name: "Access Token") {
+                            SecureField("Access Token", text: $accessToken, prompt: Text("Only if your server has one"))
+                        }
                     }
                     ConnectionRow(connection: store.connection)
                 } header: {
                     Text("Palisade Server")
                 } footer: {
                     Text("The address of your Palisade server, for example the ngrok address it is running behind.")
+                }
+
+                if store.offersSignIn {
+                    Section {
+                        if let account = store.account {
+                            // An email address broken over two lines gets a hyphen it does not
+                            // have: keep it on one, smaller before it is cut short.
+                            Text(account)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                                .truncationMode(.middle)
+                            Button("Sign Out") {
+                                Task { await store.signOut() }
+                            }
+                            .disabled(store.isSigningInOrOut)
+                        } else {
+                            SignInButton()
+                        }
+                    } header: {
+                        Text("Account")
+                    } footer: {
+                        Text("Your Palisade server shows calls only to the people on its caregiver list.")
+                    }
                 }
 
                 Section {
@@ -124,7 +150,7 @@ private struct ConnectionRow: View {
         switch connection {
         case .connected: Theme.safe
         case .connecting: Theme.watchful
-        case .notConfigured, .failed: Theme.caution
+        case .notConfigured, .signedOut, .refused, .failed: Theme.caution
         }
     }
 
@@ -133,6 +159,8 @@ private struct ConnectionRow: View {
         case .connected: "Connected"
         case .connecting: "Connecting"
         case .notConfigured: "No Address"
+        case .signedOut: "Not Signed In"
+        case .refused: "No Access"
         case .failed: "Can’t Connect"
         }
     }

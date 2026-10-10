@@ -158,6 +158,16 @@ extension ShieldStore {
         case "home": return preview(history: CallSummary.samples)
         case "home-empty": return preview()
         case "home-offline": return preview(connection: .failed("Can’t reach the Palisade server."))
+        // A server that asks each caregiver to sign in. Settings shows the account on these three.
+        case "home-signed-in":
+            return preview(history: CallSummary.samples, offersSignIn: true, account: "daughter@example.com")
+        case "home-signed-out": return preview(connection: .signedOut, offersSignIn: true)
+        case "home-refused":
+            return preview(
+                connection: .refused("This account is not on the caregiver list."),
+                offersSignIn: true,
+                account: "neighbor@example.com"
+            )
         case "home-call": return preview(call: .suspicious, history: CallSummary.samples)
         case "ringing": return preview(call: .ringing, isShowingCall: true)
         case "calm": return preview(call: .calm, isShowingCall: true)
