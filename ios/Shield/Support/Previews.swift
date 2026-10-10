@@ -23,6 +23,11 @@ import SwiftUI
         .environment(ShieldStore.sample(named: "calls") ?? .preview())
 }
 
+#Preview("Scam Signs") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "signs") ?? .preview())
+}
+
 #Preview("Call, ringing") {
     let call = LiveCall.ringing
     LiveCallView(call: call)

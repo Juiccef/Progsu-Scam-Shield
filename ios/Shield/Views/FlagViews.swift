@@ -1,13 +1,23 @@
 import SwiftUI
 
-/// A warning sign with its explanation, for the summary of a call.
+/// A warning sign with its explanation, for the summary of a call and the list of all signs.
 struct FlagRow: View {
     let flag: Flag
 
     var body: some View {
+        DetailRow(title: flag.title, detail: flag.detail)
+    }
+}
+
+/// A list row that names a thing and explains it in a line or two underneath.
+struct DetailRow: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(flag.title)
-            Text(flag.detail)
+            Text(title)
+            Text(detail)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

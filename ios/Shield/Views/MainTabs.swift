@@ -15,6 +15,9 @@ struct MainTabs: View {
                 Tab(AppTab.calls.title, systemImage: AppTab.calls.symbol, value: AppTab.calls) {
                     CallsPage()
                 }
+                Tab(AppTab.signs.title, systemImage: AppTab.signs.symbol, value: AppTab.signs) {
+                    SignsPage()
+                }
             }
         } else {
             TabView(selection: $store.tab) {
@@ -24,6 +27,9 @@ struct MainTabs: View {
                 CallsPage()
                     .tabItem { Label(AppTab.calls.title, systemImage: AppTab.calls.symbol) }
                     .tag(AppTab.calls)
+                SignsPage()
+                    .tabItem { Label(AppTab.signs.title, systemImage: AppTab.signs.symbol) }
+                    .tag(AppTab.signs)
             }
         }
     }
@@ -34,6 +40,7 @@ extension AppTab {
         switch self {
         case .home: "Summary"
         case .calls: "Calls"
+        case .signs: "Scam Signs"
         }
     }
 
@@ -42,6 +49,7 @@ extension AppTab {
         switch self {
         case .home: "checkmark.shield"
         case .calls: "phone"
+        case .signs: "eye"
         }
     }
 }
@@ -73,6 +81,14 @@ private struct CallsPage: View {
                 .navigationDestination(for: CallSummary.self) { call in
                     CallDetailView(call: call)
                 }
+        }
+    }
+}
+
+private struct SignsPage: View {
+    var body: some View {
+        NavigationStack {
+            SignsView()
         }
     }
 }

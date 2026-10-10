@@ -15,6 +15,31 @@ struct Flag: Identifiable, Hashable, Sendable {
         "AUTHORITY_IMPERSONATION",
     ]
 
+    /// Some of the signs under one heading, for the page that lists them all.
+    struct Group: Identifiable {
+        let title: String
+        let flags: [Flag]
+
+        var id: String { title }
+    }
+
+    /// Every sign Shield listens for, in the order a scam call tends to go: who the caller
+    /// says they are, how they push, and what they are after.
+    static let groups = [
+        Group(title: "Who They Claim to Be", flags: ["AUTHORITY_IMPERSONATION", "FAMILY_EMERGENCY"].map(Flag.init(id:))),
+        Group(
+            title: "How They Pressure",
+            flags: ["THREAT", "URGENCY_PRESSURE", "STAY_ON_LINE", "SECRECY", "VERIFICATION_AVOIDANCE"].map(Flag.init(id:))
+        ),
+        Group(
+            title: "What They Ask For",
+            flags: [
+                "UNUSUAL_PAYMENT", "SAFE_ACCOUNT_TRANSFER", "PRIZE_OR_REFUND", "REMOTE_ACCESS", "OTP_REQUEST",
+                "CREDENTIAL_REQUEST",
+            ].map(Flag.init(id:))
+        ),
+    ]
+
     private struct Entry {
         let title: String
         let detail: String

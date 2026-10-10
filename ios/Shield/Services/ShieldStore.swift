@@ -11,6 +11,7 @@ struct CallStats: Equatable {
 enum AppTab: Hashable {
     case home
     case calls
+    case signs
 }
 
 /// The app's state: the connection to the Shield server, the call in progress, and recent calls.
@@ -44,6 +45,8 @@ final class ShieldStore {
     private(set) var demoScripts: [DemoScript] = []
     private(set) var warnThreshold = 60
     private(set) var endThreshold = 85
+    /// True when the server only shows what it would do and leaves real calls alone.
+    private(set) var isPracticeMode = false
     private(set) var demoError: String?
     var isShowingDemoError: Bool {
         get { demoError != nil }
@@ -192,6 +195,7 @@ final class ShieldStore {
         if let health = try? await api.health() {
             warnThreshold = health.warnThreshold ?? warnThreshold
             endThreshold = health.endThreshold ?? endThreshold
+            isPracticeMode = health.actions == "dry_run"
         }
         demoScripts = (try? await api.demoScripts()) ?? []
         await loadHistory(api)
@@ -235,11 +239,13 @@ extension ShieldStore {
         call: LiveCall? = nil,
         isShowingCall: Bool = false,
         history: [CallSummary] = [],
-        demoScripts: [DemoScript] = []
+        demoScripts: [DemoScript] = [],
+        isPracticeMode: Bool = false
     ) -> ShieldStore {
         let store = ShieldStore()
         store.followsSettings = false
         store.connection = connection
+        store.isPracticeMode = isPracticeMode
         store.call = call
         store.presentedCall = isShowingCall ? call : nil
         store.history = history

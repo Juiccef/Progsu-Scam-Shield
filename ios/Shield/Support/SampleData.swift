@@ -169,6 +169,10 @@ extension ShieldStore {
             let store = preview(history: CallSummary.samples)
             store.tab = .calls
             return store
+        case "signs":
+            let store = preview(history: CallSummary.samples)
+            store.tab = .signs
+            return store
         case "detail":
             let store = preview(history: CallSummary.samples)
             store.tab = .calls
