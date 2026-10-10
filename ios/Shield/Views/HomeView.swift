@@ -172,18 +172,22 @@ private struct ActiveCallCard: View {
             )
             Text(call.isDemo ? "On a Demo Call" : "On a Call")
                 .font(.title2.weight(.bold))
-            Text(call.hasSpeech ? level.title : call.phase == .ringing ? "Ringing" : "Listening")
+            Text(call.statusTitle(warnAt: store.warnThreshold, endAt: store.endThreshold))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Button {
-                store.showCall()
-            } label: {
-                Text("Open the Call")
-                    .frame(maxWidth: .infinity)
+            // Where the system has a bar above the tab bar, that bar is the way back to the
+            // call, on every page. A second button here would say the same thing twice.
+            if !TabBarAccessory.isAvailable {
+                Button {
+                    store.showCall()
+                } label: {
+                    Text("Open the Call")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 8)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.top, 8)
         }
         .animation(Motion.change, value: level)
     }

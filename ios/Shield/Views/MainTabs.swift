@@ -4,8 +4,20 @@ import SwiftUI
 /// glass one; nothing here draws it.
 struct MainTabs: View {
     @Environment(ShieldStore.self) private var store
+    @AppStorage(SettingsKey.seniorName) private var seniorName = SettingsKey.defaultSeniorName
 
     var body: some View {
+        // A call whose screen was put away stays one tap off, whichever page is showing.
+        let hiddenCall = store.presentedCall == nil ? store.call.flatMap { $0.hasEnded ? nil : $0 } : nil
+        tabs
+            .tabBarAccessory(isShown: hiddenCall != nil) {
+                if let hiddenCall {
+                    LiveCallBar(call: hiddenCall, seniorName: seniorName)
+                }
+            }
+    }
+
+    @ViewBuilder private var tabs: some View {
         @Bindable var store = store
         if #available(iOS 18, macOS 15, *) {
             TabView(selection: $store.tab) {
@@ -90,5 +102,56 @@ private struct SignsPage: View {
         NavigationStack {
             SignsView()
         }
+    }
+}
+
+/// The way back to a call whose screen was put away: who is being called and how it is going.
+private struct LiveCallBar: View {
+    let call: LiveCall
+    let seniorName: String
+
+    @Environment(ShieldStore.self) private var store
+
+    var body: some View {
+        let status = call.statusTitle(warnAt: store.warnThreshold, endAt: store.endThreshold)
+        Button {
+            store.showCall()
+        } label: {
+            HStack(spacing: 8) {
+                // The same red dot as "Live" in the call screen's header.
+                Circle()
+                    .fill(Theme.danger)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                // Who is being called always fits. How it is going is dropped when it does not
+                // (large text): the call screen says it, one tap away.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        title
+                        Text(status)
+                            .foregroundStyle(.secondary)
+                    }
+                    title
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.up")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline)
+            .lineLimit(1)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Call to \(seniorName), \(status)")
+        .accessibilityHint("Opens the call")
+    }
+
+    private var title: some View {
+        Text("Call to \(seniorName)")
+            .fontWeight(.semibold)
     }
 }

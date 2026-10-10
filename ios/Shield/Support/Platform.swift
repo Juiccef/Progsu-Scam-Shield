@@ -22,7 +22,33 @@ extension Color {
 }
 #endif
 
+/// The bar the system floats just above the tab bar, on every page, the way Music keeps its
+/// player there. It exists on iPhone from iOS 26.1.
+enum TabBarAccessory {
+    static var isAvailable: Bool {
+        #if os(iOS)
+        if #available(iOS 26.1, *) { return true }
+        #endif
+        return false
+    }
+}
+
 extension View {
+    /// Puts `content` in the tab bar's accessory while `isShown`. Does nothing where there is
+    /// no such bar (see `TabBarAccessory.isAvailable`).
+    @ViewBuilder
+    func tabBarAccessory(isShown: Bool, @ViewBuilder content: () -> some View) -> some View {
+        #if os(iOS)
+        if #available(iOS 26.1, *) {
+            tabViewBottomAccessory(isEnabled: isShown, content: content)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+
     /// The grouped list that Settings and Health are made of. The Mac has no such style.
     func groupedListStyle() -> some View {
         #if os(iOS)

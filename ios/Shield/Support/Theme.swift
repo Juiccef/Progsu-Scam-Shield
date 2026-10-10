@@ -106,6 +106,15 @@ enum RiskLevel: Equatable {
     }
 }
 
+extension LiveCall {
+    /// How the call is going, in a word or two: "Ringing" or "Listening" until the first words
+    /// are in, since there is nothing to judge before that, then how it looks.
+    func statusTitle(warnAt: Int, endAt: Int) -> String {
+        if hasSpeech { return RiskLevel(risk: risk, warnAt: warnAt, endAt: endAt).title }
+        return phase == .ringing ? "Ringing" : "Listening"
+    }
+}
+
 /// A rounded panel on the canvas, for the call screen. Lists draw their own.
 struct Card<Content: View>: View {
     @ViewBuilder let content: Content
