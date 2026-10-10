@@ -1,13 +1,16 @@
+# The caregiver's iMessage agent (photon/). deploy/README.md says how to install it on the
+# Vultr server, beside the "shield" service that tools/vultr_deploy.py sets up.
 [Unit]
-Description=Shield Photon Spectrum caregiver agent
-After=network-online.target shield-backend.service
-Wants=network-online.target shield-backend.service
+Description=Palisade caregiver iMessage agent (Photon Spectrum)
+After=network-online.target shield.service
+Wants=network-online.target shield.service
 
 [Service]
 Type=simple
 User=shield
 Group=shield
 WorkingDirectory=/opt/shield/photon
+# Only the settings the agent needs, not the server's whole .env with its Twilio and model keys.
 EnvironmentFile=/etc/shield/photon.env
 ExecStart=/usr/bin/node /opt/shield/photon/dist/index.js
 Restart=on-failure

@@ -249,3 +249,65 @@ def test_a_refused_key_says_which_step_is_missing(message, advice):
         deploy.find_server(api)
     text = str(refused.value)
     assert f"HTTP 401: {message}\n" in text and advice in text and "My Org, Manage Organization" in text
+
+
+def test_status_says_how_text_protection_stands():
+    health = {"scorer_model": "claude-haiku-4-5", "actions": "live", "active_calls": 0}
+    assert "texts: off |" in deploy.describe(health)  # a server from before text protection says nothing of it
+    assert "texts: off |" in deploy.describe({**health, "gateway": {"enabled": False}})
+    paused = {"enabled": True, "forwarding_enabled": False}
+    assert "texts: on, forwarding paused |" in deploy.describe({**health, "gateway": paused})
+    assert "texts: on |" in deploy.describe({**health, "gateway": {"enabled": True, "forwarding_enabled": True}})
+    wrong = {"enabled": False, "error": "GATEWAY_ENCRYPTION_KEY must be a Fernet key"}
+    assert "texts: OFF, a setting is wrong (GATEWAY_ENCRYPTION_KEY must be a Fernet key)" in deploy.describe(
+        {**health, "gateway": wrong}
+    )
+
+
+# --- the setup script's Caddy step -----------------------------------------------
+
+
+def caddy_step(tmp_path, *, running: str, caddy_accepts: bool):
+    """Runs the part of deploy/vultr-setup.sh that writes the Caddyfile, with /etc/caddy in a
+    temporary folder and a stand-in `caddy` that accepts the new file or does not."""
+    script = (deploy.ROOT / "deploy" / "vultr-setup.sh").read_text()
+    start, end = script.index('echo "== HTTPS for $HOST"'), script.index("# Vultr's Ubuntu images come with ufw")
+    etc, stubs = tmp_path / "etc-caddy", tmp_path / "bin"
+    etc.mkdir()
+    stubs.mkdir()
+    if running:
+        (etc / "Caddyfile").write_text(running)
+    stand_in = stubs / "caddy"
+    stand_in.write_text(f"#!/bin/sh\necho 'adapting config: stand-in says no' >&2\nexit {0 if caddy_accepts else 1}\n")
+    stand_in.chmod(0o755)
+    step = "set -euo pipefail\nHOST=palisade.example.test\n" + script[start:end].replace("/etc/caddy", str(etc))
+    result = subprocess.run(
+        ["bash", "-c", step], capture_output=True, text=True, env={"PATH": f"{stubs}:/usr/bin:/bin"}, check=True
+    )
+    return etc, result
+
+
+IN_USE = "old.example.test {\n\treverse_proxy 127.0.0.1:8000\n}\n"
+
+
+def test_setup_closes_the_internal_pages_to_the_outside(tmp_path):
+    etc, _ = caddy_step(tmp_path, running=IN_USE, caddy_accepts=True)
+    caddyfile = (etc / "Caddyfile").read_text()
+    assert caddyfile.startswith("palisade.example.test {")
+    assert "@internal path /integrations/*\n\trespond @internal 404\n\treverse_proxy 127.0.0.1:8000" in caddyfile
+    assert not (etc / "Caddyfile.new").exists()
+
+
+def test_setup_keeps_the_caddyfile_in_use_when_caddy_refuses_the_new_one(tmp_path):
+    """The server may be taking calls: HTTPS must not go down for a file Caddy cannot load."""
+    etc, result = caddy_step(tmp_path, running=IN_USE, caddy_accepts=False)
+    assert (etc / "Caddyfile").read_text() == IN_USE
+    assert not (etc / "Caddyfile.new").exists()
+    assert "the one in use stays" in result.stderr and "stand-in says no" in result.stderr
+
+
+@pytest.mark.parametrize("packaged", ["", ":80 {\n\troot * /usr/share/caddy\n\tfile_server\n}\n"])
+def test_setup_writes_the_caddyfile_on_a_new_server_whatever_the_check_says(tmp_path, packaged):
+    """Nothing is running there yet, so there is nothing to protect, and the server needs its HTTPS."""
+    etc, _ = caddy_step(tmp_path, running=packaged, caddy_accepts=False)
+    assert "reverse_proxy 127.0.0.1:8000" in (etc / "Caddyfile").read_text()

@@ -374,8 +374,17 @@ def describe(health: dict) -> str:
     return (
         f"scorer: {health.get('scorer_model')} | speech to text: {health.get('stt') or 'none'} | "
         f"actions: {health.get('actions')} | demo calls: {'on' if health.get('demo_mode') else 'off'} | "
-        f"calls in progress: {health.get('active_calls')}"
+        f"texts: {_texts(health.get('gateway') or {})} | calls in progress: {health.get('active_calls')}"
     )
+
+
+def _texts(gateway: dict) -> str:
+    """Text protection in a few words. A server from before it has no `gateway` in /health, and it is off there."""
+    if gateway.get("error"):
+        return f"OFF, a setting is wrong ({gateway['error']})"
+    if not gateway.get("enabled"):
+        return "off"
+    return "on" if gateway.get("forwarding_enabled") else "on, forwarding paused"
 
 
 def up(args: argparse.Namespace, api: Vultr) -> int:

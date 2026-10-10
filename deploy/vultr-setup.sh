@@ -6,7 +6,8 @@
 #
 # Palisade runs as one uvicorn process on 127.0.0.1:8000 (all call state is in memory, so
 # never more than one). Caddy answers on 443, gets the certificate for <public host> by
-# itself, and passes webhooks, the audio WebSocket and the event feed through.
+# itself, and passes webhooks, the audio WebSocket and the event feed through. It does not
+# pass /integrations/ through: that is for the iMessage service on this same server.
 set -euo pipefail
 
 HOST="${1:?usage: vultr-setup.sh <public host>}"
@@ -59,11 +60,25 @@ systemctl enable --quiet shield
 systemctl restart shield
 
 echo "== HTTPS for $HOST"
-cat > /etc/caddy/Caddyfile <<EOF
+# /integrations/ is asked by the iMessage service (photon/), which runs on this server and
+# talks to 127.0.0.1:8000 itself. From outside those pages do not exist.
+cat > /etc/caddy/Caddyfile.new <<EOF
 $HOST {
+	@internal path /integrations/*
+	respond @internal 404
 	reverse_proxy 127.0.0.1:8000
 }
 EOF
+# This server may be taking calls. A file Caddy cannot load must not replace the one it is
+# running on, so the new one is checked first. On a new server there is nothing to protect.
+if grep -q "reverse_proxy 127.0.0.1:8000" /etc/caddy/Caddyfile 2>/dev/null \
+  && ! caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile.new >/dev/null 2>&1; then
+  echo "Caddy does not accept the new Caddyfile, so the one in use stays. What Caddy said:" >&2
+  caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile.new >&2 || true
+  rm -f /etc/caddy/Caddyfile.new
+else
+  mv /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile
+fi
 # Vultr's Ubuntu images come with ufw on and only SSH open.
 if command -v ufw >/dev/null 2>&1; then
   ufw allow 80/tcp >/dev/null
