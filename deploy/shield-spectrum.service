@@ -1,0 +1,23 @@
+[Unit]
+Description=Shield Photon Spectrum caregiver agent
+After=network-online.target shield-backend.service
+Wants=network-online.target shield-backend.service
+
+[Service]
+Type=simple
+User=shield
+Group=shield
+WorkingDirectory=/opt/shield/photon
+EnvironmentFile=/etc/shield/photon.env
+ExecStart=/usr/bin/node /opt/shield/photon/dist/index.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

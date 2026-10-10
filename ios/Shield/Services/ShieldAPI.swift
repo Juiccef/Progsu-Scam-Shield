@@ -19,6 +19,10 @@ enum ShieldAPIError: LocalizedError {
     case refused(String)
     case server(Int)
     case notAShieldServer
+    /// A held text was released, discarded or ran out before this decision reached the server.
+    case reviewConflict
+    /// The server has text protection switched off.
+    case gatewayUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +30,8 @@ enum ShieldAPIError: LocalizedError {
         case .refused(let reason): reason
         case .server(let status): "The server answered with error \(status)."
         case .notAShieldServer: "That address did not answer like a Palisade server."
+        case .reviewConflict: "This message can no longer be released. Refresh to see its current status."
+        case .gatewayUnavailable: "Text protection is not enabled on this server."
         }
     }
 }
@@ -87,6 +93,27 @@ struct ShieldAPI: Equatable, Sendable {
         return list.calls
     }
 
+    func messages() async throws -> [MessageSummary] {
+        let list: MessageList = try await get("messages")
+        return list.messages
+    }
+
+    func gatewayMessages() async throws -> GatewayMessageList {
+        try await get("gateway/messages")
+    }
+
+    func gatewayDetail(_ id: String) async throws -> GatewayMessage {
+        try await get("gateway/messages/\(id)")
+    }
+
+    func gatewayDecision(_ id: String, action: String) async throws -> GatewayMessage {
+        try await post("gateway/messages/\(id)/decision", json: ["action": action])
+    }
+
+    func analyzeMessage(_ text: String) async throws -> MessageSummary {
+        try await post("messages/analyze", json: ["text": text])
+    }
+
     func demoScripts() async throws -> [DemoScript] {
         let list: DemoScriptList = try await get("demo/scripts")
         return list.enabled ? list.scripts : []
@@ -132,8 +159,20 @@ struct ShieldAPI: Equatable, Sendable {
     }
 
     private func get<Value: Decodable>(_ path: String) async throws -> Value {
-        let (data, response) = try await URLSession.shared.data(for: request(path))
-        try Self.check(response, body: data)
+        try await answer(to: request(path), isText: Self.isText(path))
+    }
+
+    private func post<Value: Decodable>(_ path: String, json: [String: String]) async throws -> Value {
+        var request = request(path)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(json)
+        return try await answer(to: request, isText: Self.isText(path))
+    }
+
+    private func answer<Value: Decodable>(to request: URLRequest, isText: Bool) async throws -> Value {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.check(response, body: data, isText: isText)
         do {
             return try JSONDecoder().decode(Value.self, from: data)
         } catch {
@@ -141,10 +180,20 @@ struct ShieldAPI: Equatable, Sendable {
         }
     }
 
+    /// The requests about texts held at the protected number, whose answers can carry a text
+    /// and its sender in full.
+    private static func isText(_ path: String) -> Bool {
+        path.hasPrefix("gateway/")
+    }
+
     private func request(_ path: String, query: [URLQueryItem] = []) -> URLRequest {
         var url = baseURL.appending(path: path)
         if !query.isEmpty { url.append(queryItems: query) }
         var request = URLRequest(url: url)
+        if Self.isText(path) {
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        }
         request.timeoutInterval = 10
         if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         // Without this, ngrok's free tier answers the first request with an HTML warning page.
@@ -152,12 +201,16 @@ struct ShieldAPI: Equatable, Sendable {
         return request
     }
 
-    private static func check(_ response: URLResponse, body: Data? = nil) throws {
+    private static func check(_ response: URLResponse, body: Data? = nil, isText: Bool = false) throws {
         guard let status = (response as? HTTPURLResponse)?.statusCode else { return }
         if status == 401 { throw ShieldAPIError.unauthorized }
         if status == 403, let body, let refusal = try? JSONDecoder().decode(Refusal.self, from: body) {
             throw ShieldAPIError.refused(refusal.detail.hasSuffix(".") ? refusal.detail : refusal.detail + ".")
         }
+        // Only on a request about a held text do these two mean what they say here. A demo
+        // call the server turns down is a 409 as well, and a server that is down a 503.
+        if isText, status == 409 { throw ShieldAPIError.reviewConflict }
+        if isText, status == 503 { throw ShieldAPIError.gatewayUnavailable }
         guard (200..<300).contains(status) else { throw ShieldAPIError.server(status) }
     }
 

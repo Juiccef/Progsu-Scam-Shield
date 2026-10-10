@@ -83,7 +83,7 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Version", value: Bundle.main.versionText)
                 } footer: {
-                    Label("No audio or transcript is stored. Palisade keeps what it detected, not what was said.", systemImage: "lock.fill")
+                    Label("No audio or transcript of a call is stored. A text sent to the protected number is kept encrypted for up to 24 hours, so it can be reviewed and delivered, then deleted.", systemImage: "lock.fill")
                 }
             }
             .formStyle(.grouped)

@@ -79,6 +79,13 @@ class Settings:
     auth0_web_client_id: str  # the dashboard's application (Single Page)
     auth0_ios_client_id: str  # the iPhone app's application (Native)
     caregiver_emails: tuple[str, ...]  # who may watch calls once signed in
+    # Twilio text gateway + Photon caregiver agent are opt-in.
+    text_gateway_enabled: bool = False
+    text_forwarding_enabled: bool = False
+    photon_bridge_token: str = ""
+    photon_line: str = ""  # optional dedicated caregiver line; empty uses the shared pool
+    photon_caregiver_address: str = ""
+    gateway_encryption_key: str = ""
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] = os.environ) -> "Settings":
@@ -129,6 +136,12 @@ class Settings:
             auth0_web_client_id=get("AUTH0_WEB_CLIENT_ID"),
             auth0_ios_client_id=get("AUTH0_IOS_CLIENT_ID"),
             caregiver_emails=tuple(e.strip().lower() for e in get("CAREGIVER_EMAILS").split(",") if e.strip()),
+            text_gateway_enabled=_flag(env.get("TEXT_GATEWAY_ENABLED"), False),
+            text_forwarding_enabled=_flag(env.get("TEXT_FORWARDING_ENABLED"), False),
+            photon_bridge_token=get("PHOTON_BRIDGE_TOKEN"),
+            photon_line=get("PHOTON_LINE"),
+            photon_caregiver_address=get("PHOTON_CAREGIVER_ADDRESS") or get("CAREGIVER_PHONE"),
+            gateway_encryption_key=get("GATEWAY_ENCRYPTION_KEY"),
         )
 
 

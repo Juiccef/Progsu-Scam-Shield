@@ -7,3 +7,4 @@ PyJWT[crypto]>=2.8
 anthropic>=1.0
 python-dotenv>=1.0
 pytest>=8.0
+cryptography>=44

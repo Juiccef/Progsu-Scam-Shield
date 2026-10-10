@@ -24,13 +24,16 @@ struct ShieldEvent: Decodable, Equatable, Sendable {
     var seconds: Double?
     var outcome: String?
     var duration: Double?
+    var messageID: String?
+    var status: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, ts, caller, simulated, speaker, text, highlights, t, risk, flags, kind, reason, seconds, outcome
+        case type, ts, caller, simulated, speaker, text, highlights, t, risk, flags, kind, reason, seconds, outcome, status
         case callSID = "call_sid"
         case isFinal = "final"
         case ruleRisk = "rule_risk"
         case duration = "duration_s"
+        case messageID = "message_id"
     }
 
     var date: Date { Date(timeIntervalSince1970: ts) }

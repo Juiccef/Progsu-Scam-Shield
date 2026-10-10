@@ -65,9 +65,10 @@ struct ServerHealth: Decodable, Equatable, Sendable {
     var endThreshold: Int?
     /// "live", or "dry_run" when the server only records what it would have done.
     var actions: String?
+    var gateway: GatewayHealth?
 
     enum CodingKeys: String, CodingKey {
-        case ok, actions
+        case ok, actions, gateway
         case demoMode = "demo_mode"
         case warnThreshold = "warn_threshold"
         case endThreshold = "end_threshold"

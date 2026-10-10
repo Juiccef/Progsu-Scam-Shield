@@ -27,6 +27,10 @@ struct MainTabs: View {
                 Tab(AppTab.calls.title, systemImage: AppTab.calls.symbol, value: AppTab.calls) {
                     CallsPage()
                 }
+                Tab(AppTab.texts.title, systemImage: AppTab.texts.symbol, value: AppTab.texts) {
+                    TextsPage()
+                }
+                .badge(store.unreadGatewayIDs.count)
                 Tab(AppTab.signs.title, systemImage: AppTab.signs.symbol, value: AppTab.signs) {
                     SignsPage()
                 }
@@ -39,6 +43,10 @@ struct MainTabs: View {
                 CallsPage()
                     .tabItem { Label(AppTab.calls.title, systemImage: AppTab.calls.symbol) }
                     .tag(AppTab.calls)
+                TextsPage()
+                    .tabItem { Label(AppTab.texts.title, systemImage: AppTab.texts.symbol) }
+                    .badge(store.unreadGatewayIDs.count)
+                    .tag(AppTab.texts)
                 SignsPage()
                     .tabItem { Label(AppTab.signs.title, systemImage: AppTab.signs.symbol) }
                     .tag(AppTab.signs)
@@ -52,6 +60,7 @@ extension AppTab {
         switch self {
         case .home: "Summary"
         case .calls: "Calls"
+        case .texts: "Texts"
         case .signs: "Scam Signs"
         }
     }
@@ -61,6 +70,7 @@ extension AppTab {
         switch self {
         case .home: "checkmark.shield"
         case .calls: "phone"
+        case .texts: "message"
         case .signs: "eye"
         }
     }
@@ -92,6 +102,22 @@ private struct CallsPage: View {
             CallsView()
                 .navigationDestination(for: CallSummary.self) { call in
                     CallDetailView(call: call)
+                }
+        }
+    }
+}
+
+private struct TextsPage: View {
+    @Environment(ShieldStore.self) private var store
+
+    var body: some View {
+        NavigationStack {
+            MessagesView()
+                .navigationDestination(isPresented: Binding(
+                    get: { store.gatewayDetailID != nil },
+                    set: { if !$0 { store.gatewayDetailID = nil } }
+                )) {
+                    if let id = store.gatewayDetailID { GatewayDetailView(messageID: id) }
                 }
         }
     }

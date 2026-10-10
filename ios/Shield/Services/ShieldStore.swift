@@ -11,6 +11,7 @@ struct CallStats: Equatable {
 enum AppTab: Hashable {
     case home
     case calls
+    case texts
     case signs
 }
 
@@ -52,6 +53,14 @@ final class ShieldStore {
         didSet { stats = Self.stats(for: history) }
     }
     private(set) var stats = CallStats()
+    private(set) var messages: [MessageSummary] = []
+    private(set) var gatewayMessages: [GatewayMessage] = []
+    private(set) var gatewayHealth: GatewayHealth?
+    private(set) var shieldNumber = ""
+    private(set) var gatewayError: String?
+    var gatewayBannerID: String?
+    var gatewayDetailID: String?
+    private(set) var unreadGatewayIDs: Set<String> = []
     private(set) var demoScripts: [DemoScript] = []
     private(set) var warnThreshold = 60
     private(set) var endThreshold = 85
@@ -71,6 +80,9 @@ final class ShieldStore {
     @ObservationIgnored private var followsSettings = true
     @ObservationIgnored private var feedTask: Task<Void, Never>?
     @ObservationIgnored private var settleTask: Task<Void, Never>?
+    @ObservationIgnored private var seenGatewayIDs: [String] = []
+    @ObservationIgnored private var alertedGatewayIDs: Set<String> = []
+    private var gatewaySeenKey: String { "gatewaySeen.\(api?.baseURL.absoluteString ?? "")" }
 
     /// Events older than this when we connect are history: they rebuild state but never pop up the call screen.
     private static let freshness: TimeInterval = 10
@@ -82,6 +94,7 @@ final class ShieldStore {
         call = nil
         presentedCall = nil
         latestAction = nil
+        forgetTexts()
         guard let api = ShieldAPI.fromSettings else {
             self.api = nil
             forgetSignIn()
@@ -91,6 +104,7 @@ final class ShieldStore {
         // Another server: what the last one said about signing in no longer holds.
         if api.baseURL != self.api?.baseURL { forgetSignIn() }
         self.api = api
+        seenGatewayIDs = UserDefaults.standard.stringArray(forKey: gatewaySeenKey) ?? []
         connection = .connecting
         feedTask = Task { await self.follow(api) }
     }
@@ -129,6 +143,33 @@ final class ShieldStore {
         defer { isSigningInOrOut = false }
         await session.signOut()
         connect()
+    }
+
+    func analyzeMessage(_ text: String) async throws -> MessageSummary {
+        guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
+        let result = try await api.analyzeMessage(text)
+        await loadMessages(api)
+        return result
+    }
+
+    func gatewayDetail(_ id: String) async throws -> GatewayMessage {
+        guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
+        return try await api.gatewayDetail(id)
+    }
+
+    func decideGatewayMessage(_ id: String, action: String) async throws {
+        guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
+        _ = try await api.gatewayDecision(id, action: action)
+        await loadGateway(api)
+    }
+
+    func markGatewayRead() {
+        for message in gatewayMessages where message.needsReview && !seenGatewayIDs.contains(message.id) {
+            seenGatewayIDs.append(message.id)
+        }
+        seenGatewayIDs = Array(seenGatewayIDs.suffix(2000))
+        UserDefaults.standard.set(seenGatewayIDs, forKey: gatewaySeenKey)
+        unreadGatewayIDs = []
     }
 
     func showCall() {
@@ -248,6 +289,21 @@ final class ShieldStore {
         presentedCall = nil
         history = []
         demoScripts = []
+        forgetTexts()
+    }
+
+    /// Texts belong to whoever may watch: none of it stays when the connection is started
+    /// over, or when nobody on this phone is let in.
+    private func forgetTexts() {
+        messages = []
+        gatewayMessages = []
+        gatewayHealth = nil
+        shieldNumber = ""
+        gatewayError = nil
+        gatewayBannerID = nil
+        gatewayDetailID = nil
+        unreadGatewayIDs = []
+        alertedGatewayIDs = []
     }
 
     private func forgetSignIn() {
@@ -257,6 +313,18 @@ final class ShieldStore {
     }
 
     private func handle(_ event: ShieldEvent, isFresh: Bool) {
+        if event.type == "gateway_message_updated" {
+            if let id = event.messageID, event.status == "held", isFresh,
+               !seenGatewayIDs.contains(id), alertedGatewayIDs.insert(id).inserted {
+                gatewayBannerID = id
+            }
+            Task { await self.reloadGateway() }
+            return
+        }
+        if event.type == "message_scored" {
+            if isFresh { Task { await self.reloadMessages() } }
+            return
+        }
         guard let callID = event.callSID else { return }
         if event.type == "call_started" {
             let started = LiveCall(
@@ -300,12 +368,39 @@ final class ShieldStore {
 
     private func loadServerInfo(_ api: ShieldAPI) async {
         if let health = try? await api.health() {
+            guard wants(api) else { return }
+            gatewayHealth = health.gateway
             warnThreshold = health.warnThreshold ?? warnThreshold
             endThreshold = health.endThreshold ?? endThreshold
             isPracticeMode = health.actions == "dry_run"
         }
         demoScripts = (try? await api.demoScripts()) ?? []
         await loadHistory(api)
+        await loadMessages(api)
+        if gatewayHealth?.enabled == true { await loadGateway(api) }
+    }
+
+    private func loadGateway(_ api: ShieldAPI) async {
+        do {
+            let list = try await api.gatewayMessages()
+            guard wants(api) else { return }
+            gatewayMessages = list.messages
+            shieldNumber = list.shieldNumber
+            gatewayError = nil
+            // A pending record has not raised a review alert yet. Remember only
+            // held records so delayed analysis can still trigger its first banner.
+            alertedGatewayIDs.formUnion(list.messages.filter(\.needsReview).map(\.id))
+            unreadGatewayIDs = Set(list.messages.filter { $0.needsReview && !seenGatewayIDs.contains($0.id) }.map(\.id))
+            if tab == .texts { markGatewayRead() }
+        } catch {
+            if wants(api) { gatewayError = Self.describe(error) }
+        }
+    }
+
+    private func loadMessages(_ api: ShieldAPI) async {
+        if let messages = try? await api.messages(), wants(api) {
+            self.messages = messages
+        }
     }
 
     private func loadHistory(_ api: ShieldAPI) async {
@@ -316,6 +411,24 @@ final class ShieldStore {
 
     private func reloadHistory() async {
         if let api = await currentAPI() { await loadHistory(api) }
+    }
+
+    private func reloadGateway() async {
+        if let api = await currentAPI() { await loadGateway(api) }
+    }
+
+    private func reloadMessages() async {
+        if let api = await currentAPI() { await loadMessages(api) }
+    }
+
+    /// True while an answer from `api` is still wanted: Settings still points at that server,
+    /// and whoever is on this phone is still let in.
+    private func wants(_ api: ShieldAPI) -> Bool {
+        guard self.api?.baseURL == api.baseURL else { return false }
+        switch connection {
+        case .signedOut, .refused: return false
+        case .notConfigured, .connecting, .connected, .failed: return true
+        }
     }
 
     private static func stats(for calls: [CallSummary]) -> CallStats {

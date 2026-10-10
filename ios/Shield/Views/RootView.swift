@@ -8,6 +8,7 @@ struct RootView: View {
     @State private var store: ShieldStore
     @AppStorage(SettingsKey.appearance) private var appearance = Appearance.automatic
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     /// False when the store holds fixed sample data, which a live feed must not replace.
     private let connectsToServer: Bool
 
@@ -61,6 +62,12 @@ struct RootView: View {
         .onChange(of: appearance, initial: true) { old, new in
             // At launch the two are the same: set it at once, with no fade from the wrong appearance.
             new.apply(animated: old != new)
+        }
+        .onChange(of: store.tab) { _, tab in
+            if tab == .texts { store.markGatewayRead() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, connectsToServer { Task { await store.refresh() } }
         }
         .task {
             if connectsToServer { store.connect() }
