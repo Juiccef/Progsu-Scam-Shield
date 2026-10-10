@@ -151,8 +151,10 @@ private struct CallMonitor: View {
             }
             TranscriptArea(call: call, seniorName: seniorName)
                 .frame(minHeight: 120)
-            if call.hasEnded {
-                CallOverBar(call: call)
+            // A call Shield warned about gets no second card when it ends: the header says it
+            // is over, and the warning is still on screen.
+            if call.hasEnded, call.warning == nil {
+                CallOverBar()
                     // Up from the bottom edge, in step with the transcript making room above it.
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -196,7 +198,8 @@ private struct RiskPanel: View {
     }
 }
 
-/// Shield's warning, with the one thing the caregiver can do about it: ring the person being called.
+/// Shield's warning: why it warned, and the one thing the caregiver can do about it, which is
+/// to ring the person being called. How the call looks is the dial's to say, just above.
 private struct WarningCard: View {
     let warning: ShieldAction
     let seniorName: String
@@ -206,12 +209,8 @@ private struct WarningCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     CardLabel(title: "Warning", symbol: "exclamationmark.triangle.fill", tint: Theme.caution)
-                    Text("This call looks suspicious")
-                        .font(.headline)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(warning.reason)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    // The reason is the news here, so it is the card's main text.
+                    Text(warning.reason.isEmpty ? "This call looks suspicious." : warning.reason)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
@@ -247,20 +246,13 @@ private struct TranscriptArea: View {
     }
 }
 
-/// Shown when a call ends on its own, without Shield stepping in.
+/// Shown when a call ends on its own and Shield never had to warn.
 private struct CallOverBar: View {
-    let call: LiveCall
-
     var body: some View {
-        let wasWarned = call.warning != nil
         Card {
             VStack(alignment: .leading, spacing: 4) {
-                CardLabel(
-                    title: "Call Ended",
-                    symbol: wasWarned ? "exclamationmark.triangle.fill" : "checkmark.circle.fill",
-                    tint: wasWarned ? Theme.caution : Theme.safe
-                )
-                Text(wasWarned ? "Shield warned you during this call." : "Nothing suspicious was detected.")
+                CardLabel(title: "Call Ended", symbol: "checkmark.circle.fill", tint: Theme.safe)
+                Text("Nothing suspicious was detected.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
