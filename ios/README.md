@@ -31,6 +31,10 @@ Shield server's `GET /events` feed and `GET /calls` list.
   happened" became system lists, the call screen's header got the system's own buttons,
   and flagged phrases a rounded highlighter. All of it was checked in the iPhone 17e
   simulator in light and dark, with Reduce Motion on, and at an accessibility text size.
+- On 2026-10-10 the look was gone over again, this time side by side with Apple's own
+  Health, Messages and Settings on the same iOS. Buttons became the system's blue,
+  recent calls one list, labels title case, and several things that were said twice are
+  said once (see "Screens"). Checked the same way, and on a recorded demo call.
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
 - Not yet looked at: iPhones smaller than the 17e.
 
@@ -47,14 +51,34 @@ Dark mode: [screens/live-call-dark.png](screens/live-call-dark.png).
 The "Call" button only appears once the protected person's phone number is in the app's
 Settings. In the transcript, the caller's words that matched one of Shield's rules are
 set in bold, and highlighted once the call looks suspicious. A demo call says "Demo
-call" wherever a real call shows the caller's number.
+Call" wherever a real call shows the caller's number.
 
-Recent calls are listed under the day they came in. Each row leads with the caller's
-number, masked by the server to its last four digits, and says what came of the call
-under it.
+Recent calls are one list, newest first. Each row leads with the caller, written "Number
+ending 2233" (the server masks numbers to their last four digits), says what came of
+the call under it, and ends with when it came in: the time if that was today, then
+"Yesterday", the day of the week, or the date. At large text sizes the day moves under
+the rest of the row.
 
 The dial says how the call looks in words. The small number in its opening is the risk
-score out of 100 that the words come from.
+score out of 100 that the words come from. The dial arrives with the first words of the
+call: while the phone is ringing there is nothing for it to say.
+
+Shield's warning card says why it warned, and has the "Call" button. How the call looks
+is left to the dial above it.
+
+With no calls yet, Home says so and, if the server offers demo calls, has a "Start a
+Demo Call" button. When the app cannot reach the server, Home's card has an "Open
+Settings" button.
+
+### How it looks
+
+Screens are the system's grouped lists and cards, with black and gray text. Blue is for
+what can be tapped. Green, orange and red each report a state (protected, suspicious,
+scam) and are used for nothing else: once per card, on its small label, and on the dial
+and the chart line. A label that only names what its card holds is gray.
+
+Headings, labels, buttons and status words are in title case, as in Apple's own apps
+("Scam Call Stopped", "What Happened"). Complete sentences are written as sentences.
 
 When Shield warns or ends a call, the call screen comes back even if it had been put
 away, and the phone buzzes. The transcript keeps up with the call until you scroll up
@@ -86,7 +110,8 @@ call screen fades in where it would slide, and digits and words cross-fade.
    or the app shows no play button.
 3. Open `ios/Shield.xcodeproj`, pick an iPhone simulator, press Run.
 4. The app connects to `http://localhost:8000` by default. Tap the play button at the
-   top of Home and pick a scam call. The call screen opens by itself.
+   top of Home (or "Start a Demo Call", while the list is empty) and pick a scam call.
+   The call screen opens by itself.
 
 To point the app at another server without touching Settings, pass launch arguments:
 `-serverURL http://localhost:8001`. `-seniorPhone +14045550100` does the same for the
@@ -128,4 +153,6 @@ Shield-Info.plist            allows plain http to a local server
 ```
 
 `LiveCall.apply(_:)` is the one place where feed events become screen state. Demo
-calls are tagged "Demo" everywhere and are left out of the Home screen's counts.
+calls say "Demo Call" everywhere and are left out of the Home screen's counts.
+`Support/Theme.swift` holds the colors, the three timings, and the app's few button
+and card styles.
