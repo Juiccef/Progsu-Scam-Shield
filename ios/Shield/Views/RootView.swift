@@ -48,7 +48,6 @@ struct RootView: View {
             Text(store.demoError ?? "")
         }
         .environment(store)
-        .tint(Theme.safe)
         // Here rather than on the call screen, so the buzz comes whichever screen is showing.
         .sensoryFeedback(trigger: store.latestAction) { _, action in
             switch action?.kind {

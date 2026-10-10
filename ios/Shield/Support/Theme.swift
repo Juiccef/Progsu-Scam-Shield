@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// Shield's look. Screens are drawn in the system's grouped colors with ordinary black and
-/// gray text. Color carries meaning and is used once per card (its label) and on the dial.
+/// gray text. Green, orange and red each report a state and nothing else: once per card
+/// (its label) and on the dial. What can be tapped is the system's blue, the app's accent
+/// color, so a button is never mistaken for a state.
 enum Theme {
     static let canvas = Color.groupedCanvas
     static let surface = Color.groupedSurface
@@ -13,9 +15,6 @@ enum Theme {
     static let watchful = Color.gray
     static let caution = Color.orange
     static let danger = Color.red
-
-    /// Text on a filled button. The system green is bright in dark mode, where white would wash out.
-    static let onTint = Color(light: 0xFFFFFF, dark: 0x0B0B0C)
 
     /// The corner radius of the system's own grouped sections, so cards match Settings.
     static let cardRadius: CGFloat = 26
@@ -107,21 +106,6 @@ enum RiskLevel: Equatable {
     }
 }
 
-extension Color {
-    /// A color that follows the system's light and dark appearance.
-    init(light: UInt32, dark: UInt32) {
-        self.init(light: Color(hex: light), dark: Color(hex: dark))
-    }
-
-    init(hex: UInt32) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255
-        )
-    }
-}
-
 /// A rounded panel on the canvas, for the call screen. Lists draw their own.
 struct Card<Content: View>: View {
     @ViewBuilder let content: Content
@@ -134,18 +118,22 @@ struct Card<Content: View>: View {
     }
 }
 
-/// The line that opens a card: a small symbol and a name, in the one color that card uses.
+/// The line that opens a card. Where the card reports a state it is a small symbol and a name
+/// in that state's color, the one color the card uses. Where it only names what the card
+/// holds, it is the name alone, in gray.
 struct CardLabel: View {
     let title: String
-    let symbol: String
-    let tint: Color
+    var symbol: String?
+    var tint: Color = .secondary
 
     var body: some View {
         // Laid out by hand: inside a list, a `Label` is given the wide symbol column of a
         // settings row, which pulls the name away from its symbol.
         HStack(spacing: 6) {
-            Image(systemName: symbol)
-                .accessibilityHidden(true)
+            if let symbol {
+                Image(systemName: symbol)
+                    .accessibilityHidden(true)
+            }
             Text(title)
         }
         .font(.subheadline.weight(.semibold))
@@ -170,7 +158,8 @@ extension View {
     }
 
     /// For the buttons around a screen's edge (its navigation bar, the call screen's header):
-    /// drawn in the text color, not the app's green. Green is kept for what it means.
+    /// drawn in the text color, as the system draws its own. Blue is kept for the one button
+    /// a screen is about.
     func chrome() -> some View {
         tint(.primary)
     }

@@ -7,12 +7,6 @@ import SwiftUI
 import UIKit
 
 extension Color {
-    init(light: Color, dark: Color) {
-        self.init(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
-        })
-    }
-
     // The system's own grouped-screen colors, the ones Settings and Health are drawn in.
     static let groupedCanvas = Color(uiColor: .systemGroupedBackground)
     static let groupedSurface = Color(uiColor: .secondarySystemGroupedBackground)
@@ -22,12 +16,6 @@ extension Color {
 import AppKit
 
 extension Color {
-    init(light: Color, dark: Color) {
-        self.init(nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(dark) : NSColor(light)
-        })
-    }
-
     static let groupedCanvas = Color(nsColor: .windowBackgroundColor)
     static let groupedSurface = Color(nsColor: .controlBackgroundColor)
     static let quietFill = Color(nsColor: .quaternaryLabelColor)

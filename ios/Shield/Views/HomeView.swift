@@ -145,7 +145,6 @@ private struct ActiveCallCard: View {
             } label: {
                 Text("Open the call")
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(Theme.onTint)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)

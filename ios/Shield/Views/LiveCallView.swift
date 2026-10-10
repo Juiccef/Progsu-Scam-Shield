@@ -300,7 +300,8 @@ struct ShieldEndedContent: View {
             VStack(spacing: 8) {
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 56))
-                    .foregroundStyle(Theme.safe)
+                    // The system's own soft gradient, the way it shades a symbol this large.
+                    .foregroundStyle(Theme.safe.gradient)
                     .symbolEffect(.bounce, value: shieldHasLanded)
                     .accessibilityHidden(true)
                     .arrives(0, when: hasArrived)
@@ -324,7 +325,7 @@ struct ShieldEndedContent: View {
                     ResponseTime(seconds: ending.seconds)
                     Card {
                         VStack(alignment: .leading, spacing: 6) {
-                            CardLabel(title: "Why", symbol: "exclamationmark.triangle.fill", tint: Theme.danger)
+                            CardLabel(title: "Why")
                             // The one sentence says it. Each sign on its own is in "What happened".
                             Text(ending.reason)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -401,7 +402,7 @@ private struct ResponseTime: View {
         if let seconds {
             Card {
                 VStack(alignment: .leading, spacing: 2) {
-                    CardLabel(title: "Response time", symbol: "timer", tint: Theme.safe)
+                    CardLabel(title: "Response time")
                         .padding(.bottom, 2)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(seconds, format: .number.precision(.fractionLength(1)))
@@ -466,7 +467,6 @@ struct CallSeniorButton: View {
                 Label("Call \(seniorName)", systemImage: "phone.fill")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(Theme.onTint)
             }
             .buttonStyle(.borderedProminent)
         }
