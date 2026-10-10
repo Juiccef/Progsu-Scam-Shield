@@ -156,51 +156,19 @@ private struct ActiveCallCard: View {
 
 // MARK: - Recent calls
 
-/// The calls of one day, newest first.
-private struct CallDay: Identifiable {
-    let id: Date
-    let title: String
-    var calls: [CallSummary]
-
-    /// Splits calls, already newest first, into days: "Today", "Yesterday", then the date.
-    static func days(of calls: [CallSummary], calendar: Calendar = .current) -> [CallDay] {
-        var days: [CallDay] = []
-        for call in calls {
-            let day = call.startedAt.map(calendar.startOfDay(for:)) ?? .distantPast
-            if days.last?.id == day {
-                days[days.count - 1].calls.append(call)
-            } else {
-                days.append(CallDay(id: day, title: title(for: day, calendar: calendar), calls: [call]))
-            }
-        }
-        return days
-    }
-
-    private static func title(for day: Date, calendar: Calendar) -> String {
-        if day == .distantPast { return "Earlier" }
-        if calendar.isDateInToday(day) { return "Today" }
-        if calendar.isDateInYesterday(day) { return "Yesterday" }
-        return day.formatted(.dateTime.weekday(.wide).month(.wide).day())
-    }
-}
-
-/// Recent calls under the day they came in, the way a phone lists them.
+/// Recent calls in one list, newest first, the way a phone lists them.
 private struct RecentCalls: View {
     let calls: [CallSummary]
 
     var body: some View {
-        if calls.isEmpty {
-            Section("Recent calls") {
+        Section("Recent calls") {
+            if calls.isEmpty {
                 Text("No calls yet")
                     .foregroundStyle(.secondary)
-            }
-        } else {
-            ForEach(CallDay.days(of: calls)) { day in
-                Section(day.title) {
-                    ForEach(day.calls) { call in
-                        NavigationLink(value: call) {
-                            CallRow(call: call)
-                        }
+            } else {
+                ForEach(calls) { call in
+                    NavigationLink(value: call) {
+                        CallRow(call: call)
                     }
                 }
             }
@@ -215,16 +183,29 @@ struct CallRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(callerNumber(call.caller, isDemo: call.isDemo))
-                    .accessibilityLabel(callerDescription(call.caller, isDemo: call.isDemo))
+                Text(callerDescription(call.caller, isDemo: call.isDemo))
                 OutcomeLine(look: OutcomeLook(call.outcome))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let startedAt = call.startedAt {
-                Text(startedAt, format: .dateTime.hour().minute())
+                Text(Self.when(startedAt))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// When a call came in, the way a phone's recent calls say it: the time if it was today,
+    /// then "Yesterday", then the day of the week, then the date. The summary has the rest.
+    static func when(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        let daysAgo = calendar.dateComponents(
+            [.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)
+        ).day
+        switch daysAgo {
+        case 0: return date.formatted(.dateTime.hour().minute())
+        case 1: return "Yesterday"
+        case .some(2..<7): return date.formatted(.dateTime.weekday(.wide))
+        default: return date.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits))
         }
     }
 }
@@ -258,7 +239,9 @@ struct OutcomeLook {
     init(_ outcome: CallSummary.Outcome) {
         switch outcome {
         case .endedByShield:
-            (title, symbol, tint, isNotable) = ("Scam call stopped", "xmark.shield.fill", Theme.danger, true)
+            // The raised hand is the system's own sign for something blocked. An X on a
+            // shield could be read as protection that failed.
+            (title, symbol, tint, isNotable) = ("Scam call stopped", "hand.raised.fill", Theme.danger, true)
         case .warned:
             (title, symbol, tint, isNotable) = ("Suspicious call", "exclamationmark.triangle.fill", Theme.caution, true)
         case .completed:

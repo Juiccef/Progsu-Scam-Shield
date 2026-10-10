@@ -123,19 +123,12 @@ private struct CallStatusLine: View {
     }
 }
 
-/// Who called, in words. The server masks numbers to "***1234"; a demo call has no real caller,
-/// and saying so here is how every screen marks it as a demo.
+/// Who called, in words, the same on every screen. The server masks numbers to "***1234"; a
+/// demo call has no real caller, and saying so here is how every screen marks it as a demo.
 func callerDescription(_ masked: String, isDemo: Bool = false) -> String {
     if isDemo { return "Demo call" }
     let digits = masked.filter(\.isNumber)
     return digits.isEmpty ? "Unknown number" : "Number ending \(digits)"
-}
-
-/// The caller as a phone lists one: the masked number written like a phone number.
-func callerNumber(_ masked: String, isDemo: Bool = false) -> String {
-    if isDemo { return "Demo call" }
-    let digits = masked.filter(\.isNumber)
-    return digits.isEmpty ? "Unknown caller" : "(•••) •••-\(digits)"
 }
 
 // MARK: - While the call is going

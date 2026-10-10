@@ -58,9 +58,8 @@ private struct OutcomeHeader: View {
         let look = OutcomeLook(call.outcome)
         VStack(alignment: .leading, spacing: 6) {
             CardLabel(title: look.title, symbol: look.symbol, tint: look.tint)
-            Text(callerNumber(call.caller, isDemo: call.isDemo))
+            Text(callerDescription(call.caller, isDemo: call.isDemo))
                 .font(.title2.weight(.bold))
-                .accessibilityLabel(callerDescription(call.caller, isDemo: call.isDemo))
             VStack(alignment: .leading, spacing: 2) {
                 if let startedAt = call.startedAt {
                     Text(startedAt, format: .dateTime.month().day().year().hour().minute())
