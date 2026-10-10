@@ -100,6 +100,10 @@ whether Palisade warned or ended the call, the call-control and SMS results, and
 
 - If `EVENTS_TOKEN` is set in `.env`, open `/dashboard?token=YOUR_TOKEN`. The page itself
   holds no data; the token unlocks the event feed it reads.
+- With sign-in set up (`AUTH0_DOMAIN`; [docs/auth0-sign-in.md](docs/auth0-sign-in.md) is the
+  step-by-step guide), open `/dashboard` with no token. The page offers Sign In, and shows
+  calls to a signed-in person whose verified email is in `CAREGIVER_EMAILS`. It ignores a
+  `?token=` in the link then.
 - It is one file, `dashboard.html`, with no build step. It reads `/events` and `/health`.
 - Reconnecting or reloading replays the most recent events, so you can open it after a call.
 
@@ -172,11 +176,15 @@ Palisade carries on: the `action` event is the alert.
 | `GET /calls` | Recent calls, newest first: outcome, flags, actions and the risk timeline. Never transcript text. Survives restarts. |
 | `GET /metrics/last` | Seconds from the triggering utterance to the most recent real action, with a per-stage breakdown. |
 | `GET /demo/scripts`, `POST /demo/call?script=scam_01` | Demo calls, only with `DEMO_MODE=true`. See below. |
+| `GET /auth/config` | Whether this server asks for a sign-in, and the Auth0 domain and client IDs an app or the dashboard needs for it. None of it is secret. |
 | `GET /health` | Configuration summary without secrets. |
 
 All three webhooks validate `X-Twilio-Signature`. A media stream is accepted only
 if it carries the one-time token that `/voice/incoming` put in the TwiML. Set
 `EVENTS_TOKEN` before exposing the tunnel to anyone: `/events` carries live transcripts.
+With `AUTH0_DOMAIN` set, `/events`, `/calls`, `/metrics/last` and the demo endpoints also
+accept an Auth0 access token, in the `Authorization` header only, from a signed-in person
+on the caregiver list (`auth.py`). The call path never asks Auth0 anything.
 
 ### Events
 

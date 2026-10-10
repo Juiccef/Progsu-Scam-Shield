@@ -16,7 +16,7 @@ the hang-up never talk to Auth0, so a call is protected even if Auth0 is down.
 | Part | What | Who | Rough time |
 |---|---|---|---|
 | A | Set up Auth0 in its console | You | 15 min |
-| B | Server and dashboard code | You, or ask Claude to apply it | 15 min |
+| B | Server and dashboard code | Done on 2026-10-10 | - |
 | C | Send it to the Vultr server and test | You | 10 min |
 | D | Retire the old shared token | You | 5 min |
 | E | Sign-in inside the iPhone app | Whoever works on the app | 1 to 2 hours |
@@ -146,8 +146,11 @@ Nothing to change here to get going. Two things to know:
 
 ## Part B: the server and the dashboard
 
-Five files change and two are new. If you would rather not make the edits by hand, ask
-Claude to "apply part B of docs/auth0-sign-in.md": these exact changes were tested.
+**Done on 2026-10-10.** Steps 7 to 11, and step 13, are applied and committed in this
+repo, and all 186 tests pass. They are kept here to show what changed. Do part A, then go
+straight to step 12.
+
+Four files change and two are new.
 
 ### Step 7. Add the new file `auth.py`
 
