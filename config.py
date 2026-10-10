@@ -73,6 +73,12 @@ class Settings:
     log_transcripts: bool
     log_dir: Path
     events_token: str
+    # Sign-in (Auth0). With no domain, sign-in is off and EVENTS_TOKEN alone guards the feed.
+    auth0_domain: str
+    auth0_audience: str  # the API's Identifier in Auth0
+    auth0_web_client_id: str  # the dashboard's application (Single Page)
+    auth0_ios_client_id: str  # the iPhone app's application (Native)
+    caregiver_emails: tuple[str, ...]  # who may watch calls once signed in
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] = os.environ) -> "Settings":
@@ -118,6 +124,11 @@ class Settings:
             log_transcripts=_flag(env.get("LOG_TRANSCRIPTS"), False),
             log_dir=log_dir if log_dir.is_absolute() else ROOT / log_dir,
             events_token=get("EVENTS_TOKEN"),
+            auth0_domain=_host(get("AUTH0_DOMAIN")),
+            auth0_audience=get("AUTH0_AUDIENCE"),
+            auth0_web_client_id=get("AUTH0_WEB_CLIENT_ID"),
+            auth0_ios_client_id=get("AUTH0_IOS_CLIENT_ID"),
+            caregiver_emails=tuple(e.strip().lower() for e in get("CAREGIVER_EMAILS").split(",") if e.strip()),
         )
 
 

@@ -20,6 +20,7 @@
   .pill.on { color: var(--ok); border-color: var(--ok); }
   .pill.off { color: var(--bad); border-color: var(--bad); }
   .pill.dry { color: var(--warn); border-color: var(--warn); }
+  button.pill { background: none; font: inherit; font-size: 12px; cursor: pointer; color: var(--accent); border-color: var(--accent); }
   main { display: grid; gap: 16px; padding: 16px 20px; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); max-width: 1200px; margin: 0 auto; }
   @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
@@ -55,6 +56,9 @@
   <span class="pill" id="p-actions">actions: ?</span>
   <span class="pill" id="p-model">scorer: ?</span>
   <span class="pill" id="p-stt">stt: ?</span>
+  <span class="pill" id="p-user" hidden></span>
+  <button class="pill" id="sign-in" hidden>Sign In</button>
+  <button class="pill" id="sign-out" hidden>Sign Out</button>
 </header>
 
 <main>
@@ -193,11 +197,95 @@ function onEvent(ev) {
 // Frame counts come from the throttled "media" events; show them without logging every one.
 function onMedia(ev) { const f = ev.frames || {}; $("c-frames").textContent = Object.entries(f).map(([k, v]) => k + " " + v).join(", "); }
 
-function connect() {
-  const es = new EventSource("/events?" + q);
-  es.onopen = () => { $("p-feed").textContent = "feed: live"; $("p-feed").className = "pill on"; };
-  es.onmessage = (m) => { const ev = JSON.parse(m.data); if (ev.type === "media") onMedia(ev); onEvent(ev); };
-  es.onerror = () => { $("p-feed").textContent = "feed: reconnecting"; $("p-feed").className = "pill off"; };
+// Sign-in. The server says whether it wants one and which Auth0 tenant to use (GET /auth/config).
+// Where it does, an old ?token= link is ignored and the page offers the sign-in instead.
+const AUTH0_SDK = "https://cdn.auth0.com/js/auth0-spa-js/2.28/auth0-spa-js.production.js";
+const here = location.origin + location.pathname;
+let signIn = null;        // the Auth0 client, when this server asks for a sign-in
+
+function feed(text, state) { $("p-feed").textContent = "feed: " + text; $("p-feed").className = "pill " + state; }
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const tag = document.createElement("script");
+    tag.src = src; tag.onload = resolve; tag.onerror = () => reject(new Error("could not load " + src));
+    document.head.append(tag);
+  });
+}
+
+async function setUpSignIn() {
+  const config = await (await fetch("/auth/config")).json();
+  if (!config.enabled) return;       // no sign-in on this server: a ?token= link works as before
+  await loadScript(AUTH0_SDK);
+  signIn = await auth0.createAuth0Client({
+    domain: config.domain,
+    clientId: config.web_client_id,
+    authorizationParams: { audience: config.audience, redirect_uri: here },
+    useRefreshTokens: true,          // Safari blocks the cookie that staying signed in would otherwise need
+    cacheLocation: "localstorage",
+  });
+  const back = new URLSearchParams(location.search);
+  if (back.has("state") && (back.has("code") || back.has("error"))) {     // returning from Auth0's page
+    try { await signIn.handleRedirectCallback(); }
+    catch (e) { feed(e.error_description || e.message || "sign-in failed", "off"); }
+    history.replaceState(null, "", location.pathname);
+  }
+  $("sign-in").onclick = () => signIn.loginWithRedirect();
+  $("sign-out").onclick = () => signIn.logout({ logoutParams: { returnTo: here } });
+}
+
+// The token for the feed, or null when someone has to sign in first.
+async function accessToken() {
+  try {
+    if (!(await signIn.isAuthenticated())) throw new Error("not signed in");
+    const accessToken = await signIn.getTokenSilently();
+    const user = await signIn.getUser();
+    $("p-user").textContent = (user && user.email) || "signed in"; $("p-user").hidden = false;
+    $("sign-in").hidden = true; $("sign-out").hidden = false;
+    return accessToken;
+  } catch (e) {
+    $("p-user").hidden = true; $("sign-out").hidden = true; $("sign-in").hidden = false;
+    return null;
+  }
+}
+
+// Reads the event feed with fetch, not EventSource: EventSource cannot send the Authorization
+// header a sign-in needs. Each event is one "data:" line of JSON.
+async function connect() {
+  const headers = {};
+  if (signIn) {
+    const accessTokenNow = await accessToken();
+    if (!accessTokenNow) { if ($("p-feed").className !== "pill off") feed("sign in to watch", ""); return; }
+    headers.Authorization = "Bearer " + accessTokenNow;
+  }
+  try {
+    const response = await fetch(signIn ? "/events" : "/events?" + q, { headers });
+    if (response.status === 401 || response.status === 403) {
+      // Not retried: signing in, or being added to the caregiver list, is what fixes it.
+      feed((await response.json()).detail, "off");
+      if (signIn && response.status === 401) { $("sign-in").hidden = false; }
+      return;
+    }
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    feed("live", "on");
+    $("log").replaceChildren();        // the server replays recent events on every connection
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let pending = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const lines = (pending + value).split("\n");
+      pending = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const ev = JSON.parse(line.slice(5));
+        if (ev.type === "media") onMedia(ev);
+        onEvent(ev);
+      }
+    }
+  } catch (e) { /* the connection dropped or never opened: try again below */ }
+  feed("reconnecting", "off");
+  setTimeout(connect, 2000);
 }
 
 async function health() {
@@ -209,7 +297,8 @@ async function health() {
   } catch (e) { $("p-actions").textContent = "server unreachable"; $("p-actions").className = "pill off"; }
 }
 
-connect(); health(); setInterval(health, 10000);
+setUpSignIn().catch((e) => feed(e.message, "off")).then(connect);
+health(); setInterval(health, 10000);
 </script>
 </body>
 </html>

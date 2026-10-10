@@ -25,6 +25,7 @@ from twilio.twiml.voice_response import VoiceResponse
 
 import demo
 from actions import Actions
+from auth import Auth0, SignInError
 from config import ROOT, Settings, get_settings
 from events import EventBus, mask_phone
 from history import CallHistory
@@ -60,7 +61,12 @@ def build_llm(settings: Settings) -> Optional[LLMScorer]:
 
 
 def create_app(
-    settings: Optional[Settings] = None, *, stt_factory=_DEFAULT, llm=_DEFAULT, twilio_client_factory=None
+    settings: Optional[Settings] = None,
+    *,
+    stt_factory=_DEFAULT,
+    llm=_DEFAULT,
+    twilio_client_factory=None,
+    sign_in=_DEFAULT,
 ) -> FastAPI:
     settings = settings or get_settings()
     stt: Optional[STTFactory] = make_stt_factory(settings) if stt_factory is _DEFAULT else stt_factory
@@ -94,6 +100,12 @@ def create_app(
         )
     )
     voice = {"voice": settings.say_voice} if settings.say_voice else {}
+    if sign_in is _DEFAULT:
+        sign_in = (
+            Auth0(settings.auth0_domain, settings.auth0_audience, settings.caregiver_emails)
+            if settings.auth0_domain
+            else None
+        )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -113,6 +125,8 @@ def create_app(
         await registry.close_all()
         if scorer_llm is not None and llm is _DEFAULT:
             await scorer_llm.aclose()
+        if sign_in is not None:
+            await sign_in.aclose()
         bus.close()
 
     app = FastAPI(title="Palisade", lifespan=lifespan)
@@ -149,14 +163,21 @@ def create_app(
         state["public_host"] = public_host(request)  # where Twilio reaches us, for callback URLs
         return form
 
-    def authorize(request: Request) -> None:
-        """/events carries live transcripts, so EVENTS_TOKEN (when set) is required to read it."""
-        if not settings.events_token:
-            return
+    async def authorize(request: Request) -> None:
+        """/events carries live transcripts. A signed-in caregiver may read it, and so may EVENTS_TOKEN where set."""
         bearer = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
         supplied = request.query_params.get("token") or bearer
-        if not hmac.compare_digest(supplied.encode(), settings.events_token.encode()):
-            raise HTTPException(401, "Missing or wrong token")
+        if settings.events_token and hmac.compare_digest(supplied.encode(), settings.events_token.encode()):
+            return
+        if sign_in is None:
+            if settings.events_token:
+                raise HTTPException(401, "Missing or wrong token")
+            return
+        try:
+            # Only from the Authorization header: a sign-in token never belongs in a URL, where it gets logged.
+            await sign_in.caregiver(bearer)
+        except SignInError as refused:
+            raise HTTPException(refused.status, str(refused)) from refused
 
     def twiml(response: VoiceResponse) -> Response:
         return Response(str(response), media_type="application/xml")
@@ -329,7 +350,7 @@ def create_app(
     @app.get("/events")
     async def events(request: Request, replay: bool = True) -> StreamingResponse:
         """Server-sent events: call_started, transcript, score, action, action_result, call_ended, ..."""
-        authorize(request)
+        await authorize(request)
         queue = bus.subscribe()
         backlog = bus.recent() if replay else []
 
@@ -357,7 +378,7 @@ def create_app(
     @app.get("/metrics/last")
     async def metrics_last(request: Request) -> dict:
         """Seconds from the triggering utterance to the most recent action, with a per-stage breakdown."""
-        authorize(request)
+        await authorize(request)
         last = state["last_action"]
         return {
             "seconds": last["seconds"] if last else None,
@@ -369,7 +390,7 @@ def create_app(
     @app.get("/calls")
     async def calls(request: Request) -> dict:
         """Recent calls, newest first: outcome, flags, actions and the risk timeline. Never transcript text."""
-        authorize(request)
+        await authorize(request)
         return {"calls": history.list()}
 
     # --- demo calls (DEMO_MODE=true) ---------------------------------------------
@@ -377,7 +398,7 @@ def create_app(
     @app.get("/demo/scripts")
     async def demo_scripts(request: Request) -> dict:
         """The scripts a demo call can play. Empty when demo mode is off, so a client can hide the feature."""
-        authorize(request)
+        await authorize(request)
         if not settings.demo_mode:
             return {"enabled": False, "scripts": []}
         return {"enabled": True, "scripts": [demo.describe(script) for script in demo.load_scripts(DEMO_SCRIPTS)]}
@@ -385,7 +406,7 @@ def create_app(
     @app.post("/demo/call", status_code=202)
     async def demo_call(request: Request, script: str, speed: float = 1.0) -> dict:
         """Start a scripted call with no phone involved. Same scoring and decisions, dry-run actions."""
-        authorize(request)
+        await authorize(request)
         if not settings.demo_mode:
             raise HTTPException(404, "Demo mode is off (set DEMO_MODE=true)")
         if registry.any_simulated():
@@ -407,6 +428,19 @@ def create_app(
             on_finished=lambda: registry.close(call_sid, "demo finished"),
         )
         return {"call_sid": call_sid, "script": matches[0]["id"]}
+
+    @app.get("/auth/config")
+    async def auth_config() -> dict:
+        """What the dashboard and the app need to send someone to sign in. None of it is secret."""
+        if sign_in is None:
+            return {"enabled": False}
+        return {
+            "enabled": True,
+            "domain": settings.auth0_domain,
+            "audience": settings.auth0_audience,
+            "web_client_id": settings.auth0_web_client_id,
+            "ios_client_id": settings.auth0_ios_client_id,
+        }
 
     @app.get("/health")
     async def health() -> dict:
