@@ -7,23 +7,29 @@ struct HomeView: View {
     @State private var isShowingSettings = false
 
     var body: some View {
-        ScrollView {
-            HomeContent(seniorName: seniorName)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
+        List {
+            Section {
+                ProtectionCard(seniorName: seniorName)
+                    // A little more room than a list row gets: this one is the screen's headline.
+                    .padding(.vertical, 5)
+            }
+            RecentCalls(calls: store.history)
         }
-        .background(Theme.canvas.ignoresSafeArea())
+        .groupedListStyle()
+        .headerProminence(.increased)
         .navigationTitle("Shield")
         .toolbar {
             if !store.demoScripts.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
                     DemoMenu(scripts: store.demoScripts)
+                        .chrome()
                 }
             }
             ToolbarItem(placement: .primaryAction) {
                 Button("Settings", systemImage: "gearshape") {
                     isShowingSettings = true
                 }
+                .chrome()
             }
         }
         .sheet(isPresented: $isShowingSettings) {
@@ -31,19 +37,6 @@ struct HomeView: View {
         }
         .refreshable {
             await store.refresh()
-        }
-    }
-}
-
-struct HomeContent: View {
-    let seniorName: String
-
-    @Environment(ShieldStore.self) private var store
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ProtectionCard(seniorName: seniorName)
-            RecentCalls(calls: store.history)
         }
     }
 }
@@ -71,16 +64,14 @@ private struct StatusCard: View {
     let stats: CallStats
 
     var body: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 6) {
-                CardLabel(title: "\(seniorName)’s phone", symbol: symbol, tint: tint)
-                Text(title)
-                    .font(.title2.weight(.bold))
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            CardLabel(title: "\(seniorName)’s phone", symbol: symbol, tint: tint)
+            Text(title)
+                .font(.title2.weight(.bold))
+            Text(detail)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }
@@ -142,25 +133,23 @@ private struct ActiveCallCard: View {
 
     var body: some View {
         let level = RiskLevel(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
-        Card {
-            VStack(alignment: .leading, spacing: 6) {
-                CardLabel(title: "\(seniorName)’s phone", symbol: "phone.fill", tint: level.color)
-                Text(call.isDemo ? "On a demo call" : "On a call")
-                    .font(.title2.weight(.bold))
-                Text(level.title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Button {
-                    store.showCall()
-                } label: {
-                    Text("Open the call")
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(Theme.onTint)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .padding(.top, 8)
+        VStack(alignment: .leading, spacing: 6) {
+            CardLabel(title: "\(seniorName)’s phone", symbol: "phone.fill", tint: level.color)
+            Text(call.isDemo ? "On a demo call" : "On a call")
+                .font(.title2.weight(.bold))
+            Text(level.title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button {
+                store.showCall()
+            } label: {
+                Text("Open the call")
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(Theme.onTint)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.top, 8)
         }
         .animation(Motion.change, value: level)
     }
@@ -202,32 +191,16 @@ private struct RecentCalls: View {
 
     var body: some View {
         if calls.isEmpty {
-            VStack(spacing: 8) {
-                SectionHeader(title: "Recent calls")
-                    .padding(.top, 16)
-                Card {
-                    Text("No calls yet")
-                        .foregroundStyle(.secondary)
-                }
+            Section("Recent calls") {
+                Text("No calls yet")
+                    .foregroundStyle(.secondary)
             }
         } else {
             ForEach(CallDay.days(of: calls)) { day in
-                VStack(spacing: 8) {
-                    SectionHeader(title: day.title)
-                        .padding(.top, 16)
-                    Card(padding: 0) {
-                        VStack(spacing: 0) {
-                            ForEach(day.calls) { call in
-                                VStack(spacing: 0) {
-                                    NavigationLink(value: call) {
-                                        CallRow(call: call)
-                                    }
-                                    .buttonStyle(RowButtonStyle())
-                                    if call.id != day.calls.last?.id {
-                                        Divider().padding(.leading, 16)
-                                    }
-                                }
-                            }
+                Section(day.title) {
+                    ForEach(day.calls) { call in
+                        NavigationLink(value: call) {
+                            CallRow(call: call)
                         }
                     }
                 }
@@ -241,12 +214,11 @@ struct CallRow: View {
     let call: CallSummary
 
     var body: some View {
-        let look = OutcomeLook(call.outcome)
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(callerNumber(call.caller, isDemo: call.isDemo))
                     .accessibilityLabel(callerDescription(call.caller, isDemo: call.isDemo))
-                OutcomeLine(look: look)
+                OutcomeLine(look: OutcomeLook(call.outcome))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let startedAt = call.startedAt {
@@ -254,14 +226,7 @@ struct CallRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
-        .contentShape(.rect)
     }
 }
 

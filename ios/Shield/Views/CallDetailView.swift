@@ -5,102 +5,48 @@ import SwiftUI
 struct CallDetailView: View {
     let call: CallSummary
 
-    var body: some View {
-        ScrollView {
-            CallDetailContent(call: call)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-        }
-        .background(Theme.canvas.ignoresSafeArea())
-        .navigationTitle("What happened")
-        .inlineNavigationTitle()
-    }
-}
-
-struct CallDetailContent: View {
-    let call: CallSummary
-
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
-        VStack(spacing: 12) {
-            OutcomeHeader(call: call)
+        List {
+            Section {
+                OutcomeHeader(call: call)
+                    .padding(.vertical, 5)
+            }
             if call.points.count > 1 {
-                DetailSection(title: "Risk during the call") {
-                    Card {
-                        RiskChart(
-                            points: call.points,
-                            warnAt: store.warnThreshold,
-                            endAt: store.endThreshold,
-                            tint: OutcomeLook(call.outcome).tint
-                        )
-                    }
+                Section("Risk during the call") {
+                    RiskChart(
+                        points: call.points,
+                        warnAt: store.warnThreshold,
+                        endAt: store.endThreshold,
+                        tint: OutcomeLook(call.outcome).tint
+                    )
+                    .padding(.vertical, 5)
                 }
             }
             if !call.flags.isEmpty {
-                DetailSection(title: "What Shield noticed") {
-                    RowsCard(items: call.flags) { flag in
+                Section("What Shield noticed") {
+                    ForEach(call.flags) { flag in
                         FlagRow(flag: flag)
                     }
                 }
             }
             if !call.actions.isEmpty {
-                DetailSection(title: "What Shield did") {
-                    RowsCard(items: call.actions) { action in
+                Section("What Shield did") {
+                    ForEach(call.actions, id: \.self) { action in
                         ActionRow(action: action)
                     }
                 }
             }
-            Label {
-                Text("Shield keeps what it detected, not what was said. No audio or transcript of this call was stored.")
-            } icon: {
-                Image(systemName: "lock.fill")
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-/// A title with its content under it.
-private struct DetailSection<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: title)
-                .padding(.top, 16)
-            content
-        }
-    }
-}
-
-/// A card of rows with a hairline between them, as in a system list.
-private struct RowsCard<Item: Hashable, Row: View>: View {
-    let items: [Item]
-    @ViewBuilder let row: (Item) -> Row
-
-    var body: some View {
-        Card(padding: 0) {
-            VStack(spacing: 0) {
-                ForEach(items, id: \.self) { item in
-                    VStack(spacing: 0) {
-                        row(item)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 11)
-                        if item != items.last {
-                            Divider().padding(.leading, 16)
-                        }
-                    }
-                }
+            Section {
+            } footer: {
+                Label("Shield keeps what it detected, not what was said. No audio or transcript of this call was stored.", systemImage: "lock.fill")
             }
         }
+        .groupedListStyle()
+        .headerProminence(.increased)
+        .navigationTitle("What happened")
+        .inlineNavigationTitle()
     }
 }
 
@@ -110,23 +56,21 @@ private struct OutcomeHeader: View {
 
     var body: some View {
         let look = OutcomeLook(call.outcome)
-        Card {
-            VStack(alignment: .leading, spacing: 6) {
-                CardLabel(title: look.title, symbol: look.symbol, tint: look.tint)
-                Text(callerNumber(call.caller, isDemo: call.isDemo))
-                    .font(.title2.weight(.bold))
-                    .accessibilityLabel(callerDescription(call.caller, isDemo: call.isDemo))
-                VStack(alignment: .leading, spacing: 2) {
-                    if let startedAt = call.startedAt {
-                        Text(startedAt, format: .dateTime.month().day().year().hour().minute())
-                    }
-                    if let duration = call.duration {
-                        Text("Lasted \(Duration.seconds(duration), format: .units(allowed: [.minutes, .seconds], width: .abbreviated))")
-                    }
+        VStack(alignment: .leading, spacing: 6) {
+            CardLabel(title: look.title, symbol: look.symbol, tint: look.tint)
+            Text(callerNumber(call.caller, isDemo: call.isDemo))
+                .font(.title2.weight(.bold))
+                .accessibilityLabel(callerDescription(call.caller, isDemo: call.isDemo))
+            VStack(alignment: .leading, spacing: 2) {
+                if let startedAt = call.startedAt {
+                    Text(startedAt, format: .dateTime.month().day().year().hour().minute())
                 }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                if let duration = call.duration {
+                    Text("Lasted \(Duration.seconds(duration), format: .units(allowed: [.minutes, .seconds], width: .abbreviated))")
+                }
             }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
     }
@@ -190,8 +134,18 @@ struct RiskChart: View {
                 }
         }
         .chartYScale(domain: 0...100)
+        // The two thresholds are the lines to read. The grid stays out of their way: no
+        // vertical lines, and only the bottom and top of the scale across.
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisValueLabel()
+            }
+        }
         .chartYAxis {
-            AxisMarks(values: [0, 50, 100])
+            AxisMarks(values: [0, 100]) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
         }
         .chartXAxisLabel("Seconds into the call")
         .frame(height: 180)

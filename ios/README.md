@@ -25,12 +25,18 @@ Shield server's `GET /events` feed and `GET /calls` list.
 - Looked at on 2026-10-08 with sample data: the "Ringing" state, a call that ends after
   a warning with no hang-up, and an accessibility text size. The layouts hold; at that
   text size the header's status line is cut short.
+- On 2026-10-09 the motion was gone through frame by frame on a recorded demo call and
+  fixed at three moments: a call opening, Shield's warning arriving, and Shield ending
+  the call. The same day the dial was redrawn around the level's name, Home and "What
+  happened" became system lists, the call screen's header got the system's own buttons,
+  and flagged phrases a rounded highlighter. All of it was checked in the iPhone 17e
+  simulator in light and dark, with Reduce Motion on, and at an accessibility text size.
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
-- Not yet looked at: smaller iPhones.
+- Not yet looked at: iPhones smaller than the 17e.
 
 ## Screens
 
-From the iPhone 17 simulator, with sample data.
+From the iPhone 17e simulator, with sample data.
 
 | Home | Call in progress | Shield ended the call | What happened |
 |---|---|---|---|
@@ -46,6 +52,20 @@ call" wherever a real call shows the caller's number.
 Recent calls are listed under the day they came in. Each row leads with the caller's
 number, masked by the server to its last four digits, and says what came of the call
 under it.
+
+The dial says how the call looks in words. The small number in its opening is the risk
+score out of 100 that the words come from.
+
+When Shield warns or ends a call, the call screen comes back even if it had been put
+away, and the phone buzzes. The transcript keeps up with the call until you scroll up
+to reread, and picks up again when you scroll back down (iOS 18 and later).
+
+### How it moves
+
+There are three timings, in `Support/Theme.swift` (`Motion`), and nothing bounces. What
+is leaving clears before its replacement arrives. A card that arrives between things
+already on screen unfolds while they move out of its way. With Reduce Motion on, the
+call screen fades in where it would slide, and digits and words cross-fade.
 
 ## Run it in the simulator
 

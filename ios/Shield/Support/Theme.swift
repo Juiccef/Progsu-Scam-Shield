@@ -122,18 +122,15 @@ extension Color {
     }
 }
 
-/// A rounded panel on the canvas.
+/// A rounded panel on the canvas, for the call screen. Lists draw their own.
 struct Card<Content: View>: View {
-    var padding: CGFloat = 16
     @ViewBuilder let content: Content
 
     var body: some View {
         content
-            .padding(padding)
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.surface)
-            // Clipped, so a pressed row inside it keeps the card's corners.
-            .clipShape(.rect(cornerRadius: Theme.cardRadius))
+            .background(Theme.surface, in: .rect(cornerRadius: Theme.cardRadius))
     }
 }
 
@@ -144,21 +141,38 @@ struct CardLabel: View {
     let tint: Color
 
     var body: some View {
-        Label(title, systemImage: symbol)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(tint)
+        // Laid out by hand: inside a list, a `Label` is given the wide symbol column of a
+        // settings row, which pulls the name away from its symbol.
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .accessibilityHidden(true)
+            Text(title)
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(tint)
     }
 }
 
-/// The title above a group of content.
-struct SectionHeader: View {
-    let title: String
+extension View {
+    /// A button in the call screen's header. Where the system has a glass button (iOS 26) it
+    /// is that one, the same as the navigation bar's, so the two screens' buttons match.
+    /// Before that it is the quiet button.
+    @ViewBuilder
+    func headerButton(_ shape: ButtonBorderShape) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            buttonStyle(.glass)
+                .buttonBorderShape(shape)
+                .controlSize(.large)
+                .chrome()
+        } else {
+            buttonStyle(QuietButtonStyle(height: 44))
+        }
+    }
 
-    var body: some View {
-        Text(title)
-            .font(.title3.weight(.bold))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityAddTraits(.isHeader)
+    /// For the buttons around a screen's edge (its navigation bar, the call screen's header):
+    /// drawn in the text color, not the app's green. Green is kept for what it means.
+    func chrome() -> some View {
+        tint(.primary)
     }
 }
 
@@ -171,18 +185,10 @@ struct QuietButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
-            .frame(minHeight: height)
+            // At least as wide as it is tall: a lone symbol gets a circle.
+            .frame(minWidth: height, minHeight: height)
             .background(Theme.surface, in: .capsule)
             .opacity(configuration.isPressed ? 0.55 : 1)
-            .animation(configuration.isPressed ? nil : Motion.quick, value: configuration.isPressed)
-    }
-}
-
-/// Dims a tapped row the way a list row dims.
-struct RowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? Color.pressedRow : .clear)
             .animation(configuration.isPressed ? nil : Motion.quick, value: configuration.isPressed)
     }
 }

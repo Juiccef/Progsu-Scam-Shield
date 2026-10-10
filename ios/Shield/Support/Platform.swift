@@ -16,7 +16,6 @@ extension Color {
     // The system's own grouped-screen colors, the ones Settings and Health are drawn in.
     static let groupedCanvas = Color(uiColor: .systemGroupedBackground)
     static let groupedSurface = Color(uiColor: .secondarySystemGroupedBackground)
-    static let pressedRow = Color(uiColor: .systemGray4)
     static let quietFill = Color(uiColor: .systemGray5)
 }
 #else
@@ -31,12 +30,20 @@ extension Color {
 
     static let groupedCanvas = Color(nsColor: .windowBackgroundColor)
     static let groupedSurface = Color(nsColor: .controlBackgroundColor)
-    static let pressedRow = Color(nsColor: .separatorColor)
     static let quietFill = Color(nsColor: .quaternaryLabelColor)
 }
 #endif
 
 extension View {
+    /// The grouped list that Settings and Health are made of. The Mac has no such style.
+    func groupedListStyle() -> some View {
+        #if os(iOS)
+        listStyle(.insetGrouped)
+        #else
+        self
+        #endif
+    }
+
     func inlineNavigationTitle() -> some View {
         #if os(iOS)
         navigationBarTitleDisplayMode(.inline)

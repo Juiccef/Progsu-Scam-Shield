@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The risk score as a slim three-quarter ring. The ring takes the color of the risk level;
-/// the number and the level's name stay in ordinary text.
+/// How risky the call looks, as a slim three-quarter ring. The ring takes the color of the risk
+/// level and holds the level's name, which is what a caregiver reads at a glance. The score
+/// itself sits small in the ring's opening.
 struct RiskDial: View {
     let risk: Int
     let warnAt: Int
@@ -15,17 +16,31 @@ struct RiskDial: View {
 
     var body: some View {
         let level = RiskLevel(risk: risk, warnAt: warnAt, endAt: endAt)
-        // The level's name is tucked into the ring's opening. It is laid out under the ring rather
-        // than over it, so larger text grows downward, away from the ring. At accessibility text
-        // sizes the name is too big for the opening and sits clear of the ring instead.
-        VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 2 : -26) {
-            ring(color: level.color)
-            Text(level.title)
-                .font(.headline)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .id(level)
-                .replaces(reduceMotion: reduceMotion)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Words this large do not fit inside the ring. The score goes there instead,
+                // and the level's name under the ring, where it can take the room it needs.
+                VStack(spacing: 2) {
+                    ring(color: level.color) {
+                        score
+                            .font(.system(size: 68, weight: .semibold, design: .rounded))
+                            .minimumScaleFactor(0.4)
+                    }
+                    name(of: level)
+                        .font(.headline)
+                }
+            } else {
+                ring(color: level.color) {
+                    name(of: level)
+                        .font(.title2.weight(.bold))
+                        .minimumScaleFactor(0.7)
+                }
+                .overlay(alignment: .bottom) {
+                    score
+                        .font(.system(.title3, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .animation(Motion.change, value: risk)
         .accessibilityElement(children: .ignore)
@@ -33,21 +48,31 @@ struct RiskDial: View {
         .accessibilityValue("\(risk) out of 100, \(level.title)")
     }
 
-    private func ring(color: Color) -> some View {
+    private func name(of level: RiskLevel) -> some View {
+        Text(level.title)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .id(level)
+            .replaces(reduceMotion: reduceMotion)
+    }
+
+    private var score: some View {
+        Text(risk, format: .number)
+            .monospacedDigit()
+            .contentTransition(reduceMotion ? .opacity : .numericText(value: Double(risk)))
+            .lineLimit(1)
+    }
+
+    private func ring(color: Color, @ViewBuilder center: () -> some View) -> some View {
         ZStack {
             arc(upTo: 100)
                 .stroke(Theme.quietFill, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
             arc(upTo: risk)
                 .stroke(color, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
                 .opacity(risk > 0 ? 1 : 0)
-            Text(risk, format: .number)
-                .font(.system(size: 68, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .contentTransition(reduceMotion ? .opacity : .numericText(value: Double(risk)))
-                // Kept inside the ring: on a small screen the dial shrinks and the number shrinks with it.
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-                .padding(.horizontal, Self.lineWidth + 8)
+            // Kept inside the ring: on a small screen the dial shrinks and its words with it.
+            center()
+                .padding(.horizontal, Self.lineWidth + 10)
         }
         .padding(Self.lineWidth / 2)
         .aspectRatio(1, contentMode: .fit)

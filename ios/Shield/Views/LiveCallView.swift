@@ -64,20 +64,16 @@ private struct CallHeader: View {
                     store.closeCall()
                 }
                 .fontWeight(.semibold)
-                .buttonStyle(QuietButtonStyle(height: 44))
+                .headerButton(.capsule)
                 .replaces(reduceMotion: reduceMotion)
             } else {
                 // The call goes on; this only puts its screen away.
-                Button {
+                Button("Hide call", systemImage: "chevron.down") {
                     store.closeCall()
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(Theme.surface, in: .circle)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Hide call")
+                .labelStyle(.iconOnly)
+                .fontWeight(.semibold)
+                .headerButton(.circle)
                 .replaces(reduceMotion: reduceMotion)
             }
         }
