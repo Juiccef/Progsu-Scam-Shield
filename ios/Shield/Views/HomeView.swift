@@ -134,10 +134,15 @@ private struct ActiveCallCard: View {
     var body: some View {
         let level = RiskLevel(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
         VStack(alignment: .leading, spacing: 6) {
-            CardLabel(title: "\(seniorName)’s Phone", symbol: "phone.fill", tint: level.color)
+            // Until someone has spoken there is no level to report, here or on the call screen.
+            CardLabel(
+                title: "\(seniorName)’s Phone",
+                symbol: "phone.fill",
+                tint: call.hasSpeech ? level.color : Theme.watchful
+            )
             Text(call.isDemo ? "On a Demo Call" : "On a Call")
                 .font(.title2.weight(.bold))
-            Text(level.title)
+            Text(call.hasSpeech ? level.title : call.phase == .ringing ? "Ringing" : "Listening")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Button {

@@ -52,6 +52,9 @@ final class LiveCall: Identifiable {
     /// Most telling first.
     private(set) var rankedFlags: [Flag] = []
     private(set) var lines: [TranscriptLine] = []
+    /// True once the first words are in. Until then Shield has heard nothing to judge, and
+    /// the screens say so rather than call the call normal.
+    private(set) var hasSpeech = false
     private(set) var timeline: [RiskPoint] = []
     private(set) var warning: ShieldAction?
     /// Set when Shield ended the call.
@@ -139,6 +142,7 @@ final class LiveCall: Identifiable {
             )
             openLine[speaker] = nextLineID
             nextLineID += 1
+            if !hasSpeech { hasSpeech = true }
         }
         if isFinal { openLine[speaker] = nil }
     }

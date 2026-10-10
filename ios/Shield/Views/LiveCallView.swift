@@ -139,10 +139,15 @@ private struct CallMonitor: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The dial gets its full size first. On a small screen it gives way only once the
-            // transcript is down to a few lines.
-            RiskPanel(call: call)
-                .layoutPriority(1)
+            // No dial until the first words are in. Before that it has nothing to report, and
+            // "Looks Normal" would be a claim made about silence.
+            if call.hasSpeech {
+                // The dial gets its full size first. On a small screen it gives way only once
+                // the transcript is down to a few lines.
+                RiskPanel(call: call)
+                    .layoutPriority(1)
+                    .transition(.opacity)
+            }
             if let warning = call.warning {
                 WarningCard(warning: warning, seniorName: seniorName)
                     .transition(Unfold())
@@ -163,6 +168,8 @@ private struct CallMonitor: View {
         // makes room for it move as one. The warning waits a moment for the signs under the
         // dial, which it replaces, to clear; listed first, it is the one used when Shield warns.
         .animation(Motion.change.delay(Motion.lead), value: call.warning != nil)
+        // The dial and the first words likewise wait for the "Listening" line to clear.
+        .animation(Motion.change.delay(Motion.lead), value: call.hasSpeech)
         .animation(Motion.change, value: call.rankedFlags)
         .animation(Motion.change, value: call.hasEnded)
     }
@@ -228,20 +235,27 @@ private struct TranscriptArea: View {
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
-        if call.lines.isEmpty {
+        if call.hasSpeech {
+            let level = RiskLevel(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
+            TranscriptView(lines: call.lines, seniorName: seniorName, markColor: level.markColor)
+                .transition(.opacity)
+        } else {
+            // Until someone speaks this is all the screen holds, in the middle of it. A call
+            // that ended before anyone spoke has nothing to wait for.
             VStack(spacing: 8) {
-                Image(systemName: call.phase == .ringing ? "phone.arrow.down.left" : "waveform")
-                    .font(.title)
-                    .symbolEffect(.pulse)
-                    .accessibilityHidden(true)
-                Text(call.phase == .ringing ? "Waiting for \(seniorName) to pick up" : "Listening")
-                    .font(.subheadline)
+                if !call.hasEnded {
+                    Image(systemName: call.phase == .ringing ? "phone.arrow.down.left" : "waveform")
+                        .font(.title)
+                        .symbolEffect(.pulse)
+                        .accessibilityHidden(true)
+                    Text(call.phase == .ringing ? "Waiting for \(seniorName) to pick up" : "Listening")
+                        .font(.subheadline)
+                }
             }
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            let level = RiskLevel(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
-            TranscriptView(lines: call.lines, seniorName: seniorName, markColor: level.markColor)
+            // Out of the way first, and quickly, before the dial and the first words arrive.
+            .transition(.asymmetric(insertion: .opacity, removal: .opacity.animation(Motion.quick)))
         }
     }
 }
