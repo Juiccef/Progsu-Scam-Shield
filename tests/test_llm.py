@@ -7,9 +7,9 @@ import pytest
 from config import ROOT
 from scorer.flags import FLAG_IDS
 from scorer.llm import LLMScorer, ScorerPrompt, has_decision_fields, parse_reply, parse_result
-from scorer.providers import VULTR_INFERENCE, ProviderError, make_provider, resolve
+from scorer.providers import TYPESAFE, VULTR_INFERENCE, ProviderError, make_provider, resolve
 from scorer.providers.openai_compat import OpenAICompatProvider
-from scorer.providers.vultr_decision import VultrDecisionProvider
+from scorer.providers.vultr_decision import RISK_ANCHORS, VultrDecisionProvider, questions
 
 PROMPT = ScorerPrompt.load(ROOT / "prompts" / "scam-scorer-prompt.md")
 GOOD_REPLY = json.dumps(
@@ -162,6 +162,8 @@ def test_model_specs_resolve_to_providers():
     assert resolve("groq:llama-3.3-70b-versatile") == ("groq", "llama-3.3-70b-versatile")
     assert resolve("vultr:deepseek-v4-flash-0731") == ("vultr", "deepseek-v4-flash-0731")
     assert resolve("vultr-decision:clef-flash") == ("vultr-decision", "clef-flash")
+    assert resolve("typesafe:jev-1.13.0") == ("typesafe", "jev-1.13.0")
+    assert resolve("jev-latest") == ("typesafe", "jev-latest")
     assert resolve("custom:llama3.2:3b") == ("custom", "llama3.2:3b")
     with pytest.raises(ValueError):
         resolve("mystery-model")
@@ -359,3 +361,60 @@ def test_decision_timeout_is_reported_as_a_timeout():
 
     scorer = LLMScorer("vultr-decision:clef-flash", PROMPT, provider=vultr_decision(handler))
     assert asyncio.run(scorer.score("CALLER: Hello.")).error == "timeout"
+
+
+def test_risk_levels_describe_situations_not_numbers():
+    # A decision model judges each level alone, without its number, so a level must say what it looks like.
+    for prompt in (PROMPT, ScorerPrompt.load(ROOT / "prompts" / "message-scorer-prompt.md")):
+        criteria = questions(prompt.system)["risk"]["criteria"]
+        assert len(criteria) == len(RISK_ANCHORS)
+        assert not any(char.isdigit() for level in criteria for char in level)
+
+
+# --- Jev, TypeSafe's decision model ---------------------------------------------
+
+
+def test_jev_needs_the_typesafe_key(monkeypatch):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="TYPESAFE_API_KEY"):
+        make_provider("jev-latest")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    provider = make_provider("jev-latest")
+    assert isinstance(provider, VultrDecisionProvider) and provider.name == "typesafe"
+    assert str(provider._client.base_url) == f"{TYPESAFE}/"
+
+
+def test_jev_is_asked_at_typesafe():
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content), url=str(request.url), auth=request.headers["authorization"])
+        return httpx.Response(200, json=decision_reply({"3": 0.9, "4": 0.1}, UNUSUAL_PAYMENT=0.95))
+
+    provider = VultrDecisionProvider(
+        "jev-latest", "ts-test", base_url=TYPESAFE, name="typesafe", transport=httpx.MockTransport(handler)
+    )
+    outcome = asyncio.run(LLMScorer("jev-latest", PROMPT, provider=provider).score("CALLER: Buy gift cards."))
+    assert seen["url"] == "https://api.typesafe.ai/v1/systemone" and seen["auth"] == "Bearer ts-test"
+    assert seen["model"] == "jev-latest" and seen["state"] == "CALLER: Buy gift cards."
+    assert outcome.result.risk == 89 and outcome.result.flags == ("UNUSUAL_PAYMENT",)  # 0.9 * 88 + 0.1 * 100
+
+
+def test_a_text_is_asked_about_the_message_not_a_caller():
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=decision_reply({"0": 1.0}))
+
+    texts = ScorerPrompt.load(ROOT / "prompts" / "message-scorer-prompt.md")
+    message = "Hi Mom, my phone broke. This is my new number. Can you send me $500?"
+    asyncio.run(vultr_decision(handler).complete(texts.system, texts.messages(message, 0), {}, 2.5))
+    assert seen["state"] == message
+    asked = seen["questions"]
+    assert all("CALLER" not in question["instructions"] for question in asked.values())
+    assert asked["FAMILY_EMERGENCY"]["instructions"].startswith("Is this clearly present in the message? ")
+    assert "new number" in asked["FAMILY_EMERGENCY"]["instructions"]
+    assert asked["risk"]["criteria"] != questions(PROMPT.system)["risk"]["criteria"]
+    assert "JSON" not in asked["risk"]["instructions"] and "Allowed flags" not in asked["risk"]["instructions"]
+    assert "untrusted data" in asked["risk"]["instructions"]

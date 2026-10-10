@@ -38,6 +38,7 @@ from scorer.decision import is_allowlisted, normalize_phone
 from scorer.flags import CALLER, SENIOR
 from scorer.llm import LLMScorer, ScorerPrompt
 from scorer.messages import MessageScorer
+from scorer.providers import DECISION_APIS, resolve
 from session import CallRegistry, CallSession
 from stt import STTFactory, STTResult, STTStream, make_stt_factory
 
@@ -67,7 +68,7 @@ def build_llm(settings: Settings) -> Optional[LLMScorer]:
     if settings.scorer_model.lower() in ("rules", "none"):
         return None
     try:
-        return LLMScorer(
+        scorer = LLMScorer(
             settings.scorer_model,
             ScorerPrompt.load(settings.scorer_prompt),
             timeout_s=settings.llm_timeout_s,
@@ -76,6 +77,9 @@ def build_llm(settings: Settings) -> Optional[LLMScorer]:
     except Exception as exc:  # unknown provider, missing key, unreadable prompt
         log.error("LLM scorer is off, running on rules only: %s", exc)
         return None
+    if resolve(settings.scorer_model)[0] in DECISION_APIS:
+        log.warning("%s is experimental and has not been measured; see docs/jev-testing.md", settings.scorer_model)
+    return scorer
 
 
 def create_app(

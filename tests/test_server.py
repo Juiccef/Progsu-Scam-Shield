@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.request_validator import RequestValidator
 
 from config import Settings
-from main import create_app
+from main import build_llm, create_app
 from stt import STTResult
 
 AUTH_TOKEN = "test-auth-token"
@@ -144,6 +144,16 @@ def test_health(tmp_path):
     assert body["ok"] is True
     assert body["scorer_model"] == "rules" and body["stt"] is None and body["actions"] == "dry_run"
     assert AUTH_TOKEN not in json.dumps(body) and SENIOR not in json.dumps(body)
+
+
+def test_jev_is_announced_as_experimental_and_falls_back_without_its_key(tmp_path, monkeypatch, caplog):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    settings = make_settings(tmp_path, SCORER_MODEL="jev-latest")
+    assert build_llm(settings) is None and "needs TYPESAFE_API_KEY" in caplog.text
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    caplog.clear()
+    assert build_llm(settings).model == "jev-latest"
+    assert "jev-latest is experimental" in caplog.text
 
 
 def test_incoming_call_gets_disclosure_stream_and_dial(tmp_path):

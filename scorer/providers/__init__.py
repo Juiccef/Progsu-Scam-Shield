@@ -1,8 +1,8 @@
 """Model providers for the LLM scorer.
 
-A model spec is a bare model ID ("gpt-4o-mini", "claude-haiku-4-5", "gemini-...")
+A model spec is a bare model ID ("gpt-4o-mini", "claude-haiku-4-5", "gemini-...", "jev-latest")
 or "provider:model" ("groq:llama-3.3-70b-versatile", "vultr:<chat model>",
-"vultr-decision:<decision model>", "custom:llama3.2:3b").
+"vultr-decision:<decision model>", "typesafe:<decision model>", "custom:llama3.2:3b").
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ def strict_json_setting() -> Optional[bool]:
 
 
 VULTR_INFERENCE = "https://api.vultrinference.com/v1"  # Vultr Serverless Inference
+TYPESAFE = "https://api.typesafe.ai/v1"  # TypeSafe AI, the makers of Jev
 
 # name -> (base URL, API key env vars in order of preference)
 OPENAI_COMPATIBLE = {
@@ -53,15 +54,21 @@ OPENAI_COMPATIBLE = {
     "vultr": (VULTR_INFERENCE, ("VULTR_INFERENCE_API_KEY",)),
     "custom": ("", ("LLM_API_KEY",)),  # any OpenAI-compatible server; set LLM_BASE_URL
 }
-# vultr-decision: Vultr's decision models, which answer with probabilities and write no text.
-PROVIDER_NAMES = ("anthropic", "vultr-decision", *OPENAI_COMPATIBLE)
+# Decision models answer with probabilities and write no text. Vultr and TypeSafe serve them
+# behind the same POST /systemone; TypeSafe's own is Jev. Experimental: none has been measured
+# on Palisade's evals (docs/jev-testing.md), and the server says so when one is chosen.
+DECISION_APIS = {
+    "vultr-decision": (VULTR_INFERENCE, ("VULTR_INFERENCE_API_KEY",)),
+    "typesafe": (TYPESAFE, ("TYPESAFE_API_KEY",)),
+}
+PROVIDER_NAMES = ("anthropic", *DECISION_APIS, *OPENAI_COMPATIBLE)
 
 
 def key_vars(name: str) -> tuple[str, ...]:
     """The environment variables that can hold a provider's API key, in order of preference."""
     if name == "anthropic":
         return ("ANTHROPIC_API_KEY",)
-    return OPENAI_COMPATIBLE["vultr" if name == "vultr-decision" else name][1]
+    return (DECISION_APIS.get(name) or OPENAI_COMPATIBLE[name])[1]
 
 
 def resolve(spec: str) -> tuple[str, str]:
@@ -76,6 +83,8 @@ def resolve(spec: str) -> tuple[str, str]:
         return "openai", spec
     if lowered.startswith("gemini"):
         return "google", spec
+    if lowered.startswith("jev"):
+        return "typesafe", spec
     raise ValueError(
         f"Cannot tell which provider serves {spec!r}. Use provider:model with one of: {', '.join(PROVIDER_NAMES)}."
     )
@@ -91,10 +100,10 @@ def make_provider(spec: str) -> Provider:
     api_key = next((os.environ[var] for var in key_vars(name) if os.environ.get(var)), "")
     if not api_key and name != "custom":
         raise ValueError(f"{spec} needs {' or '.join(key_vars(name))} to be set.")
-    if name == "vultr-decision":
+    if name in DECISION_APIS:
         from .vultr_decision import VultrDecisionProvider
 
-        return VultrDecisionProvider(model, api_key)
+        return VultrDecisionProvider(model, api_key, base_url=DECISION_APIS[name][0], name=name)
 
     from .openai_compat import OpenAICompatProvider
 
