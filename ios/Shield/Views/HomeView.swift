@@ -95,8 +95,7 @@ private struct StatusCard: View {
             .accessibilityElement(children: .combine)
             if needsSettings {
                 Button("Open Settings", action: openSettings)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
+                    .cardButton()
             }
         }
     }
@@ -222,8 +221,7 @@ private struct RecentCalls: View {
                         DemoMenu(scripts: demoScripts) {
                             Text("Start a Demo Call")
                         }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
+                        .cardButton()
                     }
                 }
                 // On the canvas, as the system's empty states are, not in a list's box.
@@ -238,17 +236,34 @@ struct CallRow: View {
     let call: CallSummary
 
     var body: some View {
-        HStack(spacing: 12) {
+        // The day sits at the end of the row while everything fits on one line. When it does
+        // not (large text), it goes underneath, so the caller is not squeezed into a column.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                whoAndWhat
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                when
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(callerDescription(call.caller, isDemo: call.isDemo))
-                OutcomeLine(look: OutcomeLook(call.outcome))
+                whoAndWhat
+                when
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if let startedAt = call.startedAt {
-                Text(Self.when(startedAt))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        }
+    }
+
+    private var whoAndWhat: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(callerDescription(call.caller, isDemo: call.isDemo))
+            OutcomeLine(look: OutcomeLook(call.outcome))
+        }
+    }
+
+    @ViewBuilder private var when: some View {
+        if let startedAt = call.startedAt {
+            Text(Self.when(startedAt))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 

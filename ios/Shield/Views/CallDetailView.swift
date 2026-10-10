@@ -146,7 +146,7 @@ struct RiskChart: View {
                 AxisValueLabel()
             }
         }
-        .chartXAxisLabel("Seconds Into the Call")
+        .chartXAxisLabel("Seconds into the Call")
         .frame(height: 180)
         .accessibilityLabel("Risk During the Call")
         .accessibilityValue("Peaked at \(points.map(\.risk).max() ?? 0) out of 100")

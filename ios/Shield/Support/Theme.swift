@@ -170,6 +170,14 @@ extension View {
         }
     }
 
+    /// A small button that offers the next step inside a card or an empty list: a capsule
+    /// tinted in the accent color, the one Health puts in its own notice cards.
+    func cardButton() -> some View {
+        buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .tint(.accentColor)
+    }
+
     /// For the buttons around a screen's edge (its navigation bar, the call screen's header):
     /// drawn in the text color, as the system draws its own. Blue is kept for the one button
     /// a screen is about.
