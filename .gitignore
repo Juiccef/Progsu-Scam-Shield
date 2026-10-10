@@ -1,0 +1,21 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+logs/
+eval/results/*.json
+
+# other local env files (keep the template)
+.env.*
+!.env.example
+*.log
+.idea/
+.vscode/
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+ios/build/

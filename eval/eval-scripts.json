@@ -1,0 +1,251 @@
+{
+  "meta": {
+    "description": "Synthetic phone call scripts for evaluating Shield's scam scorer. All organizations, names and amounts are fictional. Scam scripts follow commonly documented scam patterns; to add realism, add more scripts based on public scam-awareness materials rather than copying creators' recordings.",
+    "speakers": "caller = the person who phoned the senior; senior = the protected person",
+    "t": "approximate seconds from call start when the turn begins",
+    "trigger_turn": "index of the earliest turn where a careful listener should call the call a likely scam (a judgment call). null for legitimate calls.",
+    "label": "scam or legit. Legit scripts marked adversarial deliberately contain scam-like vocabulary (fraud, payment, personal details) to test false alarms."
+  },
+  "scripts": [
+    {
+      "id": "scam_01_benefits_suspension",
+      "label": "scam",
+      "category": "government_impersonation",
+      "trigger_turn": 4,
+      "notes": "Threat of arrest, stay on the line, secrecy, then gift cards.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, this is Officer Daniels with the Federal Benefits Office. Am I speaking with the account holder?"},
+        {"t": 5, "speaker": "senior", "text": "Yes, this is me. What is this about?"},
+        {"t": 9, "speaker": "caller", "text": "Your benefits number has been flagged for suspicious activity and it will be suspended today."},
+        {"t": 15, "speaker": "senior", "text": "Suspended? I don't understand."},
+        {"t": 19, "speaker": "caller", "text": "There is a warrant connected to your account. To avoid arrest you must stay on the line and not hang up."},
+        {"t": 26, "speaker": "senior", "text": "Oh my. What do I need to do?"},
+        {"t": 30, "speaker": "caller", "text": "Do not discuss this with anyone, including your bank or family, because it could compromise the investigation."},
+        {"t": 38, "speaker": "senior", "text": "Okay, I won't tell anyone."},
+        {"t": 42, "speaker": "caller", "text": "Go to your nearest store and buy gift cards worth three thousand dollars, then read me the numbers on the back."},
+        {"t": 49, "speaker": "senior", "text": "Gift cards? Is that normal?"},
+        {"t": 53, "speaker": "caller", "text": "Yes, it is a secure government process. You must hurry, the deadline is in one hour."}
+      ]
+    },
+    {
+      "id": "scam_02_bank_safe_account",
+      "label": "scam",
+      "category": "bank_impersonation",
+      "trigger_turn": 2,
+      "notes": "Classic safe-account transfer with verification avoidance and secrecy.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Good afternoon, this is the fraud prevention team at your bank. We detected a suspicious transfer from your savings account."},
+        {"t": 7, "speaker": "senior", "text": "Oh no, I didn't make any transfer."},
+        {"t": 11, "speaker": "caller", "text": "To protect your money we need to move your funds into a secure holding account right away."},
+        {"t": 19, "speaker": "senior", "text": "How do I do that?"},
+        {"t": 23, "speaker": "caller", "text": "I will give you the account number. Please go to your branch or use your app and wire the full balance now."},
+        {"t": 32, "speaker": "senior", "text": "Should I call my bank first to check?"},
+        {"t": 36, "speaker": "caller", "text": "There is no time. Calling will alert the criminals who have access to your account. Please do not tell the teller why you are wiring the money."},
+        {"t": 47, "speaker": "senior", "text": "Alright, I'm getting my coat."}
+      ]
+    },
+    {
+      "id": "scam_03_tech_support_remote_access",
+      "label": "scam",
+      "category": "tech_support",
+      "trigger_turn": 4,
+      "notes": "Slow burn: starts benign. Tests the rolling window and previous_risk. Remote access then a prepaid card charge.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, I'm calling from Windows technical support. We are seeing error reports coming from your computer."},
+        {"t": 7, "speaker": "senior", "text": "Really? It has been running slow lately."},
+        {"t": 11, "speaker": "caller", "text": "Yes, that is a virus. I can fix it for you over the phone right now. Are you near your computer?"},
+        {"t": 19, "speaker": "senior", "text": "I'm sitting at it now."},
+        {"t": 22, "speaker": "caller", "text": "Great. Please open your web browser and download a remote access program that I will name for you."},
+        {"t": 31, "speaker": "senior", "text": "Okay, what do I click?"},
+        {"t": 34, "speaker": "caller", "text": "Install it and read me the nine digit code it shows, so I can connect to your computer and remove the virus."},
+        {"t": 43, "speaker": "senior", "text": "It's showing a code. Should I give it to you?"},
+        {"t": 47, "speaker": "caller", "text": "Yes. After that there is a one-time charge of two hundred dollars, which you can pay with a prepaid card."}
+      ]
+    },
+    {
+      "id": "scam_04_grandparent_bail",
+      "label": "scam",
+      "category": "family_emergency",
+      "trigger_turn": 4,
+      "notes": "Caller never names themselves; the senior supplies the name. Bail money, secrecy, cash pickup.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Grandma? It's me. Please don't be upset."},
+        {"t": 3, "speaker": "senior", "text": "Who is this? Michael?"},
+        {"t": 7, "speaker": "caller", "text": "Yes, it's Michael. I'm in trouble. I was in a car accident and the police arrested me."},
+        {"t": 14, "speaker": "senior", "text": "Oh my goodness, are you hurt?"},
+        {"t": 17, "speaker": "caller", "text": "I'm okay, but I need bail money right away. Please don't tell Mom and Dad, they'll be so angry."},
+        {"t": 26, "speaker": "senior", "text": "How much do you need?"},
+        {"t": 29, "speaker": "caller", "text": "Eight thousand dollars. A bail agent will come to your house to pick up the cash. Please hurry."},
+        {"t": 38, "speaker": "senior", "text": "I'll go to the bank now."}
+      ]
+    },
+    {
+      "id": "scam_05_utility_shutoff",
+      "label": "scam",
+      "category": "utility_impersonation",
+      "trigger_turn": 2,
+      "notes": "Shutoff threat with a short deadline and prepaid card payment.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "This is the electric company billing department. Your account is past due and your power will be shut off in thirty minutes."},
+        {"t": 9, "speaker": "senior", "text": "I thought I paid last week."},
+        {"t": 13, "speaker": "caller", "text": "Our records show no payment. To keep your power on you must pay right now with a prepaid debit card."},
+        {"t": 20, "speaker": "senior", "text": "A prepaid card? I usually pay online."},
+        {"t": 24, "speaker": "caller", "text": "The online system is down. Go to the nearest drugstore, buy a card for four hundred dollars, and call me back with the number on it."},
+        {"t": 34, "speaker": "senior", "text": "Okay, I'll go right now."}
+      ]
+    },
+    {
+      "id": "scam_06_prize_fee",
+      "label": "scam",
+      "category": "prize_or_lottery",
+      "trigger_turn": 2,
+      "notes": "Fee required to receive winnings, wire or crypto, secrecy.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Congratulations! You have won two million dollars in the national sweepstakes."},
+        {"t": 6, "speaker": "senior", "text": "Really? I don't remember entering."},
+        {"t": 10, "speaker": "caller", "text": "Your name was selected automatically. To release the prize you only need to pay the processing fee and taxes first."},
+        {"t": 18, "speaker": "senior", "text": "How much is the fee?"},
+        {"t": 21, "speaker": "caller", "text": "Nine hundred dollars by wire transfer or cryptocurrency. Do not tell your family until the winnings arrive, so they can't interfere."}
+      ]
+    },
+    {
+      "id": "scam_07_medicare_credentials",
+      "label": "scam",
+      "category": "health_plan_impersonation",
+      "trigger_turn": 4,
+      "notes": "Credential harvesting: full ID number, SSN and bank account.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, I'm calling about your new Medicare benefits card. Are you the person who receives benefits at this address?"},
+        {"t": 8, "speaker": "senior", "text": "Yes, I am."},
+        {"t": 11, "speaker": "caller", "text": "We are issuing new cards, and yours will be canceled unless I verify your information today."},
+        {"t": 18, "speaker": "senior", "text": "What information do you need?"},
+        {"t": 21, "speaker": "caller", "text": "Please read me your full Medicare number, your social security number, and the bank account where you want your refund deposited."}
+      ]
+    },
+    {
+      "id": "scam_08_card_otp",
+      "label": "scam",
+      "category": "bank_impersonation",
+      "trigger_turn": 2,
+      "notes": "One-time code request. The senior even reads the code's own warning aloud.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi, this is the security department at your credit card company. Did you just try to spend nine hundred dollars at an electronics store?"},
+        {"t": 9, "speaker": "senior", "text": "No, I didn't."},
+        {"t": 12, "speaker": "caller", "text": "Okay, I will block it. For verification we are sending you a six digit code by text. Please read it to me when it arrives."},
+        {"t": 22, "speaker": "senior", "text": "It just came. It says not to share this code with anyone."},
+        {"t": 28, "speaker": "caller", "text": "That message is only for fraudsters. Please read me the code so I can cancel the charge."}
+      ]
+    },
+    {
+      "id": "legit_01_pharmacy_refill",
+      "label": "legit",
+      "category": "pharmacy",
+      "trigger_turn": null,
+      "notes": "Ordinary refill reminder.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, this is Riverside Pharmacy calling for Margaret. Your prescription refill is ready for pickup."},
+        {"t": 7, "speaker": "senior", "text": "Oh good, thank you. What time are you open until?"},
+        {"t": 12, "speaker": "caller", "text": "We're open until eight tonight. Please bring your photo ID when you pick it up."},
+        {"t": 18, "speaker": "senior", "text": "I'll come by this afternoon."},
+        {"t": 21, "speaker": "caller", "text": "Wonderful. Have a good day."}
+      ]
+    },
+    {
+      "id": "legit_02_doctor_appointment",
+      "label": "legit",
+      "category": "medical_office",
+      "trigger_turn": null,
+      "notes": "Adversarial: mentions insurance card and a copay.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi, this is Dr. Patel's office confirming your appointment on Thursday at ten thirty."},
+        {"t": 7, "speaker": "senior", "text": "Yes, I'll be there."},
+        {"t": 10, "speaker": "caller", "text": "Please arrive fifteen minutes early to update your forms, and bring your insurance card."},
+        {"t": 17, "speaker": "senior", "text": "Will do. Is there a copay?"},
+        {"t": 21, "speaker": "caller", "text": "Your copay is twenty dollars, which you can pay at the front desk when you arrive."},
+        {"t": 28, "speaker": "senior", "text": "That's fine. Thank you."}
+      ]
+    },
+    {
+      "id": "legit_03_real_bank_fraud_alert",
+      "label": "legit",
+      "category": "bank_alert",
+      "trigger_turn": null,
+      "notes": "Adversarial: automated bank fraud alert that says it will never ask for a password and tells the senior to hang up and call the number on the card.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "This is an automated fraud alert from First Community Bank. We noticed a charge of eighty-two dollars at a hardware store. Did you make this purchase? Say yes or no."},
+        {"t": 10, "speaker": "senior", "text": "Yes."},
+        {"t": 12, "speaker": "caller", "text": "Thank you. We have marked the charge as approved. We will never ask for your password or full card number by phone. If you are unsure about any call, hang up and dial the number on the back of your card."},
+        {"t": 24, "speaker": "senior", "text": "Okay, thanks."}
+      ]
+    },
+    {
+      "id": "legit_04_grandchild_rides",
+      "label": "legit",
+      "category": "family",
+      "trigger_turn": null,
+      "notes": "Family call that mentions a favor but no money or secrecy.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi Grandma, it's Emma! Are you still free to drive me to practice on Saturday?"},
+        {"t": 5, "speaker": "senior", "text": "Of course, sweetheart. What time?"},
+        {"t": 8, "speaker": "caller", "text": "Nine o'clock. Mom said she'll text you the address."},
+        {"t": 13, "speaker": "senior", "text": "Wonderful. Do you need anything else?"},
+        {"t": 17, "speaker": "caller", "text": "Just a hug. Also, I got an A on my science test!"},
+        {"t": 22, "speaker": "senior", "text": "Oh, I'm so proud of you!"}
+      ]
+    },
+    {
+      "id": "legit_05_utility_outage_notice",
+      "label": "legit",
+      "category": "utility_notice",
+      "trigger_turn": null,
+      "notes": "Adversarial: utility call with no payment demand and no pressure.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "This is Maple Valley Electric with a service notice. There will be a planned outage in your area Tuesday from nine to eleven in the morning for maintenance."},
+        {"t": 11, "speaker": "senior", "text": "Is it just for a couple of hours?"},
+        {"t": 15, "speaker": "caller", "text": "Yes. Power should be restored by eleven. No action is needed. Visit our website or call the number on your bill for updates."}
+      ]
+    },
+    {
+      "id": "legit_06_delivery_driver",
+      "label": "legit",
+      "category": "delivery",
+      "trigger_turn": null,
+      "notes": "Short, practical call from a driver.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hi, I'm outside with a package for apartment 4B but the buzzer isn't working. Could you come down or let me in?"},
+        {"t": 8, "speaker": "senior", "text": "Oh, I'll buzz you in from here. One moment."},
+        {"t": 13, "speaker": "caller", "text": "Thanks so much. I'll leave it at the door."}
+      ]
+    },
+    {
+      "id": "legit_07_insurance_renewal",
+      "label": "legit",
+      "category": "insurance_agent",
+      "trigger_turn": null,
+      "notes": "Adversarial: mentions a premium due date and payment options, with no urgency or unusual payment method.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, this is Greg from Blue Harbor Insurance, your agent. Your home policy renews on the first of next month."},
+        {"t": 8, "speaker": "senior", "text": "Yes, I got the letter."},
+        {"t": 11, "speaker": "caller", "text": "Great. Your premium is due on the fifteenth. You can pay through your online account, mail a check, or call our main office."},
+        {"t": 20, "speaker": "senior", "text": "I'll mail a check."},
+        {"t": 24, "speaker": "caller", "text": "That works. Let me know if you'd like to review your coverage before the renewal."}
+      ]
+    },
+    {
+      "id": "legit_08_hospital_billing",
+      "label": "legit",
+      "category": "hospital_billing",
+      "trigger_turn": null,
+      "notes": "Adversarial: asks for date of birth for identity check and discusses a balance and payment plan, but offers to mail a statement and applies no pressure.",
+      "turns": [
+        {"t": 0, "speaker": "caller", "text": "Hello, this is the billing office at St. Mary's Hospital. I'm calling about a statement from your March visit. Is this Robert?"},
+        {"t": 8, "speaker": "senior", "text": "Yes."},
+        {"t": 10, "speaker": "caller", "text": "For privacy, can you confirm your date of birth?"},
+        {"t": 15, "speaker": "senior", "text": "March third, nineteen fifty-one."},
+        {"t": 19, "speaker": "caller", "text": "Thank you. Your remaining balance is one hundred fifty dollars. We can mail a statement, and there is a payment plan if you would like one."},
+        {"t": 29, "speaker": "senior", "text": "Please mail it to me and I'll think about the plan."},
+        {"t": 33, "speaker": "caller", "text": "Of course. We'll send it this week."}
+      ]
+    }
+  ]
+}

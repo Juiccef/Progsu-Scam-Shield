@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shield dashboard (temporary)</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6eb;
+    --ok: #1f9d55; --warn: #d97706; --bad: #dc2626; --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1218; --card: #181c25; --ink: #e7eaf0; --muted: #98a1b3; --line: #2a303c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header h1 { font-size: 18px; margin: 0; margin-right: auto; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.on { color: var(--ok); border-color: var(--ok); }
+  .pill.off { color: var(--bad); border-color: var(--bad); }
+  .pill.dry { color: var(--warn); border-color: var(--warn); }
+  main { display: grid; gap: 16px; padding: 16px 20px; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); max-width: 1200px; margin: 0 auto; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .span { grid-column: 1 / -1; }
+  .big { font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .bar { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 12px 0 4px; position: relative; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s, background .3s; }
+  .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .35; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 26px; }
+  .chip { font-size: 12px; background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); padding: 3px 9px; border-radius: 99px; }
+  .banner { padding: 10px 14px; border-radius: 8px; font-weight: 600; margin-bottom: 12px; display: none; }
+  .banner.WARN { display: block; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .banner.END { display: block; background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+  #transcript { height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .line { padding: 6px 10px; border-radius: 8px; max-width: 85%; }
+  .line.CALLER { background: color-mix(in srgb, var(--bad) 10%, transparent); align-self: flex-start; }
+  .line.SENIOR { background: color-mix(in srgb, var(--accent) 12%, transparent); align-self: flex-end; }
+  .line.interim { opacity: .55; font-style: italic; }
+  .line b { font-size: 11px; display: block; color: var(--muted); font-weight: 600; }
+  svg { width: 100%; height: 90px; display: block; }
+  #log { max-height: 220px; overflow-y: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--muted); }
+  #log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+  dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Shield <span class="muted">temporary dashboard</span></h1>
+  <span class="pill" id="p-feed">feed: connecting</span>
+  <span class="pill" id="p-actions">actions: ?</span>
+  <span class="pill" id="p-model">scorer: ?</span>
+  <span class="pill" id="p-stt">stt: ?</span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Call</h2>
+    <div id="banner" class="banner"></div>
+    <dl>
+      <dt>Status</dt><dd id="c-status">waiting for a call</dd>
+      <dt>Caller</dt><dd id="c-caller">-</dd>
+      <dt>Audio frames</dt><dd id="c-frames">-</dd>
+      <dt>Timing</dt><dd id="c-timing">-</dd>
+      <dt>Call control</dt><dd id="c-control">-</dd>
+      <dt>Caregiver SMS</dt><dd id="c-sms">-</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Risk</h2>
+    <div class="big" id="risk">-</div>
+    <div class="bar"><i id="risk-bar"></i><span class="tick" style="left:60%"></span><span class="tick" style="left:85%"></span></div>
+    <div class="muted" id="risk-detail">warn at 60, end at 85</div>
+    <div class="chips" id="flags"></div>
+    <svg id="spark" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+  </section>
+
+  <section class="card span">
+    <h2>Transcript</h2>
+    <div id="transcript"><span class="muted">Nothing yet.</span></div>
+  </section>
+
+  <section class="card span">
+    <h2>Event log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// Everything the page shows that came from a caller (transcript, flags) goes in with
+// textContent, never innerHTML: a scammer controls that text.
+const $ = (id) => document.getElementById(id);
+const token = new URLSearchParams(location.search).get("token");
+const q = token ? "token=" + encodeURIComponent(token) : "";
+
+let call = null;          // current call_sid
+let points = [];          // [t, risk] for the sparkline
+let interim = {};         // speaker -> element of their non-final line
+
+function resetCall(sid) {
+  call = sid; points = []; interim = {};
+  $("banner").className = "banner"; $("banner").textContent = "";
+  $("transcript").replaceChildren();
+  for (const id of ["c-caller", "c-frames", "c-timing", "c-control", "c-sms"]) $(id).textContent = "-";
+  $("risk").textContent = "-"; $("risk-bar").style.width = "0"; $("flags").replaceChildren();
+  $("risk-detail").textContent = "warn at 60, end at 85"; drawSpark();
+}
+
+function riskColor(r) { return r >= 85 ? "var(--bad)" : r >= 60 ? "var(--warn)" : "var(--ok)"; }
+
+function drawSpark() {
+  const svg = $("spark");
+  if (!points.length) { svg.replaceChildren(); return; }
+  const tmax = Math.max(20, points[points.length - 1][0]);
+  const xy = points.map(([t, r]) => (t / tmax * 300).toFixed(1) + "," + (90 - r * 0.9).toFixed(1)).join(" ");
+  svg.innerHTML =
+    '<line x1="0" x2="300" y1="36" y2="36" stroke="currentColor" opacity=".2" stroke-dasharray="3"/>' +
+    '<line x1="0" x2="300" y1="13.5" y2="13.5" stroke="currentColor" opacity=".2" stroke-dasharray="3"/>' +
+    '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + xy + '"/>';  // numbers only
+}
+
+function addLine(speaker, text, final) {
+  const box = $("transcript");
+  const placeholder = box.querySelector(".muted");
+  if (placeholder) placeholder.remove();
+  let el = interim[speaker];
+  if (!el) {
+    el = document.createElement("div");
+    const who = document.createElement("b"); who.textContent = speaker;
+    const body = document.createElement("span");
+    el.append(who, body); box.append(el);
+  }
+  el.className = "line " + speaker + (final ? "" : " interim");
+  el.lastChild.textContent = text;
+  interim[speaker] = final ? null : el;
+  box.scrollTop = box.scrollHeight;
+}
+
+function logLine(ev) {
+  const row = document.createElement("div");
+  const time = new Date(ev.ts * 1000).toLocaleTimeString();
+  const { type, ts, call_sid, text, ...rest } = ev;
+  row.textContent = time + "  " + type + "  " + (type === "transcript" ? "(" + ev.speaker + ")" : JSON.stringify(rest));
+  const log = $("log"); log.prepend(row);
+  while (log.children.length > 200) log.lastChild.remove();
+}
+
+function onEvent(ev) {
+  if (ev.type === "media") return;                       // noisy, shown in the call card instead
+  if (ev.type === "call_started") resetCall(ev.call_sid);
+  else if (ev.call_sid && ev.call_sid !== call) resetCall(ev.call_sid);
+  if (ev.type !== "transcript" || ev.final) logLine(ev);
+
+  switch (ev.type) {
+    case "call_started":
+      $("c-status").textContent = "ringing"; $("c-caller").textContent = ev.caller + (ev.monitored ? "" : " (allowlisted, not monitored)"); break;
+    case "stream_started": $("c-status").textContent = "audio streaming"; break;
+    case "call_answered": $("c-status").textContent = "in progress (senior answered)"; break;
+    case "transcript": addLine(ev.speaker, ev.text, ev.final); break;
+    case "score": {
+      const r = Math.round(ev.risk);
+      $("risk").textContent = r; $("risk").style.color = riskColor(r);
+      $("risk-bar").style.width = Math.min(100, r) + "%"; $("risk-bar").style.background = riskColor(r);
+      $("risk-detail").textContent = "rules " + (ev.rule_risk ?? "-") + "  |  llm " + (ev.llm_risk ?? "-") +
+        (ev.llm_latency_ms ? " (" + ev.llm_latency_ms + " ms)" : "") + (ev.llm_error ? "  [llm error: " + ev.llm_error + "]" : "");
+      const flags = $("flags"); flags.replaceChildren();
+      for (const f of ev.flags || []) { const c = document.createElement("span"); c.className = "chip"; c.textContent = f; flags.append(c); }
+      points.push([ev.t, r]); drawSpark(); break;
+    }
+    case "action": {
+      const b = $("banner"); b.className = "banner " + ev.kind;
+      b.textContent = ev.kind === "END" ? "Shield ended this call" : "Shield warned the caregiver";
+      break;
+    }
+    case "action_result":
+      $("c-timing").textContent = ev.seconds != null ? ev.seconds.toFixed(1) + " s from utterance to " + ev.kind : "-";
+      if (ev.call_control) $("c-control").textContent = ev.call_control;
+      if (ev.sms) $("c-sms").textContent = ev.sms; break;
+    case "sms_status":
+      $("c-sms").textContent = ev.status + (ev.error_code ? " (error " + ev.error_code + ")" : ""); break;
+    case "stt_error": $("c-status").textContent = "speech-to-text error: " + ev.error; break;
+    case "call_ended":
+      $("c-status").textContent = "ended: " + ev.outcome.replaceAll("_", " ") + " after " + Math.round(ev.duration_s) + " s"; break;
+  }
+}
+
+// Frame counts come from the throttled "media" events; show them without logging every one.
+function onMedia(ev) { const f = ev.frames || {}; $("c-frames").textContent = Object.entries(f).map(([k, v]) => k + " " + v).join(", "); }
+
+function connect() {
+  const es = new EventSource("/events?" + q);
+  es.onopen = () => { $("p-feed").textContent = "feed: live"; $("p-feed").className = "pill on"; };
+  es.onmessage = (m) => { const ev = JSON.parse(m.data); if (ev.type === "media") onMedia(ev); onEvent(ev); };
+  es.onerror = () => { $("p-feed").textContent = "feed: reconnecting"; $("p-feed").className = "pill off"; };
+}
+
+async function health() {
+  try {
+    const h = await (await fetch("/health")).json();
+    $("p-actions").textContent = "actions: " + h.actions; $("p-actions").className = "pill " + (h.actions === "live" ? "on" : "dry");
+    $("p-model").textContent = "scorer: " + h.scorer_model;
+    $("p-stt").textContent = "stt: " + (h.stt || "none"); $("p-stt").className = "pill " + (h.stt ? "on" : "off");
+  } catch (e) { $("p-actions").textContent = "server unreachable"; $("p-actions").className = "pill off"; }
+}
+
+connect(); health(); setInterval(health, 10000);
+</script>
+</body>
+</html>
