@@ -1,4 +1,4 @@
-"""Chat Completions provider for OpenAI and OpenAI-compatible servers (Gemini, Groq, Ollama, ...)."""
+"""Chat Completions provider for OpenAI and OpenAI-compatible servers (Gemini, Groq, Vultr, Ollama, ...)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ class OpenAICompatProvider:
         self._response_format = "json_schema" if strict else "json_object"
         self._token_param = "max_tokens"
         self._send_temperature = True
+        # Vultr's chat models all reason unless told not to, and the scorer has no time for it.
+        self._reasoning_off = name == "vultr"
 
     async def complete(
         self,
@@ -62,6 +64,8 @@ class OpenAICompatProvider:
         }
         if self._send_temperature:
             payload["temperature"] = 0
+        if self._reasoning_off:
+            payload["reasoning"] = {"enabled": False}
         if self._response_format == "json_schema":
             payload["response_format"] = {
                 "type": "json_schema",
@@ -79,6 +83,11 @@ class OpenAICompatProvider:
             return True
         if "temperature" in error and self._send_temperature:
             self._send_temperature = False
+            return True
+        if ("reasoning" in error or "effort" in error) and self._reasoning_off:
+            # This model cannot stop reasoning, so it gets the room a reasoning model needs.
+            self._reasoning_off = False
+            self._token_param = "max_completion_tokens"
             return True
         if ("response_format" in error or "schema" in error) and self._response_format != "none":
             self._response_format = "json_object" if self._response_format == "json_schema" else "none"
@@ -99,9 +108,14 @@ async def _read_stream(response: httpx.Response, stop_when: Optional[Callable[[s
         if data == "[DONE]":
             break
         try:
-            choices = json.loads(data).get("choices") or []
+            chunk = json.loads(data)
         except ValueError:
             continue
+        if not isinstance(chunk, dict):
+            continue
+        if chunk.get("error"):  # a reply that fails part-way ends with an error instead of text
+            raise ProviderError(f"stream error: {_error_text(chunk, data)[:200]}")
+        choices = chunk.get("choices") or []
         if not choices:
             continue
         delta = choices[0].get("delta") or {}
@@ -118,9 +132,13 @@ def _error_message(response: httpx.Response) -> str:
         body = response.json()
     except ValueError:
         return response.text
+    return _error_text(body, response.text)
+
+
+def _error_text(body: object, fallback: str) -> str:
     if isinstance(body, list) and body:  # Gemini's compatibility layer wraps errors in a list
         body = body[0]
     error = body.get("error") if isinstance(body, dict) else None
     if isinstance(error, dict):
         return str(error.get("message") or error)
-    return str(error or response.text)
+    return str(error or fallback)
