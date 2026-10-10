@@ -25,18 +25,25 @@ struct RootView: View {
     }
 
     var body: some View {
-        ZStack {
-            MainTabs()
-            if let call = store.presentedCall {
-                LiveCallView(call: call)
-                    // Whatever turns up on the screen while it is still sliding in rides along
-                    // with it, instead of appearing where the screen is going to stop.
-                    .geometryGroup()
-                    .transition(reduceMotion ? .opacity : .move(edge: .bottom))
-                    .zIndex(1)
+        GeometryReader { screen in
+            // The whole screen's height, bars and home indicator included. The call screen
+            // slides that far, so that once it is down none of it is left on screen. Moved by
+            // its own height it stopped with its title showing under the tab bar until the
+            // animation had fully settled.
+            let fullHeight = screen.size.height + screen.safeAreaInsets.top + screen.safeAreaInsets.bottom
+            ZStack {
+                MainTabs()
+                if let call = store.presentedCall {
+                    LiveCallView(call: call)
+                        // Whatever turns up on the screen while it is still sliding in rides
+                        // along with it, instead of appearing where the screen is going to stop.
+                        .geometryGroup()
+                        .transition(reduceMotion ? .opacity : .offset(y: fullHeight))
+                        .zIndex(1)
+                }
             }
+            .animation(Motion.screen, value: store.presentedCall?.id)
         }
-        .animation(Motion.screen, value: store.presentedCall?.id)
         .alert("Couldn’t Start the Demo Call", isPresented: $store.isShowingDemoError) {
             Button("OK") {}
         } message: {
