@@ -100,8 +100,28 @@ Then enable forwarding for a controlled test and confirm:
 3. Caregiver `WHY` returns a fixed explanation, and an app release sends once.
 4. Twilio callbacks update delivery status through the public HTTPS endpoint.
 
-No deployment, remote configuration, merge, commit, or staging was performed.
-Existing working changes were preserved.
+During the initial review, no deployment, remote configuration, merge, commit,
+or staging was performed. Existing working changes were preserved.
+
+## Revalidation after merging into Nabil-text
+
+On October 10, `feature/photon-text-shield` was merged into `Nabil-text` in
+commit `2a3d6e2`, preserving both branches' commits without conflicts. The merged
+branch passed the full 208 Python tests, 13 Spectrum tests with its TypeScript
+build, five Swift state-store checks, and the iOS Debug simulator build.
+
+Additional rules-only spot-checks on the merged source produced: appointment
+and OTP privacy notices 0/queued, package-payment scam 81/held, locked-account
+phishing 74/held, and OTP-sharing request 65/held. The mock delivery pipeline
+confirmed held messages are not sent before release and repeated release or
+ingress does not create a second delivery.
+
+The 11,424 generated files under `photon/node_modules` and `photon/dist` from
+the earlier Nabil-text commit were removed from Git tracking. Local copies were
+retained, along with the source, package manifest, and lockfile. No history was
+rewritten. The merge and cleanup are local; no GitHub push or deployment was
+performed. All tests used mock transports, and the live acceptance checks and
+regex limitations above still apply.
 
 ## Screenshots
 
