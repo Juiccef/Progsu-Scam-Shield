@@ -2,7 +2,8 @@
 
 The caregiver's app. It shows the call in progress (risk dial, warning signs, live
 transcript), takes over the screen when Shield ends a scam call, and keeps a list of
-recent calls. The protected person needs no app at all.
+recent calls. It has three pages behind a tab bar: Summary, Calls and Scam Signs. The
+protected person needs no app at all.
 
 It is a SwiftUI app for iOS 17 and later with no third-party dependencies. It reads the
 Shield server's `GET /events` feed and `GET /calls` list.
@@ -35,6 +36,11 @@ Shield server's `GET /events` feed and `GET /calls` list.
   Health, Messages and Settings on the same iOS. Buttons became the system's blue,
   recent calls one list, labels title case, and several things that were said twice are
   said once (see "Screens"). Checked the same way, and on a recorded demo call.
+- Later on 2026-10-10 the app, until then one screen, got the system's tab bar and
+  three pages, a bar above the tabs for a call whose screen has been put away, and a
+  Version row in Settings. Checked in the iPhone 17e simulator in light and dark, at a
+  large text size, with Reduce Motion on, and by walking a recorded demo call through
+  every page.
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
 - Not yet looked at: iPhones smaller than the 17e.
 
@@ -42,22 +48,35 @@ Shield server's `GET /events` feed and `GET /calls` list.
 
 From the iPhone 17e simulator, with sample data.
 
-| Home | Call in progress | Shield ended the call | What happened |
-|---|---|---|---|
-| ![Home](screens/home.png) | ![Call in progress](screens/live-call.png) | ![Shield ended the call](screens/shield-ended-the-call.png) | ![What happened](screens/what-happened.png) |
+| Summary | Calls | Scam Signs |
+|---|---|---|
+| ![Summary](screens/home.png) | ![Calls](screens/calls.png) | ![Scam Signs](screens/scam-signs.png) |
+
+| Call in progress | Shield ended the call | What happened |
+|---|---|---|
+| ![Call in progress](screens/live-call.png) | ![Shield ended the call](screens/shield-ended-the-call.png) | ![What happened](screens/what-happened.png) |
 
 Dark mode: [screens/live-call-dark.png](screens/live-call-dark.png).
+
+The tab bar is the system's own, which on iOS 26 and later is the glass one. Settings
+is behind the gear on Summary.
 
 The "Call" button only appears once the protected person's phone number is in the app's
 Settings. In the transcript, the caller's words that matched one of Shield's rules are
 set in bold, and highlighted once the call looks suspicious. A demo call says "Demo
 Call" wherever a real call shows the caller's number.
 
-Recent calls are one list, newest first. Each row leads with the caller, written "Number
-ending 2233" (the server masks numbers to their last four digits), says what came of
-the call under it, and ends with when it came in: the time if that was today, then
-"Yesterday", the day of the week, or the date. At large text sizes the day moves under
-the rest of the row.
+Summary shows the three newest calls, and Calls every call the server still keeps (its
+newest 50), with a control to show only the ones Shield warned about or ended. Each row
+leads with the caller, written "Number ending 2233" (the server masks numbers to their
+last four digits), says what came of the call under it, and ends with when it came in:
+the time if that was today, then "Yesterday", the day of the week, or the date. At
+large text sizes the day moves under the rest of the row.
+
+Scam Signs says what Shield does about a risky call and lists everything it listens
+for, in the order a scam call tends to go. The two risk numbers on that page are the
+server's own thresholds. When the server is set to record what it would do without
+doing it (`DRY_RUN_ACTIONS=true`), the page says practice mode is on.
 
 The dial says how the call looks in words. The small number in its opening is the risk
 score out of 100 that the words come from. The dial arrives with the first words of the
@@ -66,9 +85,16 @@ call: while the phone is ringing there is nothing for it to say.
 Shield's warning card says why it warned, and has the "Call" button. How the call looks
 is left to the dial above it.
 
-With no calls yet, Home says so and, if the server offers demo calls, has a "Start a
-Demo Call" button. When the app cannot reach the server, Home's card has an "Open
-Settings" button.
+With no calls yet, Summary and Calls say so and, if the server offers demo calls, have
+a "Start a Demo Call" button. When the app cannot reach the server, Summary's card has
+an "Open Settings" button.
+
+The call screen can be put away with the arrow in its header. The call then stays one
+tap off on every page, in a bar above the tab bar that says how it is going (iOS 26.1
+and later; before that, an "Open the Call" button on Summary). When Shield warns or
+ends a call, the call screen comes back by itself, and the phone buzzes. The transcript
+keeps up with the call until you scroll up to reread, and picks up again when you
+scroll back down (iOS 18 and later).
 
 ### How it looks
 
@@ -80,16 +106,14 @@ and the chart line. A label that only names what its card holds is gray.
 Headings, labels, buttons and status words are in title case, as in Apple's own apps
 ("Scam Call Stopped", "What Happened"). Complete sentences are written as sentences.
 
-When Shield warns or ends a call, the call screen comes back even if it had been put
-away, and the phone buzzes. The transcript keeps up with the call until you scroll up
-to reread, and picks up again when you scroll back down (iOS 18 and later).
-
 ### How it moves
 
 There are three timings, in `Support/Theme.swift` (`Motion`), and nothing bounces. What
 is leaving clears before its replacement arrives. A card that arrives between things
-already on screen unfolds while they move out of its way. With Reduce Motion on, the
-call screen fades in where it would slide, and digits and words cross-fade.
+already on screen unfolds while they move out of its way. The call screen slides the
+whole height of the screen, so that put away it leaves nothing at the bottom. With
+Reduce Motion on, the call screen fades in where it would slide, and digits and words
+cross-fade.
 
 ## Run it in the simulator
 
@@ -110,7 +134,7 @@ call screen fades in where it would slide, and digits and words cross-fade.
    or the app shows no play button.
 3. Open `ios/Shield.xcodeproj`, pick an iPhone simulator, press Run.
 4. The app connects to `http://localhost:8000` by default. Tap the play button at the
-   top of Home (or "Start a Demo Call", while the list is empty) and pick a scam call.
+   top of Summary (or "Start a Demo Call", while the list is empty) and pick a scam call.
    The call screen opens by itself.
 
 To point the app at another server without touching Settings, pass launch arguments:
@@ -120,8 +144,8 @@ phone number behind the "Call" button.
 Every screen also has an Xcode preview with sample data (`Support/Previews.swift`),
 so the UI can be worked on with no server running. A debug build shows the same sample
 screens on a simulator or phone with the launch argument `-sample <name>`: `home`,
-`home-empty`, `home-offline`, `home-call`, `ringing`, `calm`, `watchful`, `suspicious`,
-`warned-over`, `ended` or `detail`. `-appearance light` or `-appearance dark` sets the
+`home-empty`, `home-offline`, `home-call`, `calls`, `signs`, `ringing`, `calm`,
+`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. `-appearance light` or `-appearance dark` sets the
 appearance for that launch.
 
 ## Run it on your iPhone
@@ -146,13 +170,14 @@ Shield/
   Model/                     ShieldEvent (feed), LiveCall (call state), CallSummary, Flag
   Services/ShieldAPI.swift   HTTP + the event feed
   Services/ShieldStore.swift app state: connection, current call, history
-  Views/                     RootView, HomeView, LiveCallView, CallDetailView, SettingsView,
-                             RiskDial, FlagViews, TranscriptView
+  Views/                     RootView (pages under the call screen), MainTabs (tab bar),
+                             HomeView (Summary), CallsView, SignsView, CallDetailView,
+                             LiveCallView, SettingsView, RiskDial, FlagViews, TranscriptView
   Support/                   Theme, Platform (iOS/macOS differences), SampleData, Previews
 Shield-Info.plist            allows plain http to a local server
 ```
 
 `LiveCall.apply(_:)` is the one place where feed events become screen state. Demo
-calls say "Demo Call" everywhere and are left out of the Home screen's counts.
+calls say "Demo Call" everywhere and are left out of Summary's counts.
 `Support/Theme.swift` holds the colors, the three timings, and the app's few button
 and card styles.
