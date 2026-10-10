@@ -55,9 +55,9 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("Version", value: Bundle.main.versionText)
+                } footer: {
                     Label("No audio or transcript is stored. Shield keeps what it detected, not what was said.", systemImage: "lock.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
@@ -76,6 +76,15 @@ struct SettingsView: View {
         .onDisappear {
             store.connectIfSettingsChanged()
         }
+    }
+}
+
+private extension Bundle {
+    /// The app's version and build number, written the way the App Store writes them: "1.0 (1)".
+    var versionText: String {
+        let version = infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let build = infoDictionary?["CFBundleVersion"] as? String ?? ""
+        return build.isEmpty ? version : "\(version) (\(build))"
     }
 }
 
