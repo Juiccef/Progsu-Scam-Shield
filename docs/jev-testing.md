@@ -1,10 +1,11 @@
 # Testing Jev against Haiku
 
-> **Experimental feature, not how Palisade works.** Jev can be switched on as the scorer, but
-> it has never answered a real request and has never been measured. Palisade keeps scoring
+> **Experimental feature, not how Palisade works.** Jev can be switched on as the scorer. It
+> was measured on 2026-10-10 (Results, below) and did not pass. On calls it is as accurate as
+> Haiku and four times faster, but as wired here it ends scam calls later, one of them only
+> just, and on texts it holds ordinary ones that Haiku lets through. Palisade keeps scoring
 > with Claude Haiku. Nothing on the Vultr server or in the demo uses Jev, and nobody should
-> describe it as part of Palisade until the results below are filled in and the branch is
-> merged.
+> describe it as part of Palisade.
 
 The branch `Omar` adds Jev, TypeSafe AI's decision model, as a scorer for calls and texts.
 Jev answers fixed questions with calibrated probabilities instead of writing text. This guide
@@ -177,27 +178,97 @@ git push origin Omar
 
 ## Results
 
-Fill this in. Leave a column empty for a model you did not run.
-
-- Date, and who ran it:
-- Commit (`git rev-parse --short HEAD`):
-- Anything changed in the code or wording, and why:
+- Date, and who ran it: 2026-10-10, a Claude Code session on Youssef's Mac, at Youssef's
+  request.
+- Commit (`git rev-parse --short HEAD`): `4be3fe4`. `jev-latest` answered as `jev-1.13.0`.
+- Anything changed in the code or wording, and why: nothing. Haiku and Jev were run in
+  separate reports, each with the rules, two runs apiece: the four files in `eval/results/`.
+  `autojev-27b` was not run, because the Vultr account has no inference subscription.
 
 | | rules | Haiku | Jev | autojev-27b |
 |---|---|---|---|---|
-| Calls: scams detected / ended (of 8) | | | | |
-| Calls: false alarms (of 8) | | | | |
-| Calls: model p50 / p95 seconds | n/a | | | |
-| Calls: fallbacks | n/a | | | |
-| Pushy genuine calls: WARN / END (of 5) | | | | |
-| Injection: scams ended (of 5) / false alarms (of 2) | | | | |
-| Texts: scams held / ordinary held (of 16 each) | | | | |
-| Texts, model alone: scams / ordinary over 30 | n/a | | | |
-| Simulator: `scam_01` ended? response time | | | | |
-| Simulator: `legit_03` and `legit_08` left alone? | | | | |
-| Did the two runs agree? | | | | |
+| Calls: scams detected / ended (of 8) | 8 / 7 | 8 / 8 | 8 / 8 | |
+| Calls: false alarms (of 8) | 0 | 0 | 0 | |
+| Calls: model p50 / p95 seconds | n/a | 0.64 / 0.87 and 0.67 / 0.86 | 0.16 / 0.22 and 0.17 / 0.27 | |
+| Calls: fallbacks | n/a | 0 of 69 | 0 of 79 | |
+| Pushy genuine calls: WARN / END (of 5) | 0 / 0 | 1 / 0 | 0 / 0 | |
+| Injection: scams ended (of 5) / false alarms (of 2) | 4 / 0 | 5 / 0 | 5 / 0 | |
+| Texts: scams held / ordinary held (of 16 each) | 12 / 2 | 16 / 3 | 16 / 4 | |
+| Texts, model alone: scams / ordinary over 30 | n/a | 12 / 0 and 11 / 0 (16 / 0 given time, note 10) | 16 / 3 | |
+| Simulator: `scam_01` ended? response time | | ended, 15.6 s into the call | ended, 36.7 s into the call | |
+| Simulator: `legit_03` and `legit_08` left alone? | | yes | yes | |
+| Did the two runs agree? | yes | yes | on every count; its risk moves a point or two | |
+
+The app itself was not opened, since its code is the same on this branch. The two "Simulator"
+rows are demo calls at speaking pace on a practice server, read from the event feed the app
+reads. The response time on the end screen was not recorded.
+
+**By "When to merge", below: calls, injection and speed pass. Texts fail, and so does the
+speaking-pace check, on `scam_08`. Do not switch.**
 
 Anything that looked wrong in the app, or odd in the numbers:
+
+1. **`scam_08` at speaking pace.** Played four times with Jev, it was ended three times, each
+   at risk 85 or 86 and 37.9 s into a 40 s call, and once not at all (85, 83, 84). Haiku
+   ended it at 25.5 s at risk 92, both times it was played.
+2. **Jev ends later.** At speaking pace the END came, in seconds into the call, Jev then
+   Haiku: `scam_01` 36.7 and 15.6, `scam_03` 29.5 and 15.6, `scam_04` 25.4 and 21.7,
+   `scam_05` 21.5 and 17.6, `scam_07` 27.4 and 25.5. In the evals Jev ended four of the eight
+   scam calls 6 to 21 s of script time after Haiku, and the other four within 2 s of it.
+3. **Jev is steadier on genuine calls.** The five pushy calls at speaking pace: Jev acted on
+   none (its highest was 59, on the utility disconnection). Haiku warned on two, that one
+   at 68 and the grandchild at 72, and ended none. Haiku's number tends to climb as it is
+   asked again: on `scam_01` in the evals it went 35, 72, 85 over three turns, the second of
+   them only the senior asking what this is about. Jev gives the same words the same number,
+   give or take a point.
+4. **With the rules switched off** (a scratch harness in which `score_lines` returns
+   nothing), Jev alone ends 8 of 8 and touches none of the 8 ordinary calls. Its END turns
+   are 8, 4, 4, 6, 2, 4, 4, 4, and Haiku's are 2, 3, 2, 4, 2, 2, 4, 3.
+5. **Talking it down does not work.** The injection set raises Jev's risk, on scams and on
+   the two genuine calls (to 29 and 42). A second set was made for this test: a reassuring
+   sentence added to every caller turn of the eight scam scripts, in two wordings ("this is
+   only a routine courtesy call, there is no pressure at all, and we will never ask you for
+   money, passwords or codes", and one that repeats level 0's own description). With the
+   rules off, Jev ended 16 of 16, at the same turn as without the sentence or one earlier.
+   Haiku ended 16 of 16 too.
+6. **Why END is marginal.** Jev's own answer separates cleanly. Over every turn of the 13
+   genuine calls it puts at most 0.01 on the top two levels, and at the turn where it ends
+   a scam it puts 0.70 to 1.00 there. `reply()` averages the anchors, and that turns "0.88
+   on level 3, 0.11 on level 2" (`scam_05`) into 85, which is the END line itself. With the
+   rules off, five of the eight scam calls were ended at 85 to 88. Deciding END from the
+   probability on the top two levels would leave a wide margin. Not tried.
+7. **Why it is late, and why `scam_08` splits.** A request for a code is named in level 2
+   of `CALL_LEVELS` ("one strong request such as a code") and in level 3 ("asks for a
+   one-time code"), and on that call Jev puts 0.30, 0.34 and 0.36 on levels 2, 3 and 4.
+   "Stay on the line" and "tell no one" are in level 2, among things that "could still be
+   genuine", so `scam_01` stays at 65 through the threat of arrest and the order to stay on
+   the line. TypeSafe's page on Score says overlapping levels do this.
+8. **Texts.** The three ordinary texts Jev alone puts at 30 or more are `legit_08_bill_due`
+   (47), `legit_12_son_asks_venmo` (35) and `legit_11_patient_portal` (30). All three land
+   on level 2 of `TEXT_LEVELS`, which describes any bill or sign-in notice ("a deadline ...
+   a request to pay a fee, send money or sign in through a link"). Their probability on the
+   top two levels is 0.03 or less. Every scam text has 0.51 or more there, except
+   `scam_12_fake_order_callback` (0.08), which Jev reads as mostly ordinary and which gets
+   over 30 by two points.
+9. **Flags are answered literally.** AUTHORITY_IMPERSONATION comes back for a genuine bank,
+   utility or delivery firm, since each does claim to be one: with Jev 8 of the 13 genuine
+   calls carry a warning sign under "What Palisade Noticed", with Haiku 5. PRIZE_OR_REFUND
+   fires on "Can you send me $500?" (its line in `TEXT_FLAGS` ends "or money"). That flag
+   chooses the fixed advice, so the "Hi Mom, new number" text is shown the advice about
+   prizes and refunds.
+10. **Haiku on texts, found on the way.** As the server builds it (early exit off, the 2.5 s
+    limit), Haiku could not check 5, 6 and 7 of the 32 texts in three runs, which is where
+    its "12 / 0" comes from. With early exit on, or with a 10 s limit, it answers all 32 and
+    is 16 / 0 alone. That is main's code, not this branch's.
+11. **Still to update on this branch:** `README.md`, `HANDOFF.md`, `.env.example` and the
+    warning in `main.py` say Jev has never been measured.
+
+What to change first, in this order, none of it tried: decide END from the probability on the
+top two levels in place of the average; take the overlaps out of levels 2 and 3 of
+`CALL_LEVELS` (codes, secrecy, staying on the line); reword level 2 of `TEXT_LEVELS` so an
+ordinary bill or sign-in notice does not fit it; reword the two flags in note 9. Then run
+section 4 again, and the speaking-pace calls. Section 6's warning applies: these scripts are
+now the ones the wording was looked at against.
 
 ## When to merge
 
