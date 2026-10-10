@@ -53,6 +53,35 @@ Check it is up: `curl localhost:8000/health`. Watch what happens during a call:
 python tools/watch.py                # add --interim to see partial transcripts
 ```
 
+## Run it on Vultr
+
+`tools/vultr_deploy.py` puts the same server on a Vultr cloud instance. Calls then no longer
+depend on a laptop and a tunnel, and the address stays the same between restarts.
+
+```bash
+# once: VULTR_API_KEY=... in .env (Vultr console: Account, API; allow your IP address there)
+python tools/vultr_deploy.py up                        # a 1 vCPU / 1 GB server in Atlanta, with Shield on it
+python tools/set_webhook.py <the address it prints>    # send the Twilio number's calls there
+```
+
+`up` prints the server's `https` address and an access token; both go in the iPhone app's
+Settings. After a change to the code or the settings: `python tools/vultr_deploy.py push`.
+Also `status`, `logs`, and `down`, which deletes the server (it is billed by the hour,
+about $5 a month).
+
+- **What is sent:** the files git tracks, without `ios/`, and a `.env` made of yours with the
+  lines of `.env.vultr` on top. `.env.vultr` is created on the first run with `DEMO_MODE=true`
+  and `LOG_TRANSCRIPTS=false`, and is where a setting that should differ on the server goes,
+  for example `DRY_RUN_ACTIONS=false`. `VULTR_API_KEY` is never sent.
+- **The server always has an `EVENTS_TOKEN`**, because `/events` carries live transcripts.
+- **On the server** Shield is one `uvicorn` process under systemd, behind Caddy, which gets
+  the certificate by itself (`deploy/vultr-setup.sh` is the whole setup). The address is the
+  server's IP as a name under sslip.io. `--host shield.example.com` uses your own domain
+  once its A record points at the server.
+- **A push restarts Shield**, which would drop a call in progress, so it refuses while one is active.
+- **Not run against Vultr yet** (2026-10-10): there was no account key when it was written. The
+  first `up` is the test, and it stops at the step that failed with that step's output.
+
 ## Dashboard (temporary)
 
 With the server running, open `http://localhost:8000/dashboard` (or
@@ -234,6 +263,32 @@ On 2026-10-09 Haiku 4.5 detected and ended 5/5 injected scam calls with 0/2 fals
 sample of blunt attacks, not a guarantee. Angle brackets are stripped from the transcript before scoring,
 and the model only ever returns a number and flags; texts and the spoken message are fixed templates.
 
+### Scoring on Vultr Serverless Inference
+
+With `VULTR_INFERENCE_API_KEY` set (Vultr console: Products, Serverless, Inference), two more
+kinds of model spec work:
+
+- `vultr:<chat model>` is a chat model behind Vultr's OpenAI-compatible API, given the same
+  prompt as the other models. Its reasoning is switched off: the scorer has 2.5 seconds.
+- `vultr-decision:<decision model>` is one of Vultr's decision models (`POST /v1/systemone`).
+  Such a model writes no text. Shield asks it one yes/no question per flag, worded by the
+  flag list in the prompt file, and one graded question for the risk, with the prompt's
+  calibration bands as the grades. Each answer is a set of probabilities, and the risk is
+  the value expected over the bands. There is no reply to cut short or to validate, and
+  no text output for a caller's words to steer. What the caller says can still move the
+  probabilities, which is what the injection scripts are there to measure.
+
+`curl https://api.vultrinference.com/v1/models` lists the model IDs and needs no key. On
+2026-10-10 the chat models included `deepseek-v4-flash-0731` and `mimo-v2.6-flash-rl`, and
+the decision models `clef-flash` and `clef`, all four served from Atlanta.
+
+**None of them has been measured on Shield's scripts yet.** Do that before one scores a call:
+
+```bash
+python eval/run_eval.py --models rules,claude-haiku-4-5,vultr:deepseek-v4-flash-0731,vultr-decision:clef-flash
+python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --scripts eval/injection-scripts.json
+```
+
 ## Privacy and safety
 
 - Audio goes from Twilio to the speech-to-text provider and is never written anywhere.
@@ -259,7 +314,8 @@ prompts/           the LLM scorer prompt
 eval/              eval scripts, run_eval.py, results/
 history.py         recent-call summaries for GET /calls
 demo.py            demo calls (DEMO_MODE)
-tools/             fake_call.py, watch.py, set_webhook.py
+tools/             fake_call.py, watch.py, set_webhook.py, vultr_deploy.py
+deploy/            vultr-setup.sh, which sets Shield up on the Vultr server
 ios/               the iPhone app
 tests/             pytest suite
 ```
