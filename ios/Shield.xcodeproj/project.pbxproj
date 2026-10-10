@@ -174,7 +174,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Shield-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Shield;
+				INFOPLIST_KEY_CFBundleDisplayName = Palisade;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Shield connects to your Shield server when it runs on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -205,7 +205,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Shield-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Shield;
+				INFOPLIST_KEY_CFBundleDisplayName = Palisade;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Shield connects to your Shield server when it runs on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
