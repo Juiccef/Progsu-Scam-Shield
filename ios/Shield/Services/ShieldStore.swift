@@ -74,7 +74,7 @@ final class ShieldStore {
     private(set) var gatewayError: String?
     /// The text Palisade just held, for the buzz that goes with it. Replayed history never
     /// sets it, nor does a text that has already been looked at.
-    var gatewayBannerID: String?
+    var latestHeldText: String?
     /// Held texts nobody has looked at yet: the count on the Texts tab.
     private(set) var unreadGatewayIDs: Set<String> = []
     private(set) var demoScripts: [DemoScript] = []
@@ -341,7 +341,7 @@ final class ShieldStore {
         gatewayHealth = nil
         shieldNumber = ""
         gatewayError = nil
-        gatewayBannerID = nil
+        latestHeldText = nil
         textsPath = []
         unreadGatewayIDs = []
         alertedGatewayIDs = []
@@ -357,7 +357,7 @@ final class ShieldStore {
         if event.type == "gateway_message_updated" {
             if let id = event.messageID, event.status == "held", isFresh,
                !seenGatewayIDs.contains(id), alertedGatewayIDs.insert(id).inserted {
-                gatewayBannerID = id
+                latestHeldText = id
             }
             Task { await self.reloadGateway() }
             return

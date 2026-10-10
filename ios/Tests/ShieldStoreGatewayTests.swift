@@ -77,18 +77,18 @@ struct StoreGatewayTests {
         Fixture.shared.messages = [message(id, status: "held")]
         Fixture.shared.continuation?.yield(.event(ShieldEvent(type: "gateway_message_updated", ts: Date.now.timeIntervalSince1970, messageID: id, status: "held")))
         await pause()
-        guard store.gatewayBannerID == id else {
-            print("FAIL: pending text becoming held did not show the fresh-message banner")
+        guard store.latestHeldText == id else {
+            print("FAIL: pending text becoming held did not raise the alert for a text just held")
             exit(1)
         }
-        print("PASS: pending text becoming held shows the fresh-message banner")
+        print("PASS: pending text becoming held raises the alert for a text just held")
 
-        store.gatewayBannerID = nil
+        store.latestHeldText = nil
         Fixture.shared.continuation?.yield(.event(ShieldEvent(type: "gateway_message_updated", ts: Date.now.timeIntervalSince1970, messageID: id, status: "held")))
         await pause()
-        assert(store.gatewayBannerID == nil, "A replayed held event must not raise another banner")
+        assert(store.latestHeldText == nil, "A replayed held event must not raise another alert")
         assert(store.unreadGatewayIDs.contains(id), "Unread review must retain its Texts badge")
-        print("PASS: repeated events suppress duplicate banners and retain the unread badge")
+        print("PASS: repeated events suppress duplicate alerts and retain the unread badge")
 
         store.markGatewayRead()
         assert(store.unreadGatewayIDs.isEmpty)
@@ -96,7 +96,7 @@ struct StoreGatewayTests {
         await pause()
         Fixture.shared.continuation?.yield(.event(ShieldEvent(type: "gateway_message_updated", ts: Date.now.timeIntervalSince1970, messageID: id, status: "held")))
         await pause()
-        assert(store.gatewayBannerID == nil, "A previously read ID must remain suppressed after reconnect")
+        assert(store.latestHeldText == nil, "A previously read ID must remain suppressed after reconnect")
         assert(store.unreadGatewayIDs.isEmpty)
         print("PASS: read messages stay read after reconnect and replay")
 
@@ -109,18 +109,18 @@ struct StoreGatewayTests {
         Fixture.shared.continuation?.yield(.event(ShieldEvent(type: "gateway_message_updated", ts: Date.now.timeIntervalSince1970, messageID: nextID, status: "held")))
         await pause()
         assert(store.presentedCall?.id == callID, "A text alert must not replace the call overlay")
-        assert(store.gatewayBannerID == nextID)
+        assert(store.latestHeldText == nextID)
         assert(store.unreadGatewayIDs.contains(nextID))
         print("PASS: held texts preserve the active call and update review state")
 
-        store.gatewayBannerID = nil
+        store.latestHeldText = nil
         let oldID = "old-event-" + UUID().uuidString
         Fixture.shared.messages.append(message(oldID, status: "held"))
         Fixture.shared.continuation?.yield(.event(ShieldEvent(type: "gateway_message_updated", ts: Date.now.addingTimeInterval(-60).timeIntervalSince1970, messageID: oldID, status: "held")))
         await pause()
-        assert(store.gatewayBannerID == nil, "Old replay events must not show a fresh banner")
+        assert(store.latestHeldText == nil, "Old replay events must not raise an alert")
         assert(store.unreadGatewayIDs.contains(oldID), "Old held texts should still be available for review")
-        print("PASS: historical events refresh review state without a fresh banner")
+        print("PASS: historical events refresh review state without an alert")
 
         UserDefaults.standard.removeObject(forKey: "gatewaySeen.http://shield-store-test.invalid")
         print("5 Swift gateway state-store checks passed")

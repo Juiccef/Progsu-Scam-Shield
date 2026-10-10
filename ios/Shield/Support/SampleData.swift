@@ -332,7 +332,7 @@ extension ShieldStore {
             store.tab = .calls
             store.callsPath = [.blocked]
             return store
-        case "texts", "texts-paused", "text-held", "text-delivered", "notifications":
+        case "texts", "texts-paused", "text-held", "text-delivered", "notifications", "home-texts":
             let store = preview(history: CallSummary.samples).withTexts(
                 GatewayMessage.samples,
                 whole: GatewayMessage.wholeSamples,
@@ -341,6 +341,7 @@ extension ShieldStore {
                 number: sampleNumber
             )
             switch name {
+            case "home-texts": store.tab = .home
             case "notifications": store.tab = .notifications
             default: store.tab = .texts
             }

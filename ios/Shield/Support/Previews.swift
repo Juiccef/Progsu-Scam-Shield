@@ -33,6 +33,11 @@ import SwiftUI
         .environment(ShieldStore.sample(named: "calls") ?? .preview())
 }
 
+#Preview("Summary, texts to review") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "home-texts") ?? .preview())
+}
+
 #Preview("Notifications") {
     MainTabs()
         .environment(ShieldStore.sample(named: "notifications") ?? .preview())

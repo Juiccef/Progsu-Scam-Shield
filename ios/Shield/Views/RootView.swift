@@ -59,6 +59,11 @@ struct RootView: View {
             case nil: nil
             }
         }
+        // A text Palisade has just held gets the buzz a warning on a call gets. Nothing is
+        // drawn over the screen for it: the count on the Texts tab and Summary's list say it.
+        .sensoryFeedback(trigger: store.latestHeldText) { _, held in
+            held == nil ? nil : .warning
+        }
         .onChange(of: appearance, initial: true) { old, new in
             // At launch the two are the same: set it at once, with no fade from the wrong appearance.
             new.apply(animated: old != new)

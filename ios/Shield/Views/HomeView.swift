@@ -15,6 +15,7 @@ struct HomeView: View {
                 // A little more room than a list row gets: this one is the screen's headline.
                 .padding(.vertical, 5)
             }
+            TextsToReview(texts: store.gatewayMessages.filter(\.needsReview))
             RecentCalls(
                 calls: store.history,
                 // The list is fetched before the feed connects. Until then it is not known to be empty.
@@ -24,6 +25,8 @@ struct HomeView: View {
         }
         .groupedListStyle()
         .headerProminence(.increased)
+        // A held text arrives between the card and the calls, which make room for it.
+        .animation(Motion.change, value: store.gatewayMessages.filter(\.needsReview).map(\.id))
         .navigationTitle("Summary")
         .toolbar {
             if !store.demoScripts.isEmpty {
@@ -195,6 +198,41 @@ private struct ActiveCallCard: View {
             }
         }
         .animation(Motion.change, value: level)
+    }
+}
+
+// MARK: - Texts to review
+
+/// The texts Palisade is holding for the caregiver's decision. Nothing while there are none.
+private struct TextsToReview: View {
+    let texts: [GatewayMessage]
+
+    @Environment(ShieldStore.self) private var store
+
+    private static let shown = 3
+
+    var body: some View {
+        if !texts.isEmpty {
+            Section {
+                ForEach(texts.prefix(Self.shown)) { text in
+                    NavigationLink(value: Page.text(text.id)) {
+                        TextRow(text: text)
+                    }
+                }
+            } header: {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Texts to Review")
+                    Spacer()
+                    if texts.count > Self.shown {
+                        Button("Show All") {
+                            store.tab = .texts
+                        }
+                        // An ordinary link beside the heading, not a second heading.
+                        .font(.body)
+                    }
+                }
+            }
+        }
     }
 }
 
