@@ -3,7 +3,7 @@
 The caregiver's app. It shows the call in progress (risk dial, warning signs, live
 transcript), takes over the screen when Palisade ends a scam call, keeps a list of
 recent calls, and holds the texts Palisade stopped until the caregiver releases or
-discards them. It has five pages behind a tab bar: Summary, Notifications, Calls, Texts
+discards them. It has five pages behind a tab bar: Summary, Alerts, Calls, Texts
 and Scam Signs. The protected person needs no app at all.
 
 It is a SwiftUI app for iOS 17 and later. It has one dependency, Auth0's library for
@@ -56,7 +56,7 @@ server's `GET /events` feed, its `GET /calls` list and, for texts, `GET /message
 - Texts, on 2026-10-10. Nabil built text protection on a branch from the app's first
   commit (a Texts tab, a review screen, a paste checker, a banner). Merged into main, his
   screens were rebuilt in the look the app has now, and two things were added at the
-  user's request: a Notifications page, and, in place of the banner, a count on the Texts
+  user's request: an Alerts page, and, in place of the banner, a count on the Texts
   tab, a buzz, and a "Texts to Review" section on Summary. Checked in a simulator made
   for the job, in light, in dark and at an accessibility text size, with sample data and
   against a practice server fed made-up texts: a scam text arriving on Summary, released
@@ -78,9 +78,9 @@ From the iPhone 17e simulator, with sample data.
 |---|---|---|
 | ![Call in progress](screens/live-call.png) | ![Palisade ended the call](screens/palisade-ended-the-call.png) | ![What happened](screens/what-happened.png) |
 
-| Texts | A held text | Notifications |
+| Texts | A held text | Alerts |
 |---|---|---|
-| ![Texts](screens/texts-inbox.png) | ![A held text](screens/text-review-held.png) | ![Notifications](screens/notifications.png) |
+| ![Texts](screens/texts-inbox.png) | ![A held text](screens/text-review-held.png) | ![Alerts](screens/alerts.png) |
 
 More: Summary with texts to review ([screens/text-live-alert.png](screens/text-live-alert.png)),
 a text after it was released ([screens/text-review-queued.png](screens/text-review-queued.png)),
@@ -123,7 +123,7 @@ When Palisade holds a text while the app is open, the phone buzzes once, the Tex
 shows how many held texts have not been looked at, and Summary lists them under "Texts
 to Review". Nothing is drawn over the screen for it, and a call screen is left alone.
 
-Notifications is one list, newest first, of everything Palisade stepped into: a call it
+Alerts is one list, newest first, of everything Palisade stepped into: a call it
 warned about or ended, a text it held, a text it could not get delivered. A row opens the
 call's summary or the text. It says what happened at the time ("Scam Text Held"),
 whatever was decided afterwards.
@@ -209,7 +209,7 @@ screens on a simulator or phone with the launch argument `-sample <name>`: `home
 `home-empty`, `home-offline`, `home-call`, `calls`, `signs`, `ringing`, `calm`,
 `watchful`, `suspicious`, `warned-over`, `ended` or `detail`. For texts: `texts`,
 `texts-paused`, `texts-empty`, `texts-off`, `text-held`, `text-released`,
-`text-delivered`, `notifications` and `home-texts`; a decision on a sample text changes
+`text-delivered`, `alerts` and `home-texts`; a decision on a sample text changes
 it, so Release and Discard can be tried with no server. Three more are a server
 that asks for a sign-in: `home-signed-in`, `home-signed-out` and `home-refused`; open
 Settings on them to see the Account section. `-appearance light` or `-appearance dark`
@@ -242,7 +242,7 @@ Shield/
   Services/ShieldStore.swift app state: connection, sign-in, current call, history, texts
   Services/SignIn.swift      the caregiver's sign-in with Auth0, kept in the Keychain
   Views/                     RootView (pages under the call screen), MainTabs (tab bar),
-                             HomeView (Summary), NotificationsView, CallsView, TextsView,
+                             HomeView (Summary), AlertsView, CallsView, TextsView,
                              TextDetailView, CheckTextView, SignsView, CallDetailView,
                              LiveCallView, SettingsView, SignInButton, RiskDial, FlagViews,
                              TranscriptView

@@ -24,8 +24,8 @@ struct MainTabs: View {
                 Tab(AppTab.home.title, systemImage: AppTab.home.symbol, value: AppTab.home) {
                     HomePage()
                 }
-                Tab(AppTab.notifications.title, systemImage: AppTab.notifications.symbol, value: AppTab.notifications) {
-                    NotificationsPage()
+                Tab(AppTab.alerts.title, systemImage: AppTab.alerts.symbol, value: AppTab.alerts) {
+                    AlertsPage()
                 }
                 Tab(AppTab.calls.title, systemImage: AppTab.calls.symbol, value: AppTab.calls) {
                     CallsPage()
@@ -43,9 +43,9 @@ struct MainTabs: View {
                 HomePage()
                     .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.symbol) }
                     .tag(AppTab.home)
-                NotificationsPage()
-                    .tabItem { Label(AppTab.notifications.title, systemImage: AppTab.notifications.symbol) }
-                    .tag(AppTab.notifications)
+                AlertsPage()
+                    .tabItem { Label(AppTab.alerts.title, systemImage: AppTab.alerts.symbol) }
+                    .tag(AppTab.alerts)
                 CallsPage()
                     .tabItem { Label(AppTab.calls.title, systemImage: AppTab.calls.symbol) }
                     .tag(AppTab.calls)
@@ -65,7 +65,7 @@ extension AppTab {
     var title: String {
         switch self {
         case .home: "Summary"
-        case .notifications: "Notifications"
+        case .alerts: "Alerts"
         case .calls: "Calls"
         case .texts: "Texts"
         case .signs: "Scam Signs"
@@ -76,7 +76,7 @@ extension AppTab {
     var symbol: String {
         switch self {
         case .home: "checkmark.shield"
-        case .notifications: "bell"
+        case .alerts: "bell"
         case .calls: "phone"
         case .texts: "message"
         case .signs: "eye"
@@ -99,10 +99,10 @@ private struct HomePage: View {
     }
 }
 
-private struct NotificationsPage: View {
+private struct AlertsPage: View {
     var body: some View {
         NavigationStack {
-            NotificationsView()
+            AlertsView()
                 .pageDestinations()
         }
     }

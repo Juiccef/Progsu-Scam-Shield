@@ -332,7 +332,7 @@ extension ShieldStore {
             store.tab = .calls
             store.callsPath = [.blocked]
             return store
-        case "texts", "texts-paused", "text-held", "text-released", "text-delivered", "notifications", "home-texts":
+        case "texts", "texts-paused", "text-held", "text-released", "text-delivered", "alerts", "home-texts":
             // "text-released" is the first sample text after the caregiver let it through.
             let whole = name == "text-released"
                 ? [GatewayMessage.heldFee.sampleDecided("release")] + GatewayMessage.wholeSamples.dropFirst()
@@ -346,7 +346,7 @@ extension ShieldStore {
             )
             switch name {
             case "home-texts": store.tab = .home
-            case "notifications": store.tab = .notifications
+            case "alerts": store.tab = .alerts
             default: store.tab = .texts
             }
             if name == "text-held" || name == "text-released" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }

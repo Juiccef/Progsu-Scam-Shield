@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The "Notifications" page: everything Palisade stepped into, calls and texts together,
+/// The "Alerts" page: everything Palisade stepped into, calls and texts together,
 /// newest first. The ordinary ones are on the Calls and Texts pages.
-struct NotificationsView: View {
+struct AlertsView: View {
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
@@ -17,7 +17,7 @@ struct NotificationsView: View {
                     switch store.connection {
                     case .connected:
                         ContentUnavailableView(
-                            "No Notifications",
+                            "No Alerts",
                             systemImage: "bell",
                             description: Text("When Palisade warns you about a call, ends one, or holds a text, it shows up here.")
                         )
@@ -27,21 +27,21 @@ struct NotificationsView: View {
                         ContentUnavailableView(
                             "Not Connected",
                             systemImage: "exclamationmark.shield",
-                            description: Text("Notifications show up here once Palisade reaches its server.")
+                            description: Text("Alerts show up here once Palisade reaches its server.")
                         )
                         .listRowBackground(Color.clear)
                     case .signedOut:
                         ContentUnavailableView(
                             "Not Signed In",
                             systemImage: "exclamationmark.shield",
-                            description: Text("Notifications show up here once you sign in.")
+                            description: Text("Alerts show up here once you sign in.")
                         )
                         .listRowBackground(Color.clear)
                     case .refused:
                         ContentUnavailableView(
                             "No Access",
                             systemImage: "exclamationmark.shield",
-                            description: Text("Notifications show up here once your Palisade server lets this account in.")
+                            description: Text("Alerts show up here once your Palisade server lets this account in.")
                         )
                         .listRowBackground(Color.clear)
                     case .connecting:
@@ -53,7 +53,7 @@ struct NotificationsView: View {
         }
         .groupedListStyle()
         .animation(Motion.change, value: notices.map(\.id))
-        .navigationTitle("Notifications")
+        .navigationTitle("Alerts")
         .refreshable {
             await store.refresh()
         }
@@ -84,7 +84,7 @@ struct Notice: Identifiable {
     /// Where the row leads. Nil for a text that was only scored: there is nothing more to it.
     let page: Page?
 
-    /// Everything worth a notification in what the app already has, newest first.
+    /// Everything worth an alert in what the app already has, newest first.
     static func all(calls: [CallSummary], texts: [GatewayMessage], checks: [MessageSummary]) -> [Notice] {
         var notices: [Notice] = []
         for call in calls where call.outcome == .warned || call.outcome == .endedByShield {
@@ -117,7 +117,7 @@ struct Notice: Identifiable {
 }
 
 private extension OutcomeLook {
-    /// What Palisade did about a text, as a notification says it: what happened then, whatever
+    /// What Palisade did about a text, as an alert says it: what happened then, whatever
     /// was decided since. Nil for a text that went through with nothing to report.
     init?(noticeOf text: GatewayMessage) {
         let warning = "exclamationmark.triangle.fill"

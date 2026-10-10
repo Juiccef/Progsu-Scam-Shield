@@ -38,9 +38,9 @@ import SwiftUI
         .environment(ShieldStore.sample(named: "home-texts") ?? .preview())
 }
 
-#Preview("Notifications") {
+#Preview("Alerts") {
     MainTabs()
-        .environment(ShieldStore.sample(named: "notifications") ?? .preview())
+        .environment(ShieldStore.sample(named: "alerts") ?? .preview())
 }
 
 #Preview("Texts") {
