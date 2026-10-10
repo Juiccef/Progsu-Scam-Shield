@@ -389,7 +389,7 @@ private struct ShieldEndedActions: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(QuietButtonStyle())
+        .quietButton()
     }
 }
 

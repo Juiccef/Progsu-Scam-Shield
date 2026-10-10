@@ -157,6 +157,19 @@ extension View {
         }
     }
 
+    /// The quieter button of a pair, beside the filled one. Where the system has a glass button
+    /// (iOS 26) it is that one, so every quiet button in the app is the same material as the
+    /// header's and the navigation bar's. Before that it is the quiet button.
+    @ViewBuilder
+    func quietButton() -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            buttonStyle(.glass)
+                .chrome()
+        } else {
+            buttonStyle(QuietButtonStyle())
+        }
+    }
+
     /// For the buttons around a screen's edge (its navigation bar, the call screen's header):
     /// drawn in the text color, as the system draws its own. Blue is kept for the one button
     /// a screen is about.
