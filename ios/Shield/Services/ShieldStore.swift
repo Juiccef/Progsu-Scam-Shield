@@ -192,7 +192,18 @@ final class ShieldStore {
         await loadGateway(api)
     }
 
-    /// The Texts page was opened: every held text has now been seen.
+    /// The Texts tab was chosen, or its list came back into view.
+    func textsCameIntoView() {
+        if isShowingTexts { markGatewayRead() }
+    }
+
+    /// True while the list of texts itself is on screen: its tab is chosen, no text is open
+    /// on top of it, and no call screen covers it.
+    private var isShowingTexts: Bool {
+        tab == .texts && textsPath.isEmpty && presentedCall == nil
+    }
+
+    /// Every held text has now been seen.
     func markGatewayRead() {
         for message in gatewayMessages where message.needsReview && !seenGatewayIDs.contains(message.id) {
             seenGatewayIDs.append(message.id)
@@ -219,6 +230,8 @@ final class ShieldStore {
 
     func closeCall() {
         presentedCall = nil
+        // A text held while the call screen covered the list has only now been seen.
+        textsCameIntoView()
     }
 
     /// Leaves the call screen and opens the summary of that call, on the Calls page.
@@ -432,7 +445,7 @@ final class ShieldStore {
             // held records so delayed analysis can still trigger its first banner.
             alertedGatewayIDs.formUnion(list.messages.filter(\.needsReview).map(\.id))
             unreadGatewayIDs = Set(list.messages.filter { $0.needsReview && !seenGatewayIDs.contains($0.id) }.map(\.id))
-            if tab == .texts { markGatewayRead() }
+            if isShowingTexts { markGatewayRead() }
         } catch {
             if wants(api) { gatewayError = Self.describe(error) }
         }

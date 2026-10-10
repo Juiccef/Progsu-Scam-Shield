@@ -101,7 +101,7 @@ struct TextsView: View {
             await store.refresh()
         }
         .onAppear {
-            store.markGatewayRead()
+            store.textsCameIntoView()
         }
     }
 

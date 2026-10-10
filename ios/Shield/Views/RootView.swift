@@ -68,8 +68,8 @@ struct RootView: View {
             // At launch the two are the same: set it at once, with no fade from the wrong appearance.
             new.apply(animated: old != new)
         }
-        .onChange(of: store.tab) { _, tab in
-            if tab == .texts { store.markGatewayRead() }
+        .onChange(of: store.tab) {
+            store.textsCameIntoView()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, connectsToServer { Task { await store.refresh() } }
