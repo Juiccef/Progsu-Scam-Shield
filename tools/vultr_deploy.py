@@ -74,6 +74,23 @@ class Failure(Exception):
     """Something the user has to see and act on. The message is the whole report."""
 
 
+def _refusal_hint(message: str) -> str:
+    """What to do about a refused key. A new key goes through three refusals, each with its own message."""
+    where = "Vultr console: My Org, Manage Organization, Users, your name, API Access"
+    text = message.lower()
+    if "unauthorized ip" in text:
+        return f"\nThis computer's address is not on the key's allowlist. Add its network under Access Control List ({where})."
+    if "not enabled" in text:
+        return (
+            f"\nSwitch API access on for your user ({where}). Vultr then replaces your key,"
+            " so create a new one there and put it in VULTR_API_KEY."
+        )
+    return (
+        "\nCheck VULTR_API_KEY: letters and digits only, with no < >, quotes or spaces. Vultr replaces the key when"
+        f" API access is switched on, and shows a new one only once ({where})."
+    )
+
+
 class Vultr:
     """The few calls this tool makes to the Vultr API (https://www.vultr.com/api/)."""
 
@@ -92,12 +109,7 @@ class Vultr:
                 message = response.json().get("error") or response.text
             except (ValueError, AttributeError):
                 message = response.text
-            hint = ""
-            if response.status_code in (401, 403):
-                hint = (
-                    "\nCheck VULTR_API_KEY, and that this computer's IP address is allowed for it"
-                    " in the Vultr console (Account, API, Access Control)."
-                )
+            hint = _refusal_hint(str(message)) if response.status_code in (401, 403) else ""
             raise Failure(f"Vultr API answered HTTP {response.status_code}: {str(message).strip()[:300]}{hint}")
         return response.json() if response.content else {}
 

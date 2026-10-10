@@ -59,7 +59,9 @@ python tools/watch.py                # add --interim to see partial transcripts
 depend on a laptop and a tunnel, and the address stays the same between restarts.
 
 ```bash
-# once: VULTR_API_KEY=... in .env (Vultr console: Account, API; allow your IP address there)
+# once: VULTR_API_KEY=... in .env. Vultr console: My Org, Manage Organization, Users, you, API Access.
+#   Switch API access on (that replaces any earlier key), then Create API Key (shown once), and allow
+#   your network under Access Control List if requests are refused with "Unauthorized IP address".
 python tools/vultr_deploy.py up                        # a 1 vCPU / 1 GB server in Atlanta, with Shield on it
 python tools/set_webhook.py <the address it prints>    # send the Twilio number's calls there
 ```
@@ -79,8 +81,10 @@ about $5 a month).
   server's IP as a name under sslip.io. `--host shield.example.com` uses your own domain
   once its A record points at the server.
 - **A push restarts Shield**, which would drop a call in progress, so it refuses while one is active.
-- **Not run against Vultr yet** (2026-10-10): there was no account key when it was written. The
-  first `up` is the test, and it stops at the step that failed with that step's output.
+- **Run on 2026-10-10** against a real account: `up` created the server and got its certificate, a
+  demo call scored by Haiku on the server ended as expected, and the event feed streams through
+  Caddy without buffering. Not tried: real Twilio calls through it, and a reboot of the server.
+  If a step fails, `up` stops there and prints that step's output.
 
 ## Dashboard (temporary)
 

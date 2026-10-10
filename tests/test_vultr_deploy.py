@@ -235,7 +235,17 @@ def test_waiting_ends_when_the_server_has_an_address():
     assert deploy.wait_until_active(api, pending, poll_s=0)["main_ip"] == "203.0.113.7"
 
 
-def test_a_refused_key_says_what_to_check():
-    api = vultr(lambda request: httpx.Response(401, json={"error": "Invalid API token.", "status": 401}))
-    with pytest.raises(deploy.Failure, match="Invalid API token.\nCheck VULTR_API_KEY.*Access Control"):
+@pytest.mark.parametrize(
+    "message, advice",
+    [
+        ("Invalid API token.", "Check VULTR_API_KEY: letters and digits only"),
+        ("Unauthorized IP address: 131.96.221.135", "not on the key's allowlist"),
+        ("API use is not enabled for this account.", "Switch API access on"),
+    ],
+)
+def test_a_refused_key_says_which_step_is_missing(message, advice):
+    api = vultr(lambda request: httpx.Response(401, json={"error": message, "status": 401}))
+    with pytest.raises(deploy.Failure) as refused:
         deploy.find_server(api)
+    text = str(refused.value)
+    assert f"HTTP 401: {message}\n" in text and advice in text and "My Org, Manage Organization" in text
