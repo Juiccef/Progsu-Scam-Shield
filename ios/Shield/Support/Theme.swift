@@ -179,6 +179,17 @@ extension View {
         }
     }
 
+    /// The one button a sheet is about, up in its bar: filled in the accent color, in the
+    /// system's glass where it has one (iOS 26).
+    @ViewBuilder
+    func filledButton() -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            buttonStyle(.glassProminent)
+        } else {
+            buttonStyle(.borderedProminent)
+        }
+    }
+
     /// A small button that offers the next step inside a card or an empty list: a capsule
     /// tinted in the accent color, the one Health puts in its own notice cards.
     func cardButton() -> some View {

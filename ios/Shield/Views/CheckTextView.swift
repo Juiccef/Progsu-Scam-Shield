@@ -59,6 +59,7 @@ struct CheckTextView: View {
                     Button("Check") {
                         Task { await check() }
                     }
+                    .filledButton()
                     .disabled(!canCheck)
                 }
             }
@@ -100,7 +101,7 @@ private struct CheckResult: View {
             VStack(alignment: .leading, spacing: 6) {
                 // A text with nothing wrong reports no state, so its label is gray and bare.
                 CardLabel(title: look.title, symbol: look.isNotable ? look.symbol : nil, tint: look.isNotable ? look.tint : .secondary)
-                Text(check.explanation ?? "Check with the sender through a number you trust before doing what the text asks.")
+                Text(advice)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.vertical, 5)
@@ -113,5 +114,14 @@ private struct CheckResult: View {
                 }
             }
         }
+    }
+
+    /// The server's advice on a risky text. For an ordinary one its sentence would only repeat
+    /// the label, so what is left to say is what the check cannot know.
+    private var advice: String {
+        if check.verdict == .ordinary {
+            return "That is not a promise about who sent it or where a link leads."
+        }
+        return check.explanation ?? "Check with the sender through a number you trust before doing what the text asks."
     }
 }
