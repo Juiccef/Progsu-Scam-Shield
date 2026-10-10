@@ -35,7 +35,7 @@ async function main() {
   }
   process.once("SIGTERM", () => { void shutdown(); });
   process.once("SIGINT", () => { void shutdown(); });
-  console.info("Shield Spectrum caregiver agent initialized.");
+  console.info("Palisade Spectrum caregiver agent initialized.");
   const receive = async () => {
     for await (const [space, message] of app.messages) {
       if (stop.signal.aborted) break;
@@ -76,6 +76,6 @@ async function main() {
 
 main().catch(() => {
   // SDK errors can contain credentials or content, so emit a fixed diagnostic.
-  console.error("Shield Spectrum caregiver agent stopped. Check required configuration and Photon connectivity.");
+  console.error("Palisade Spectrum caregiver agent stopped. Check required configuration and Photon connectivity.");
   process.exitCode = 1;
 });

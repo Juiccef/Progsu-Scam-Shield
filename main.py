@@ -244,7 +244,7 @@ def create_app(
     async def sms_incoming(request: Request) -> Response:
         form = await twilio_form(request)
         if not settings.twilio_proxy_number or normalize_phone(form.get("To", "")) != normalize_phone(settings.twilio_proxy_number):
-            raise HTTPException(400, "Message is not addressed to the Shield proxy number")
+            raise HTTPException(400, "Message is not addressed to the Palisade proxy number")
         message_id = form.get("MessageSid", "")
         text = form.get("Body", "")
         if not message_id or len(message_id) > 128:

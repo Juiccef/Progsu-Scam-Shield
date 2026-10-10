@@ -47,7 +47,7 @@ def address(value: str) -> str:
 
 def forwarded_sms(text: str, sender: str, *, released=False) -> str:
     verdict = "Released after caregiver review." if released else "Passed automated screening: low scam risk detected."
-    return (f"{text}\n\n— Shield screening —\nOriginal sender: {sender}\n{verdict}\n"
+    return (f"{text}\n\n— Palisade screening —\nOriginal sender: {sender}\n{verdict}\n"
             "Sender identity has not been verified.\nReplies are not forwarded.")
 
 
@@ -177,7 +177,7 @@ class GatewayStore:
         flags = json.loads(row["flags"])
         advice = {
             "unsupported_content": "This version checks text only. Attachments have not been analyzed.",
-            "analysis_incomplete": "Shield could not complete analysis and withheld delivery. Review the text before releasing it.",
+            "analysis_incomplete": "Palisade could not complete analysis and withheld delivery. Review the text before releasing it.",
             "message_too_long": "This text plus the screening footer exceeds the SMS size limit. It cannot be released in this version.",
             "transport_changed": "This record came from the previous Photon gateway. It will not be forwarded over SMS; discard it or ask the sender to text the Twilio number.",
         }.get(row["hold_reason"], message_reason(flags, row["risk"] or 0))
@@ -209,7 +209,7 @@ class GatewayStore:
     def ingest(self, item: GatewayMessage):
         self.cleanup()
         if address(item.line) != address(self.settings.twilio_proxy_number):
-            raise HTTPException(400, "Message is not addressed to the Shield line")
+            raise HTTPException(400, "Message is not addressed to the Palisade line")
         if address(item.sender) in {address(self.settings.senior_phone), address(self.settings.caregiver_phone),
                                     address(self.settings.photon_caregiver_address),
                                     address(self.settings.twilio_proxy_number)}:
@@ -349,10 +349,10 @@ class GatewayStore:
                            "message_too_long": "Text exceeds the SMS size limit", "transport_changed": "Previous transport record"}.get(
                     row["hold_reason"], "Likely scam" if (row["risk"] or 0) >= 70 else "Suspicious text")
                 categories = ", ".join(FLAG_TITLES[f] for f in flags if f in FLAG_TITLES)
-                text = f"Shield held a text sent to the protected Shield number: {warning}."
+                text = f"Palisade held a text sent to the protected Palisade number: {warning}."
                 if categories:
                     text += f" Warning signs: {categories}."
-                text += " Open the Shield app's Texts tab to review it."
+                text += " Open the Palisade app's Texts tab to review it."
                 recipient = self.settings.photon_caregiver_address
             attempt = secrets.token_hex(16)
             self.db.execute("UPDATE outbox SET status='sending',attempt_id=?,claimed_at=? WHERE job_id=?",
@@ -556,13 +556,13 @@ def gateway_router(service, settings):
         latest = held[0] if held else None
         if latest:
             reason = latest["hold_reason"]
-            why = {"analysis_incomplete": "Analysis could not finish, so Shield withheld delivery.",
+            why = {"analysis_incomplete": "Analysis could not finish, so Palisade withheld delivery.",
                    "unsupported_content": "This version checks text only; the content could not be analyzed.",
                    "message_too_long": "The original text and screening footer exceed the SMS size limit.",
                    "transport_changed": "This record belongs to the previous Photon gateway and will not be forwarded over SMS."}.get(reason)
             if not why:
                 categories = ", ".join(FLAG_TITLES[f] for f in latest["flags"] if f in FLAG_TITLES)
-                why = f"Shield detected: {categories}." if categories else "The risk score reached the review threshold."
+                why = f"Palisade detected: {categories}." if categories else "The risk score reached the review threshold."
                 why += " " + latest["explanation"]
         else:
             why = "There are no messages awaiting review."

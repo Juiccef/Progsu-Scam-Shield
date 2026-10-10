@@ -97,15 +97,15 @@ export class Worker {
       let response: string;
       if (command === "HELP" || command === "START" || command === "HELLO") {
         const status = await this.backend.request<Status>("/integrations/photon/status");
-        response = `Shield screens SMS sent to ${status.shield_number}, then forwards approved texts from that number with a screening footer. ` +
-          "Suspicious texts are held in the Shield app for caregiver review for 24 hours. " +
+        response = `Palisade screens SMS sent to ${status.shield_number}, then forwards approved texts from that number with a screening footer. ` +
+          "Suspicious texts are held in the Palisade app for caregiver review for 24 hours. " +
           "I send review alerts here. Send STATUS or WHY. Replies to forwarded SMS are not relayed.";
       } else if (command === "STATUS" || command === "WHY") {
         const status = await this.backend.request<Status>("/integrations/photon/status");
         response = command === "WHY" ? status.why :
-          `Shield has ${status.held_count} message(s) awaiting review. SMS forwarding is ${status.forwarding_enabled && status.sms_ready ? "enabled" : "paused or unavailable"}. Open the Shield app's Texts tab to review.`;
+          `Palisade has ${status.held_count} message(s) awaiting review. SMS forwarding is ${status.forwarding_enabled && status.sms_ready ? "enabled" : "paused or unavailable"}. Open the Palisade app's Texts tab to review.`;
       } else {
-        response = "Send HELP, STATUS or WHY. Review, release and discard happen in the authenticated Shield app.";
+        response = "Send HELP, STATUS or WHY. Review, release and discard happen in the authenticated Palisade app.";
       }
       this.seenCommands.add(id);
       if (this.seenCommands.size > 1000) this.seenCommands.delete(this.seenCommands.values().next().value!);
@@ -113,7 +113,7 @@ export class Worker {
         await this.send(this.config.caregiver, response);
       } catch {
         // An uncertain command response must not be retried with the receive operation.
-        console.warn("Shield command response was not confirmed; automatic resend suppressed.");
+        console.warn("Palisade command response was not confirmed; automatic resend suppressed.");
       }
       return;
     }
@@ -159,7 +159,7 @@ export async function retry<T>(fn: () => Promise<T>, signal: AbortSignal): Promi
     try { return await fn(); }
     catch (error) {
       if (error instanceof BridgeError && [400, 401, 403, 404, 422].includes(error.status)) throw error;
-      console.warn("Shield bridge unavailable; retaining the operation for retry.");
+      console.warn("Palisade bridge unavailable; retaining the operation for retry.");
       await sleep(delay, undefined, { signal });
       delay = Math.min(delay * 2, 8000);
     }

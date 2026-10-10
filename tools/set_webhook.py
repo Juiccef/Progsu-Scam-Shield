@@ -53,13 +53,12 @@ def main() -> int:
     number = numbers[0]
     if args.sms_only:
         if not (number.capabilities or {}).get("sms"):
-            print("The Shield number does not support SMS. Choose an SMS-capable Twilio number.", file=sys.stderr)
+            print("The Palisade number does not support SMS. Choose an SMS-capable Twilio number.", file=sys.stderr)
             return 1
         print(f"Previous SMS webhook: {number.sms_url or '(none)'}")
         number.update(sms_url=f"https://{host}/sms/incoming", sms_method="POST")
         print(f"SMS webhook is now:   https://{host}/sms/incoming")
-        if host != settings.public_host:
-            print(f"Set PUBLIC_HOST={host} in .env and restart the server, or webhook signatures will not validate.")
+        _remind_public_host(host, settings.public_host)
         return 0
     print(f"Previous voice webhook: {number.voice_url or '(none)'}")
     number.update(
@@ -69,12 +68,16 @@ def main() -> int:
         status_callback_method="POST",
     )
     print(f"Voice webhook is now:   https://{host}/voice/incoming")
-    if host != settings.public_host:
+    _remind_public_host(host, settings.public_host)
+    return 0
+
+
+def _remind_public_host(host: str, configured: str) -> None:
+    if host != configured:
         print(
             f"The server at that address needs PUBLIC_HOST={host}, or webhook signatures will not validate.\n"
             "tools/vultr_deploy.py sets it on a Vultr server. For a server on this computer, put it in .env and restart."
         )
-    return 0
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ const input = {
   spaceType: "dm", line: "+15555550900", sender: config.caregiver, content: { type: "text", text: "WHY" },
 };
 const alert = { job_id: "j", attempt_id: "a", message_id: "m", kind: "caregiver_alert",
-  recipient: config.caregiver, line: "", text: "Shield held a suspicious text. Open the app." };
+  recipient: config.caregiver, line: "", text: "Palisade held a suspicious text. Open the app." };
 
 function setup({ job = null, sendFails = false, workerConfig = config } = {}) {
   const requests = [], sends = [];
@@ -77,7 +77,7 @@ test("replayed and uncertain command responses are not automatically repeated", 
 test("review commands direct the caregiver to the authenticated app", async () => {
   const { worker, sends } = setup();
   await worker.receive({ ...input, content: { type: "text", text: "release latest" } });
-  assert.match(sends[0].text, /authenticated Shield app/);
+  assert.match(sends[0].text, /authenticated Palisade app/);
 });
 
 test("only caregiver alerts are sent by Spectrum", async () => {
