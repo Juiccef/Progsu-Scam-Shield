@@ -237,7 +237,7 @@ private struct TextProtection: View {
         case .protected:
             return "Texts sent to \(theNumber) are checked before they reach \(seniorName)."
         case .paused:
-            return "Texts sent to \(theNumber) are checked and kept here. Forwarding them to \(seniorName) is switched off on the server."
+            return "Texts sent to \(theNumber) are checked and kept here. Forwarding them to \(seniorName) is turned off at the server."
         case .cannotSend:
             return "Texts sent to \(theNumber) are checked and kept here. The server cannot forward them: it is in practice mode, or has no Twilio account."
         case .off:

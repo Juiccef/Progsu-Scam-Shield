@@ -81,7 +81,11 @@ struct TextDetailView: View {
             )
             .safeAreaInset(edge: .bottom) {
                 if text.needsReview, !isExpired {
-                    DecisionBar(canRelease: text.reviewEligible, seniorName: seniorName) { action in
+                    DecisionBar(
+                        text: text,
+                        seniorName: seniorName,
+                        isForwarding: store.gatewayHealth?.forwardingEnabled == true
+                    ) { action in
                         Task { await decide(action) }
                     }
                     .disabled(isWorking)
@@ -226,7 +230,7 @@ private struct TextDetail: View {
         case .queued:
             return isForwarding
                 ? "It is about to be forwarded to \(seniorName)."
-                : "It will be forwarded to \(seniorName) once forwarding is switched on on the server."
+                : "It will be forwarded to \(seniorName) once forwarding is turned on at the server."
         case .sending:
             return "It is being forwarded to \(seniorName)."
         case .sent:
@@ -272,11 +276,16 @@ private struct TextHeader: View {
 }
 
 /// The decision on a held text. Pinned under the page so it never scrolls out of reach.
+/// Neither choice can be taken back, so each is asked once before it is carried out.
 private struct DecisionBar: View {
-    /// False for a text that can only be discarded (an attachment, too long to forward).
-    let canRelease: Bool
+    let text: GatewayMessage
     let seniorName: String
-    let choose: (TextAction) -> Void
+    /// False while the server keeps checked texts instead of sending them on.
+    let isForwarding: Bool
+    let decide: (TextAction) -> Void
+
+    @State private var isAskingToRelease = false
+    @State private var isAskingToDiscard = false
 
     var body: some View {
         // Side by side at one width while both labels fit; stacked for a long name or large text.
@@ -292,23 +301,49 @@ private struct DecisionBar: View {
     }
 
     @ViewBuilder private var buttons: some View {
-        if canRelease {
+        // False for a text that can only be discarded (an attachment, too long to forward).
+        if text.reviewEligible {
             Button {
-                choose(.release)
+                isAskingToRelease = true
             } label: {
                 Text("Release to \(seniorName)")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .confirmationDialog(
+                "Release This Text to \(seniorName)?", isPresented: $isAskingToRelease, titleVisibility: .visible
+            ) {
+                Button("Release to \(seniorName)") { decide(.release) }
+            } message: {
+                Text(whatReleasingDoes)
+            }
         }
         Button {
-            choose(.discard)
+            isAskingToDiscard = true
         } label: {
             Text("Discard")
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
         }
         .quietButton()
+        .confirmationDialog("Discard This Text?", isPresented: $isAskingToDiscard, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { decide(.discard) }
+        } message: {
+            Text("It is deleted now and cannot be brought back. Nothing is sent to \(seniorName).")
+        }
+    }
+
+    /// Why Palisade held the text, said again at the moment it is about to be let through.
+    private var whatReleasingDoes: String {
+        let why = switch (text.hold, text.verdict) {
+        case (.notChecked, _): "Palisade could not check this text."
+        case (_, .likelyScam): "Palisade held this text as a likely scam."
+        default: "Palisade held this text as suspicious."
+        }
+        let then = isForwarding
+            ? "It will be sent to \(seniorName)’s phone"
+            : "It will be sent to \(seniorName)’s phone once forwarding is turned on at the server"
+        return "\(why) \(then), with a note that you released it."
     }
 }
