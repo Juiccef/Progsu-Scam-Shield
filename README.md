@@ -339,6 +339,11 @@ python eval/run_eval.py --model claude-haiku-4-5 --only scam_03      # one scrip
 
 It feeds each script turn by turn through the same scorer and decision engine the
 live call uses, prints a markdown table, and writes `eval/results/<timestamp>.json`.
+`eval/pushy-legit-scripts.json` holds five genuine calls that sound like scams (run it with
+`--scripts`). Texts have their own set and runner: `python eval/run_text_eval.py --models
+rules,claude-haiku-4-5` scores the 32 texts in `eval/text-scripts.json` as the server would.
+`python eval/compare.py --models ...` runs all of them and writes one report,
+`eval/results/comparison-<time>.md`, which git keeps.
 "Seconds from trigger" is script time from the start of `trigger_turn` to the
 detection, plus the scorer's measured latency; negative means Palisade acted before
 the turn a careful listener would call it.
@@ -396,6 +401,32 @@ the decision models `clef-flash` and `clef`, all four served from Atlanta.
 ```bash
 python eval/run_eval.py --models rules,claude-haiku-4-5,vultr:deepseek-v4-flash-0731,vultr-decision:clef-flash
 python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --scripts eval/injection-scripts.json
+```
+
+### Scoring with Jev (experimental)
+
+**An experimental feature, not how Palisade works.** It has never answered a real request and
+has not been measured. Palisade scores with Haiku, and nothing on the server or in the demo
+uses Jev. [docs/jev-testing.md](docs/jev-testing.md) is the test plan that decides whether it
+ever does.
+
+Jev is TypeSafe AI's decision model, trained with RLCD (reinforcement learning for calibrated
+decisions): its answers are probabilities meant to match how often they turn out right.
+`SCORER_MODEL=jev-latest` with `TYPESAFE_API_KEY` set (from `console.typesafe.ai/keys`) scores
+calls and texts with it, through the same code as `vultr-decision:`. TypeSafe's API and Vultr's
+take the same request. On 2026-10-10 Vultr also listed a decision model of the Jev family,
+`autojev-27b`, served from Atlanta: `vultr-decision:autojev-27b`.
+
+A text is asked about the message, with its own descriptions of the flags and the risk levels
+(`TEXT_FLAGS`, `TEXT_LEVELS` in `scorer/providers/vultr_decision.py`); a call is asked about
+what the CALLER says. Each risk level describes what that level looks like, with no number in
+it, because TypeSafe's guide says the model judges each level alone.
+
+To measure it against Haiku on calls, pushy but genuine calls, injected calls and texts in one go
+(the steps, what to look for and when to switch are in the test plan):
+
+```bash
+python eval/compare.py --models rules,claude-haiku-4-5,jev-latest
 ```
 
 ## Privacy and safety
