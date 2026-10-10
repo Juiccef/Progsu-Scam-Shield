@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import secrets
+import sqlite3
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -101,8 +102,20 @@ def create_app(
     bus.add_listener(message_history.record)
     message_lock = asyncio.Lock()
     state = {"public_host": settings.public_host, "last_action": None, "actions": {}, "demo_task": None}
-    gateway = GatewayService(settings, bus, message_scorer, client_factory=twilio_client_factory,
-                             public_host=lambda: state["public_host"]) if settings.text_gateway_enabled else None
+    # Text protection is extra. A wrong setting for it, or a queue that will not open, turns
+    # texts off and says why. It must never keep the server from starting: calls come first.
+    gateway, texts_off_because = None, None
+    if settings.text_gateway_enabled:
+        try:
+            gateway = GatewayService(
+                settings, bus, message_scorer, client_factory=twilio_client_factory, public_host=lambda: state["public_host"]
+            )
+        except ValueError as wrong:  # GatewayStore's own sentences about a setting; they hold no secrets
+            texts_off_because = str(wrong)
+        except (OSError, sqlite3.Error) as broken:
+            texts_off_because = f"The text queue could not be opened ({type(broken).__name__})"
+        if texts_off_because:
+            log.error("Text protection is OFF: %s", texts_off_because)
 
     def remember_action(metrics: dict) -> None:
         state["last_action"] = metrics
@@ -140,7 +153,7 @@ def create_app(
         if gateway:
             gateway.start()
         log.info(
-            "Palisade ready: scorer=%s stt=%s senior=%s caregiver=%s public_host=%s actions=%s signature_check=%s",
+            "Palisade ready: scorer=%s stt=%s senior=%s caregiver=%s public_host=%s actions=%s signature_check=%s texts=%s",
             scorer_llm.model if scorer_llm else "rules only",
             settings.stt_provider if stt else "none (audio is counted, not transcribed)",
             mask_phone(settings.senior_phone),
@@ -148,6 +161,10 @@ def create_app(
             settings.public_host or "(from request headers)",
             "live" if actions.live else "dry run",
             "on" if settings.validate_signature else "OFF",
+            "OFF (a setting is wrong)" if texts_off_because
+            else "off" if gateway is None
+            else "on" if settings.text_forwarding_enabled
+            else "on, forwarding paused",
         )
         yield
         if gateway:
@@ -571,7 +588,10 @@ def create_app(
             "end_threshold": settings.decision.end_threshold,
             "active_calls": len(registry),
             "message_scorer_model": sms_llm.model if sms_llm else "rules",
-            "gateway": gateway.store.health() if gateway else {"enabled": False},
+            # `error` is there only when text protection was asked for and could not be started.
+            "gateway": gateway.store.health()
+            if gateway
+            else {"enabled": False, **({"error": texts_off_because} if texts_off_because else {})},
         }
 
     @app.get("/dashboard", response_class=HTMLResponse)

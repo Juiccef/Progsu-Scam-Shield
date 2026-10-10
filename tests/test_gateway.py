@@ -112,8 +112,17 @@ def test_gateway_auth_signature_and_validation(tmp_path):
     ({"TWILIO_VALIDATE_SIGNATURE": "false"}, "signature"), ({"SENIOR_PHONE": LINE}, "distinct"),
 ])
 def test_gateway_configuration_fails_closed(tmp_path, change, match):
+    """A wrong setting never runs the gateway half set up. The server itself still starts: calls come first."""
     with pytest.raises(ValueError, match=match):
-        create_app(settings(tmp_path, **change), stt_factory=None)
+        GatewayStore(settings(tmp_path / "store", **change), EventBus())
+    conf = settings(tmp_path / "server", **change)
+    app = create_app(conf, stt_factory=None)
+    assert app.state.gateway is None and not (conf.log_dir / "gateway").exists()
+    with TestClient(app) as client:
+        health = client.get("/health").json()
+        assert health["ok"] and health["gateway"]["enabled"] is False
+        assert match in health["gateway"]["error"]
+        assert client.get("/gateway/messages", headers=CAREGIVER).status_code == 503
 
 
 def test_hold_release_and_fixed_footer_with_private_storage(tmp_path):
