@@ -83,10 +83,12 @@ class Heartbeat(BaseModel):
 class GatewayStore:
     def __init__(self, settings, bus, *, clock=time.time):
         self.settings, self.bus, self.clock = settings, bus, clock
-        if not all((settings.photon_bridge_token, settings.events_token, settings.twilio_proxy_number,
-                    settings.senior_phone, settings.photon_caregiver_address,
+        # Someone has to be let in to review what is held: by the access token, or by signing in.
+        if not all((settings.photon_bridge_token, settings.events_token or settings.auth0_domain,
+                    settings.twilio_proxy_number, settings.senior_phone, settings.photon_caregiver_address,
                     settings.gateway_encryption_key)):
-            raise ValueError("Text gateway requires bridge/access tokens, Twilio number, destinations and encryption key")
+            raise ValueError("Text gateway requires a bridge token, an access token or sign-in, "
+                             "the Twilio number, destinations and an encryption key")
         if settings.photon_bridge_token == settings.events_token:
             raise ValueError("Photon bridge and caregiver tokens must be different")
         if not settings.validate_signature:
@@ -503,7 +505,9 @@ class GatewayService:
         self.store.close()
 
 
-def gateway_router(service, settings):
+def gateway_router(service, settings, authorize):
+    """The caregiver's routes and the Photon bridge's. `authorize` is the server's own check of who may watch."""
+
     def no_cache(response: Response):
         response.headers["Cache-Control"] = "no-store"
 
@@ -516,20 +520,26 @@ def gateway_router(service, settings):
         if service is None:
             raise HTTPException(503, "Text gateway is disabled")
 
+    async def caregiver(request):
+        """Whoever may watch calls may read and decide on held texts: the access token, or a signed-in caregiver."""
+        await authorize(request, header_only=True)
+        if service is None:
+            raise HTTPException(503, "Text gateway is disabled")
+
     @router.get("/gateway/messages")
     async def messages(request: Request):
-        auth(request, settings.events_token)
+        await caregiver(request)
         return {"messages": service.store.list(), "shield_number": settings.twilio_proxy_number,
                 "forwarding_enabled": settings.text_forwarding_enabled}
 
     @router.get("/gateway/messages/{message_id}")
     async def detail(request: Request, message_id: str):
-        auth(request, settings.events_token)
+        await caregiver(request)
         return service.store.detail(message_id)
 
     @router.post("/gateway/messages/{message_id}/decision")
     async def decision(request: Request, message_id: str, item: Decision):
-        auth(request, settings.events_token)
+        await caregiver(request)
         return service.store.decide(message_id, item.action)
 
     @router.post("/integrations/photon/outbox/claim")

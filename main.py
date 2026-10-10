@@ -164,7 +164,6 @@ def create_app(
         bus.close()
 
     app = FastAPI(title="Palisade", lifespan=lifespan)
-    app.include_router(gateway_router(gateway, settings))
     app.state.gateway = gateway
     app.state.bus = bus
     app.state.registry = registry
@@ -200,10 +199,14 @@ def create_app(
         state["public_host"] = public_host(request)  # where Twilio reaches us, for callback URLs
         return form
 
-    async def authorize(request: Request) -> None:
-        """/events carries live transcripts. A signed-in caregiver may read it, and so may EVENTS_TOKEN where set."""
+    async def authorize(request: Request, *, header_only: bool = False) -> None:
+        """/events carries live transcripts. A signed-in caregiver may read it, and so may EVENTS_TOKEN where set.
+
+        `header_only` is for a held text, which is worth more than a transcript line going by: the
+        token is then taken from the Authorization header alone, never from a URL, where it gets logged.
+        """
         bearer = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-        supplied = request.query_params.get("token") or bearer
+        supplied = bearer if header_only else request.query_params.get("token") or bearer
         if settings.events_token and hmac.compare_digest(supplied.encode(), settings.events_token.encode()):
             return
         if sign_in is None:
@@ -218,6 +221,9 @@ def create_app(
 
     def twiml(response: VoiceResponse) -> Response:
         return Response(str(response), media_type="application/xml")
+
+    # Whoever may watch calls may read and decide on held texts: the same check, header only.
+    app.include_router(gateway_router(gateway, settings, authorize))
 
     # --- Twilio webhooks ---------------------------------------------------
 
