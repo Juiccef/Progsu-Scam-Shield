@@ -332,10 +332,14 @@ extension ShieldStore {
             store.tab = .calls
             store.callsPath = [.blocked]
             return store
-        case "texts", "texts-paused", "text-held", "text-delivered", "notifications", "home-texts":
+        case "texts", "texts-paused", "text-held", "text-released", "text-delivered", "notifications", "home-texts":
+            // "text-released" is the first sample text after the caregiver let it through.
+            let whole = name == "text-released"
+                ? [GatewayMessage.heldFee.sampleDecided("release")] + GatewayMessage.wholeSamples.dropFirst()
+                : GatewayMessage.wholeSamples
             let store = preview(history: CallSummary.samples).withTexts(
-                GatewayMessage.samples,
-                whole: GatewayMessage.wholeSamples,
+                whole.map(\.listed),
+                whole: whole,
                 checks: MessageSummary.pasted,
                 protection: name == "texts-paused" ? .paused : .on,
                 number: sampleNumber
@@ -345,7 +349,7 @@ extension ShieldStore {
             case "notifications": store.tab = .notifications
             default: store.tab = .texts
             }
-            if name == "text-held" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }
+            if name == "text-held" || name == "text-released" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }
             if name == "text-delivered" { store.textsPath = [.text(GatewayMessage.delivered.id)] }
             return store
         case "texts-empty":
