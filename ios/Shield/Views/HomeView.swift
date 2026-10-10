@@ -9,11 +9,19 @@ struct HomeView: View {
     var body: some View {
         List {
             Section {
-                ProtectionCard(seniorName: seniorName)
-                    // A little more room than a list row gets: this one is the screen's headline.
-                    .padding(.vertical, 5)
+                ProtectionCard(seniorName: seniorName) {
+                    isShowingSettings = true
+                }
+                // A little more room than a list row gets: this one is the screen's headline.
+                .padding(.vertical, 5)
             }
-            RecentCalls(calls: store.history)
+            RecentCalls(
+                calls: store.history,
+                // The list is fetched before the feed connects. Until then it is not known to be empty.
+                isLoaded: store.connection == .connected,
+                seniorName: seniorName,
+                demoScripts: store.demoScripts
+            )
         }
         .groupedListStyle()
         .headerProminence(.increased)
@@ -21,8 +29,10 @@ struct HomeView: View {
         .toolbar {
             if !store.demoScripts.isEmpty {
                 ToolbarItem(placement: .primaryAction) {
-                    DemoMenu(scripts: store.demoScripts)
-                        .chrome()
+                    DemoMenu(scripts: store.demoScripts) {
+                        Label("Demo Call", systemImage: "play.circle")
+                    }
+                    .chrome()
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -45,6 +55,7 @@ struct HomeView: View {
 
 private struct ProtectionCard: View {
     let seniorName: String
+    let openSettings: () -> Void
 
     @Environment(ShieldStore.self) private var store
 
@@ -52,28 +63,49 @@ private struct ProtectionCard: View {
         if let call = store.call, !call.hasEnded {
             ActiveCallCard(call: call, seniorName: seniorName)
         } else {
-            StatusCard(connection: store.connection, seniorName: seniorName, stats: store.stats)
+            StatusCard(
+                connection: store.connection,
+                seniorName: seniorName,
+                stats: store.stats,
+                openSettings: openSettings
+            )
         }
     }
 }
 
-/// Whose phone it is, its state in a word, and one line of detail.
+/// Whose phone it is, its state in a word, and one line of detail. When Shield is not
+/// connected, the way to fix that is offered here, where the problem is stated.
 private struct StatusCard: View {
     let connection: ShieldStore.Connection
     let seniorName: String
     let stats: CallStats
+    let openSettings: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            CardLabel(title: "\(seniorName)’s Phone", symbol: symbol, tint: tint)
-            Text(title)
-                .font(.title2.weight(.bold))
-            Text(detail)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                CardLabel(title: "\(seniorName)’s Phone", symbol: symbol, tint: tint)
+                Text(title)
+                    .font(.title2.weight(.bold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+            if needsSettings {
+                Button("Open Settings", action: openSettings)
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+            }
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private var needsSettings: Bool {
+        switch connection {
+        case .notConfigured, .failed: true
+        case .connecting, .connected: false
+        }
     }
 
     private var symbol: String {
@@ -161,21 +193,41 @@ private struct ActiveCallCard: View {
 
 // MARK: - Recent calls
 
-/// Recent calls in one list, newest first, the way a phone lists them.
+/// Recent calls in one list, newest first, the way a phone lists them. With none yet, the
+/// system's own empty state: what will turn up here, and a demo call to try if the server
+/// offers them.
 private struct RecentCalls: View {
     let calls: [CallSummary]
+    let isLoaded: Bool
+    let seniorName: String
+    let demoScripts: [DemoScript]
 
     var body: some View {
-        Section("Recent Calls") {
-            if calls.isEmpty {
-                Text("No Calls Yet")
-                    .foregroundStyle(.secondary)
-            } else {
+        if !calls.isEmpty {
+            Section("Recent Calls") {
                 ForEach(calls) { call in
                     NavigationLink(value: call) {
                         CallRow(call: call)
                     }
                 }
+            }
+        } else if isLoaded {
+            Section {
+                ContentUnavailableView {
+                    Label("No Calls Yet", systemImage: "phone")
+                } description: {
+                    Text("Calls to \(seniorName)’s phone show up here.")
+                } actions: {
+                    if !demoScripts.isEmpty {
+                        DemoMenu(scripts: demoScripts) {
+                            Text("Start a Demo Call")
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                    }
+                }
+                // On the canvas, as the system's empty states are, not in a list's box.
+                .listRowBackground(Color.clear)
             }
         }
     }
@@ -259,13 +311,16 @@ struct OutcomeLook {
 
 // MARK: - Demo calls
 
-private struct DemoMenu: View {
+/// The demo calls the server offers, behind whatever label the place calls for: a symbol in
+/// the toolbar, words in the empty list.
+private struct DemoMenu<MenuLabel: View>: View {
     let scripts: [DemoScript]
+    @ViewBuilder let label: MenuLabel
 
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
-        Menu("Demo Call", systemImage: "play.circle") {
+        Menu {
             Section("Scam Calls") {
                 ForEach(scripts.filter(\.isScam)) { script in
                     Button(script.title) { start(script) }
@@ -276,6 +331,8 @@ private struct DemoMenu: View {
                     Button(script.title) { start(script) }
                 }
             }
+        } label: {
+            label
         }
     }
 
