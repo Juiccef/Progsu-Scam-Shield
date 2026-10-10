@@ -19,19 +19,22 @@ the hang-up never talk to Auth0, so a call is protected even if Auth0 is down.
 | B | Server and dashboard code | Done on 2026-10-10 | - |
 | C | Send it to the Vultr server and test | You | 10 min |
 | D | Retire the old shared token | You | 5 min |
-| E | Sign-in inside the iPhone app | Whoever works on the app | 1 to 2 hours |
+| E | Sign-in inside the iPhone app | Built on 2026-10-10; you run and test it | 5 min |
 
 Parts A to D give you sign-in on the web dashboard, which is what friends open on their
-phones. The iPhone app keeps working during A to D with a token, and gets its own sign-in
-in part E.
+phones. The iPhone app's sign-in is built too (part E). It switches itself on when the
+server does: until step 14's push the app goes on asking for a token, and after it the app
+offers Sign In.
 
 **How far this was tested (2026-10-10).** The server code and its tests ran in a copy of
 this repo: 9 new tests, the whole suite passing with them, and each of six deliberate
 weakenings of the token check made a test fail. The dashboard page was opened in real Chrome against that copy: it
 showed a live demo call, and with sign-in switched on it showed the Sign In button. The
-iPhone file in part E compiles against Auth0's library, version 3.1.0. **Not tested,
-because it needs your Auth0 account:** the trip to Auth0's sign-in page and back, and a
-real Auth0 token being accepted by the server. Step 15 is that test.
+iPhone app's sign-in was run in a simulator against a practice server with sign-in on and
+the real Auth0 account, before the API of step 2 existed: the app opened Auth0's page and
+came back with Auth0's answer, "Service not found". **Not tested, because it needs someone
+to sign in:** a whole sign-in, in the dashboard or in the app, and a real Auth0 token being
+accepted by the server. Steps 15 and 18 are those tests.
 
 ## Values you will collect
 
@@ -884,8 +887,8 @@ log it shows says why: fix that and push again, because the server is down until
 ## Part D: retire the old shared token
 
 Until you do this, the old link with the old token in it still works, so nothing has
-actually been locked. The server keeps one token for your own tools and, until part E, for
-the iPhone app. It should be new, long, and never put in a link again.
+actually been locked. The server keeps one token for your own tools and for a copy of the
+iPhone app built before part E. It should be new, long, and never put in a link again.
 
 ### Step 16. Replace the token
 
@@ -897,7 +900,8 @@ the iPhone app. It should be new, long, and never put in a link again.
 
 2. In `.env.vultr`, replace the value after `EVENTS_TOKEN=` with it.
 3. Push: `.venv/bin/python tools/vultr_deploy.py push`
-4. Put the new token in the iPhone app's Settings, under Access Token.
+4. The iPhone app needs no token once it signs in (part E). A copy built before that still
+   does: put the new token in its Settings, under Access Token.
 5. Open the old dashboard link you shared earlier. It should now offer **Sign In** and
    show no calls.
 
@@ -908,126 +912,58 @@ their email to `CAREGIVER_EMAILS`.
 
 ## Part E: sign-in inside the iPhone app
 
-This part changes files that are being worked on in the app, so do it together with
-whoever is working on the app. Only step 18's file has been compiled. Steps 19 and 20
-describe the change and have not been built.
+**Built on 2026-10-10.** The app asks the server whether it wants a sign-in
+(`GET /auth/config`), so there is nothing to set in the app. Once step 14's push has
+switched sign-in on, the app offers **Sign In** where it used to ask for a token. Against a
+server with no sign-in it works as before, token field and all.
 
-### Step 17. Add Auth0's library in Xcode
+What is in the repo:
 
-1. In Xcode choose **File**, then **Add Package Dependencies...**
-2. Paste `https://github.com/auth0/Auth0.swift` into the search field.
-3. Set the rule to **Up to Next Major Version** starting at `3.1.0`, click **Add Package**,
-   and add the product **Auth0** to the **Shield** target.
+- Auth0's library, `Auth0.swift` 3.1.0, as a Swift package in `ios/Shield.xcodeproj`. Xcode
+  fetches it the first time it opens the project after this change. If Xcode asks whether to
+  keep its own version of the project or the one on disk, choose the one on disk.
+- `ios/Shield/Services/SignIn.swift`: signing in and out, and the token for the server. The
+  sign-in is kept in the iPhone's Keychain, and its token is renewed by itself.
+- `ShieldStore` gets a token that has not run out each time it asks the server something,
+  and has two new states: nobody is signed in, and the server turned the signed-in person
+  down.
+- Summary's card says "Not Signed In" and has a **Sign In** button. Settings has an Account
+  section, with the email and **Sign Out**, in place of the Access Token field.
 
-Nothing else is needed for the sign-in sheet to return to the app. Returning through a web
-link instead needs a paid Apple developer account, which this project does not have.
+Two things are done differently from Auth0's own sample code, on purpose:
 
-### Step 18. Add the new file `ios/Shield/Services/SignIn.swift`
+- **Sign-in opens in a private browser session.** With the ordinary kind, iOS first shows a
+  notice of its own, "Shield Wants to Use dev-....auth0.com to Sign In", and shows it again
+  on signing out. The notice uses the Xcode target's name, not Palisade, and its wording
+  cannot be changed. The price of the private session is that the sheet does not know a
+  Google account Safari is already signed in to, so the email and password are typed each
+  time someone signs in. Taking `.useEphemeralSession()` out of `SignIn.swift` goes back to
+  the ordinary kind.
+- **Signing out opens no browser.** It withdraws the phone's token at Auth0 and forgets it.
 
-Add it to the Shield target, like the other files in `Services`:
+No web link back into the app is used, which would need a paid Apple developer account.
 
-```swift
-import Auth0
-import Foundation
+### Step 17. Run the app
 
-/// What `GET /auth/config` on the server answers. The server says whether it wants a sign-in
-/// and which Auth0 tenant to use, so the app keeps no Auth0 settings of its own.
-struct SignInConfig: Decodable, Equatable, Sendable {
-    let enabled: Bool
-    var domain: String?
-    var audience: String?
-    var iosClientID: String?
+Open `ios/Shield.xcodeproj` in Xcode, wait for it to finish fetching `Auth0.swift`, and
+press Run. In the app's Settings, the address is the server's (`64-177-53-243.sslip.io`).
 
-    enum CodingKeys: String, CodingKey {
-        case enabled, domain, audience
-        case iosClientID = "ios_client_id"
-    }
-}
+### Step 18. Test it
 
-/// One caregiver's session with Auth0: signing in and out, and the token the server accepts.
-/// Credentials are kept in the Keychain by Auth0's credentials manager, not in app settings.
-final class SignIn: Sendable {
-    let clientID: String
-    let domain: String
-    let audience: String
-    private let manager: CredentialsManager
+Do this after step 15, so the server already asks for a sign-in.
 
-    init?(_ config: SignInConfig) {
-        guard config.enabled, let domain = config.domain, let audience = config.audience,
-              let clientID = config.iosClientID, !clientID.isEmpty
-        else { return nil }
-        self.clientID = clientID
-        self.domain = domain
-        self.audience = audience
-        manager = CredentialsManager(authentication: Auth0.authentication(clientId: clientID, domain: domain))
-    }
+1. Summary says **Not Signed In**. Tap **Sign In**. Auth0's page opens in a sheet.
+2. Choose "Continue with Google" and use an email that is in `CAREGIVER_EMAILS`. The sheet
+   closes and Summary says **Protected**. Settings shows your email under Account.
+3. Start a demo call from the play button. The call screen opens as it did before.
+4. Close the app from the app switcher and open it again. It goes straight to **Protected**.
+5. In Settings tap **Sign Out**. Summary goes back to **Not Signed In** and the list of
+   calls is emptied.
+6. Sign in with an account that is not on the list. Summary says **No Access** and "This
+   account is not on the caregiver list."
 
-    /// Asks the server at `baseURL` whether it wants a sign-in. Nil when it does not, or cannot be reached.
-    static func offered(by baseURL: URL) async -> SignIn? {
-        guard let (data, _) = try? await URLSession.shared.data(from: baseURL.appending(path: "auth/config")),
-              let config = try? JSONDecoder().decode(SignInConfig.self, from: data)
-        else { return nil }
-        return SignIn(config)
-    }
-
-    /// Opens Auth0's sign-in page in the system's sign-in sheet.
-    func signIn() async throws {
-        _ = try await Auth0
-            .webAuth(clientId: clientID, domain: domain)
-            .audience(audience)
-            .scope("openid profile email offline_access")
-            .useCredentialsManager(manager)
-            .start()
-    }
-
-    func signOut() async throws {
-        try await Auth0
-            .webAuth(clientId: clientID, domain: domain)
-            .useCredentialsManager(manager)
-            .logout()
-    }
-
-    /// The signed-in caregiver's email, or nil when nobody is signed in.
-    var email: String? {
-        guard manager.canRenew() else { return nil }
-        return (try? manager.userProfile())?.email
-    }
-
-    /// A token the server accepts, renewed when it has run out. Nil when nobody is signed in.
-    func accessToken() async -> String? {
-        guard manager.canRenew() else { return nil }
-        return try? await manager.credentials().accessToken
-    }
-}
-```
-
-### Step 19. Use the sign-in's token for the connection (`ShieldStore.swift`, `ShieldAPI.swift`)
-
-- When the app connects to a server, call `SignIn.offered(by:)` with the server's address
-  and keep the result on the store, so Settings can show it.
-- If the server offers a sign-in, each time the app is about to open the event feed it asks
-  `signIn.accessToken()` and uses that as the bearer token, in place of the Access Token
-  from Settings. `accessToken()` renews an expired token by itself.
-- If `accessToken()` answers nil, nobody is signed in: show "Not Connected" with a way
-  into Settings, as the app already does when it cannot connect.
-- `ShieldAPI.token` is a constant today. It needs a way to make a copy of the same server
-  with another token.
-
-### Step 20. Offer Sign In and Sign Out (`SettingsView.swift`)
-
-Where the Access Token field is now:
-
-- if the server offers a sign-in and `signIn.email` is nil, show a **Sign In** button that
-  calls `signIn.signIn()` and then reconnects;
-- if `signIn.email` has a value, show it, with a **Sign Out** button that calls
-  `signIn.signOut()` and then reconnects;
-- if the server offers no sign-in, keep the Access Token field as it is.
-
-The first time, iOS shows its own notice that the app wants to use `auth0.com` to sign in.
-That is normal.
-
-When this works on a phone, remove the token from the app's Settings: the app no longer
-needs one.
+A token typed into the app's Settings earlier is not used while the server asks for a
+sign-in. It is kept, and comes back into use only if the server stops asking.
 
 ---
 
@@ -1047,10 +983,16 @@ list of allowed people lives in `CAREGIVER_EMAILS` on your server.
 
 ## If something goes wrong
 
+The dashboard shows the server's reasons after "feed:". The iPhone app shows the same
+sentences on Summary, under **No Access**.
+
 | What you see | Likely cause | What to do |
 |---|---|---|
 | Auth0 shows "Callback URL mismatch" | The address in step 3 is not exactly the dashboard's | Check for `https`, the exact server address, `/dashboard`, and no slash at the end |
 | Auth0 shows an error about "Service not found" | The API's Identifier and `AUTH0_AUDIENCE` differ | Make them identical, then push |
+| The app says "Couldn’t Sign In" and "Auth0 answered: Service not found: ..." | The API of step 2 does not exist yet, or its Identifier is not exactly `AUTH0_AUDIENCE` | Create it (step 2), or make the two identical and push |
+| The app says **No Access** and "The server did not accept this sign-in." | `AUTH0_DOMAIN` or `AUTH0_AUDIENCE` on the server does not match Auth0 | Compare with the list at the top, fix `.env.vultr`, push |
+| The app still asks for an Access Token | The server it is connected to does not ask for a sign-in, or has no `AUTH0_IOS_CLIENT_ID` | Step 15, check 1 |
 | Auth0 says the client is not authorized for the API | The API only allows applications it lists | On the API, open **Application Access** and authorize both applications |
 | "feed: This account has no verified email address" | The Action in step 5 is not deployed, or not in the post-login flow | Redo step 5, sign out and sign in again |
 | The same message, for a password account | The person has not clicked the link in Auth0's verification email | Click it, sign out and sign in again |

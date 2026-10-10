@@ -5,8 +5,9 @@ transcript), takes over the screen when Palisade ends a scam call, and keeps a l
 recent calls. It has three pages behind a tab bar: Summary, Calls and Scam Signs. The
 protected person needs no app at all.
 
-It is a SwiftUI app for iOS 17 and later with no third-party dependencies. It reads the
-Palisade server's `GET /events` feed and `GET /calls` list.
+It is a SwiftUI app for iOS 17 and later. It has one dependency, Auth0's library for
+signing in, which Xcode fetches by itself as a Swift package. It reads the Palisade
+server's `GET /events` feed and `GET /calls` list.
 
 ## Status
 
@@ -44,6 +45,12 @@ Palisade server's `GET /events` feed and `GET /calls` list.
 - Renamed from Shield to Palisade on 2026-10-10, with a new icon: three folded stakes
   drawn in to a point like a shield. The icon was checked on a simulator's Home Screen
   in its default, dark, clear and tinted looks.
+- Sign-in with Auth0 was added on 2026-10-10, for a server that asks for one
+  (`docs/auth0-sign-in.md`, part E). Checked in a simulator against a practice server
+  with sign-in on and the real Auth0 account: the app opened Auth0's page and showed
+  Auth0's answer, and the new screens were looked at in light, in dark and at a large
+  text size. A token-only server was run through as before, with a demo call. **A whole
+  sign-in has not been made yet**: the Auth0 account was not finished that day.
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
 - Not yet looked at: iPhones smaller than the 17e.
 
@@ -91,6 +98,13 @@ is left to the dial above it.
 With no calls yet, Summary and Calls say so and, if the server offers demo calls, have
 a "Start a Demo Call" button. When the app cannot reach the server, Summary's card has
 an "Open Settings" button.
+
+A server can ask each caregiver to sign in (`docs/auth0-sign-in.md`). The app finds that
+out from the server, so there is nothing to switch on. Summary's card then says "Not
+Signed In" and has a "Sign In" button, which opens Auth0's page in the system's sign-in
+sheet. Settings gets an Account section, with the email and "Sign Out", in place of the
+Access Token field. Someone who signs in and is not on the server's list sees "No Access"
+with the server's reason, and no calls. Signing out empties the list of calls at once.
 
 The call screen can be put away with the arrow in its header. The call then stays one
 tap off on every page, in a bar above the tab bar that says how it is going (iOS 26.1
@@ -148,8 +162,10 @@ Every screen also has an Xcode preview with sample data (`Support/Previews.swift
 so the UI can be worked on with no server running. A debug build shows the same sample
 screens on a simulator or phone with the launch argument `-sample <name>`: `home`,
 `home-empty`, `home-offline`, `home-call`, `calls`, `signs`, `ringing`, `calm`,
-`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. `-appearance light` or `-appearance dark` sets the
-appearance for that launch.
+`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. Three more are a server
+that asks for a sign-in: `home-signed-in`, `home-signed-out` and `home-refused`; open
+Settings on them to see the Account section. `-appearance light` or `-appearance dark`
+sets the appearance for that launch.
 
 ## Run it on your iPhone
 
@@ -160,7 +176,8 @@ appearance for that launch.
    turn on Developer Mode on the phone when asked, then trust the developer profile
    under Settings, General, VPN & Device Management.
 4. In the app's Settings, enter the server's public address (the ngrok hostname) and,
-   if the server has `EVENTS_TOKEN` set, the token.
+   if the server has `EVENTS_TOKEN` set, the token. A server that asks for a sign-in
+   takes no token: tap "Sign In" on Summary.
 
 With a free account the app stops opening after 7 days (run it again from Xcode) and
 cannot receive push notifications, so keep it open during a demo.
@@ -172,10 +189,12 @@ Shield/
   ShieldApp.swift            entry point
   Model/                     ShieldEvent (feed), LiveCall (call state), CallSummary, Flag
   Services/ShieldAPI.swift   HTTP + the event feed
-  Services/ShieldStore.swift app state: connection, current call, history
+  Services/ShieldStore.swift app state: connection, sign-in, current call, history
+  Services/SignIn.swift      the caregiver's sign-in with Auth0, kept in the Keychain
   Views/                     RootView (pages under the call screen), MainTabs (tab bar),
                              HomeView (Summary), CallsView, SignsView, CallDetailView,
-                             LiveCallView, SettingsView, RiskDial, FlagViews, TranscriptView
+                             LiveCallView, SettingsView, SignInButton, RiskDial, FlagViews,
+                             TranscriptView
   Support/                   Theme, Platform (iOS/macOS differences), SampleData, Previews
 Shield-Info.plist            allows plain http to a local server
 ```
