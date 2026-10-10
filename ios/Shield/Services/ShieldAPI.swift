@@ -30,8 +30,8 @@ enum ShieldAPIError: LocalizedError {
         case .refused(let reason): reason
         case .server(let status): "The server answered with error \(status)."
         case .notAShieldServer: "That address did not answer like a Palisade server."
-        case .reviewConflict: "This message can no longer be released. Refresh to see its current status."
-        case .gatewayUnavailable: "Text protection is not enabled on this server."
+        case .reviewConflict: "This text is no longer waiting for a decision."
+        case .gatewayUnavailable: "Text protection is switched off on this server."
         }
     }
 }

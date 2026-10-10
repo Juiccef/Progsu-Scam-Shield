@@ -33,6 +33,26 @@ import SwiftUI
         .environment(ShieldStore.sample(named: "calls") ?? .preview())
 }
 
+#Preview("Texts") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "texts") ?? .preview())
+}
+
+#Preview("Texts, protection off") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "texts-off") ?? .preview())
+}
+
+#Preview("Held text") {
+    MainTabs()
+        .environment(ShieldStore.sample(named: "text-held") ?? .preview())
+}
+
+#Preview("Check a Text") {
+    CheckTextView()
+        .environment(ShieldStore.preview())
+}
+
 #Preview("Scam Signs") {
     MainTabs()
         .environment(ShieldStore.sample(named: "signs") ?? .preview())

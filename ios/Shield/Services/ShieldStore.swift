@@ -15,6 +15,13 @@ enum AppTab: Hashable {
     case signs
 }
 
+/// What a row leads to: one call's summary, or one text. The text is named by its ID, and its
+/// words are fetched when its page opens, so they are never kept in a list.
+enum Page: Hashable {
+    case call(CallSummary)
+    case text(String)
+}
+
 /// The app's state: the connection to the Palisade server, the call in progress, and recent calls.
 @Observable
 @MainActor
@@ -46,20 +53,28 @@ final class ShieldStore {
     private(set) var latestAction: ShieldAction?
     /// The page showing under the call screen.
     var tab = AppTab.home
-    /// Call summaries pushed onto the Summary page's navigation stack, and onto the Calls page's.
-    var homePath: [CallSummary] = []
+    /// What is pushed onto each page's navigation stack.
+    var homePath: [Page] = []
     var callsPath: [CallSummary] = []
+    var textsPath: [Page] = []
     private(set) var history: [CallSummary] = [] {
         didSet { stats = Self.stats(for: history) }
     }
     private(set) var stats = CallStats()
+    /// Results of texts checked one at a time: those pasted into the app and, on a server
+    /// with text protection off, those sent to its number.
     private(set) var messages: [MessageSummary] = []
+    /// Texts sent to the protected number, newest first: held, waiting, sent on, discarded.
     private(set) var gatewayMessages: [GatewayMessage] = []
+    /// What the server says about text protection. Nil until it has answered.
     private(set) var gatewayHealth: GatewayHealth?
+    /// The protected number, the one people text.
     private(set) var shieldNumber = ""
     private(set) var gatewayError: String?
+    /// The text Palisade just held, for the buzz that goes with it. Replayed history never
+    /// sets it, nor does a text that has already been looked at.
     var gatewayBannerID: String?
-    var gatewayDetailID: String?
+    /// Held texts nobody has looked at yet: the count on the Texts tab.
     private(set) var unreadGatewayIDs: Set<String> = []
     private(set) var demoScripts: [DemoScript] = []
     private(set) var warnThreshold = 60
@@ -80,8 +95,12 @@ final class ShieldStore {
     @ObservationIgnored private var followsSettings = true
     @ObservationIgnored private var feedTask: Task<Void, Never>?
     @ObservationIgnored private var settleTask: Task<Void, Never>?
+    /// Held texts that have been looked at, remembered for each server between launches.
     @ObservationIgnored private var seenGatewayIDs: [String] = []
+    /// Held texts that have already had their buzz.
     @ObservationIgnored private var alertedGatewayIDs: Set<String> = []
+    /// Whole texts for a store of fixed sample data, which has no server to fetch them from.
+    @ObservationIgnored private var sampleTexts: [String: GatewayMessage] = [:]
     private var gatewaySeenKey: String { "gatewaySeen.\(api?.baseURL.absoluteString ?? "")" }
 
     /// Events older than this when we connect are history: they rebuild state but never pop up the call screen.
@@ -152,24 +171,45 @@ final class ShieldStore {
         return result
     }
 
+    /// One text with its words and its sender's whole number, for as long as the server keeps them.
     func gatewayDetail(_ id: String) async throws -> GatewayMessage {
+        if !followsSettings, let sample = sampleTexts[id] { return sample }
         guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
         return try await api.gatewayDetail(id)
     }
 
+    /// Releases a held text to the protected person, or discards it. `action` is the server's word.
     func decideGatewayMessage(_ id: String, action: String) async throws {
+        #if DEBUG
+        if !followsSettings {
+            decideSample(id, action: action)
+            return
+        }
+        #endif
         guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
         _ = try await api.gatewayDecision(id, action: action)
         await loadGateway(api)
     }
 
+    /// The Texts page was opened: every held text has now been seen.
     func markGatewayRead() {
         for message in gatewayMessages where message.needsReview && !seenGatewayIDs.contains(message.id) {
             seenGatewayIDs.append(message.id)
         }
+        rememberSeen()
+        unreadGatewayIDs = []
+    }
+
+    /// One held text was opened, from whichever page.
+    func markTextRead(_ id: String) {
+        guard unreadGatewayIDs.remove(id) != nil else { return }
+        seenGatewayIDs.append(id)
+        rememberSeen()
+    }
+
+    private func rememberSeen() {
         seenGatewayIDs = Array(seenGatewayIDs.suffix(2000))
         UserDefaults.standard.set(seenGatewayIDs, forKey: gatewaySeenKey)
-        unreadGatewayIDs = []
     }
 
     func showCall() {
@@ -301,7 +341,7 @@ final class ShieldStore {
         shieldNumber = ""
         gatewayError = nil
         gatewayBannerID = nil
-        gatewayDetailID = nil
+        textsPath = []
         unreadGatewayIDs = []
         alertedGatewayIDs = []
     }
@@ -479,6 +519,32 @@ extension ShieldStore {
         store.history = history
         store.demoScripts = demoScripts
         return store
+    }
+
+    /// Gives a preview store fixed texts. `whole` are the same texts as the page for one text
+    /// is given them, with their words.
+    func withTexts(
+        _ texts: [GatewayMessage] = [],
+        whole: [GatewayMessage] = [],
+        checks: [MessageSummary] = [],
+        protection: GatewayHealth? = nil,
+        number: String = ""
+    ) -> ShieldStore {
+        gatewayMessages = texts
+        sampleTexts = Dictionary(uniqueKeysWithValues: whole.map { ($0.id, $0) })
+        messages = checks
+        gatewayHealth = protection
+        shieldNumber = number
+        unreadGatewayIDs = Set(texts.filter(\.needsReview).map(\.id))
+        return self
+    }
+
+    /// What a decision does to a sample text, so the pages can be tried with no server.
+    private func decideSample(_ id: String, action: String) {
+        guard let index = gatewayMessages.firstIndex(where: { $0.id == id }) else { return }
+        gatewayMessages[index] = gatewayMessages[index].sampleDecided(action)
+        sampleTexts[id] = sampleTexts[id]?.sampleDecided(action)
+        unreadGatewayIDs.remove(id)
     }
 }
 #endif

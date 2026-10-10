@@ -151,7 +151,151 @@ extension CallSummary {
     ]
 }
 
+extension GatewayMessage {
+    static func sample(
+        id: String,
+        minutesAgo: Double,
+        sender: String,
+        status: String,
+        risk: Int?,
+        label: String?,
+        flags: [String] = [],
+        hold: String? = nil,
+        explanation: String = "No strong scam signals detected. This does not verify the sender or any links.",
+        words: String? = nil,
+        from wholeSender: String? = nil
+    ) -> GatewayMessage {
+        let arrived = Date.now.timeIntervalSince1970 - minutesAgo * 60
+        return GatewayMessage(
+            messageID: id,
+            ts: arrived,
+            sender: sender,
+            status: status,
+            risk: risk,
+            label: label,
+            flags: flags,
+            holdReason: hold,
+            expiresAt: arrived + 24 * 60 * 60,
+            reviewEligible: status == "held" && hold != "unsupported_content",
+            explanation: explanation,
+            text: words,
+            originalSender: wholeSender
+        )
+    }
+
+    /// The same text as a list has it: without its words or its sender's whole number.
+    var listed: GatewayMessage {
+        .init(
+            messageID: messageID, ts: ts, sender: sender, status: status, risk: risk, label: label, flags: flags,
+            holdReason: holdReason, expiresAt: expiresAt, reviewEligible: reviewEligible, explanation: explanation,
+            text: nil, originalSender: nil
+        )
+    }
+
+    /// The text after the caregiver's decision, the way the server answers it.
+    func sampleDecided(_ action: String) -> GatewayMessage {
+        let released = action == "release"
+        return .init(
+            messageID: messageID, ts: ts, sender: sender, status: released ? "queued" : "discarded", risk: risk,
+            label: label, flags: flags, holdReason: holdReason, expiresAt: expiresAt, reviewEligible: false,
+            explanation: explanation, text: released ? text : nil, originalSender: released ? originalSender : nil
+        )
+    }
+
+    static let heldFee = GatewayMessage.sample(
+        id: "twilio_SMfee",
+        minutesAgo: 4,
+        sender: "***0199",
+        status: "held",
+        risk: 81,
+        label: "likely_scam",
+        flags: ["PRIZE_OR_REFUND", "URGENCY_PRESSURE"],
+        hold: "scam_signals",
+        explanation: "Verify any unexpected fee, prize or refund through the organization’s official app or website.",
+        words: "USPS: Your package is on hold. Pay the $1.99 redelivery fee today at https://usps-redelivery.example/pay or it will be returned.",
+        from: "+14045550199"
+    )
+
+    static let heldCode = GatewayMessage.sample(
+        id: "twilio_SMcode",
+        minutesAgo: 38,
+        sender: "***0164",
+        status: "held",
+        risk: 55,
+        label: "suspicious",
+        flags: ["OTP_REQUEST", "FAMILY_EMERGENCY"],
+        hold: "scam_signals",
+        explanation: "Verify independently before sharing account details or verification codes.",
+        words: "Hi Mom, I dropped my phone and this is my new number. The bank is texting you a code, can you send it to me?",
+        from: "+14045550164"
+    )
+
+    static let delivered = GatewayMessage.sample(
+        id: "twilio_SMvisit",
+        minutesAgo: 190,
+        sender: "***0142",
+        status: "delivered",
+        risk: 0,
+        label: "safe",
+        from: "+14045550142"
+    )
+
+    /// Texts as the server has them, with their words, newest first.
+    static let wholeSamples: [GatewayMessage] = [
+        heldFee,
+        heldCode,
+        delivered,
+        .sample(id: "twilio_SMpharmacy", minutesAgo: 1500, sender: "***0117", status: "sent", risk: 4, label: "safe"),
+        .sample(
+            id: "twilio_SMprize", minutesAgo: 2900, sender: "***0188", status: "discarded", risk: 88, label: "likely_scam",
+            flags: ["PRIZE_OR_REFUND", "UNUSUAL_PAYMENT"], hold: "scam_signals",
+            explanation: "Verify any unexpected fee, prize or refund through the organization’s official app or website."
+        ),
+    ]
+
+    static let samples = wholeSamples.map(\.listed)
+}
+
+extension MessageSummary {
+    static func sample(id: String, minutesAgo: Double, pasted: Bool, risk: Int, label: String, flags: [String] = []) -> MessageSummary {
+        MessageSummary(
+            messageID: id,
+            ts: Date.now.timeIntervalSince1970 - minutesAgo * 60,
+            sender: pasted ? "unknown" : "***0\(100 + id.count * 7)",
+            source: pasted ? "manual" : "twilio",
+            risk: risk,
+            label: label,
+            flags: flags,
+            explanation: nil,
+            textOnly: false
+        )
+    }
+
+    static let pasted: [MessageSummary] = [
+        .sample(id: "manual_bank", minutesAgo: 75, pasted: true, risk: 74, label: "likely_scam",
+                flags: ["CREDENTIAL_REQUEST", "URGENCY_PRESSURE"]),
+        .sample(id: "manual_dentist", minutesAgo: 3100, pasted: true, risk: 0, label: "safe"),
+    ]
+
+    /// Texts a server with text protection off scored as they arrived.
+    static let scored: [MessageSummary] = [
+        .sample(id: "SMtoll", minutesAgo: 22, pasted: false, risk: 78, label: "likely_scam",
+                flags: ["PRIZE_OR_REFUND", "URGENCY_PRESSURE"]),
+        .sample(id: "SMreminder", minutesAgo: 260, pasted: false, risk: 0, label: "safe"),
+    ]
+}
+
+extension GatewayHealth {
+    static let on = GatewayHealth(enabled: true, forwardingEnabled: true, connected: true, smsReady: true)
+    /// Checking and holding, with forwarding switched off and no alert service running: a server being set up.
+    static let paused = GatewayHealth(enabled: true, forwardingEnabled: false, connected: false, smsReady: false)
+    static let off = GatewayHealth(enabled: false, forwardingEnabled: nil, connected: nil, smsReady: nil)
+}
+
 extension ShieldStore {
+    /// The number people text in the samples. Like the callers', it is not a real one.
+    private static let sampleNumber = "+14045550100"
+
     /// The store behind the `-sample <name>` launch argument: one fixed screen, no server.
     static func sample(named name: String) -> ShieldStore? {
         switch name {
@@ -187,6 +331,28 @@ extension ShieldStore {
             let store = preview(history: CallSummary.samples)
             store.tab = .calls
             store.callsPath = [.blocked]
+            return store
+        case "texts", "texts-paused", "text-held", "text-delivered":
+            let store = preview(history: CallSummary.samples).withTexts(
+                GatewayMessage.samples,
+                whole: GatewayMessage.wholeSamples,
+                checks: MessageSummary.pasted,
+                protection: name == "texts-paused" ? .paused : .on,
+                number: sampleNumber
+            )
+            store.tab = .texts
+            if name == "text-held" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }
+            if name == "text-delivered" { store.textsPath = [.text(GatewayMessage.delivered.id)] }
+            return store
+        case "texts-empty":
+            let store = preview(history: CallSummary.samples).withTexts(protection: .on, number: sampleNumber)
+            store.tab = .texts
+            return store
+        // A server that only scores the texts sent to its number.
+        case "texts-off":
+            let store = preview(history: CallSummary.samples)
+                .withTexts(checks: MessageSummary.scored + MessageSummary.pasted, protection: .off)
+            store.tab = .texts
             return store
         default: return nil
         }

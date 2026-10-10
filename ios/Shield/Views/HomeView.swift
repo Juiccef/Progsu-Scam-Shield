@@ -214,7 +214,7 @@ private struct RecentCalls: View {
         if !calls.isEmpty {
             Section {
                 ForEach(calls.prefix(Self.shown)) { call in
-                    NavigationLink(value: call) {
+                    NavigationLink(value: Page.call(call)) {
                         CallRow(call: call)
                     }
                 }
@@ -269,6 +269,36 @@ struct CallRow: View {
     let call: CallSummary
 
     var body: some View {
+        ActivityRow(
+            who: callerDescription(call.caller, isDemo: call.isDemo),
+            look: OutcomeLook(call.outcome),
+            date: call.startedAt
+        )
+    }
+
+    /// When a call came in, the way a phone's recent calls say it: the time if it was today,
+    /// then "Yesterday", then the day of the week, then the date. The summary has the rest.
+    static func when(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+        let daysAgo = calendar.dateComponents(
+            [.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)
+        ).day
+        switch daysAgo {
+        case 0: return date.formatted(.dateTime.hour().minute())
+        case 1: return "Yesterday"
+        case .some(2..<7): return date.formatted(.dateTime.weekday(.wide))
+        default: return date.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits))
+        }
+    }
+}
+
+/// A call or a text in a list, each drawn the same way: who it came from, what came of it,
+/// and when.
+struct ActivityRow: View {
+    let who: String
+    let look: OutcomeLook
+    let date: Date?
+
+    var body: some View {
         // The day sits at the end of the row while everything fits on one line. When it does
         // not (large text), it goes underneath, so the caller is not squeezed into a column.
         ViewThatFits(in: .horizontal) {
@@ -287,36 +317,22 @@ struct CallRow: View {
 
     private var whoAndWhat: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(callerDescription(call.caller, isDemo: call.isDemo))
-            OutcomeLine(look: OutcomeLook(call.outcome))
+            Text(who)
+            OutcomeLine(look: look)
         }
     }
 
     @ViewBuilder private var when: some View {
-        if let startedAt = call.startedAt {
-            Text(Self.when(startedAt))
+        if let date {
+            Text(CallRow.when(date))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
     }
-
-    /// When a call came in, the way a phone's recent calls say it: the time if it was today,
-    /// then "Yesterday", then the day of the week, then the date. The summary has the rest.
-    static func when(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
-        let daysAgo = calendar.dateComponents(
-            [.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)
-        ).day
-        switch daysAgo {
-        case 0: return date.formatted(.dateTime.hour().minute())
-        case 1: return "Yesterday"
-        case .some(2..<7): return date.formatted(.dateTime.weekday(.wide))
-        default: return date.formatted(.dateTime.month(.defaultDigits).day().year(.twoDigits))
-        }
-    }
 }
 
-/// What came of a call, in gray. Only a call Palisade acted on gets a symbol, in its color.
-private struct OutcomeLine: View {
+/// What came of a call or a text, in gray. Only one Palisade acted on gets a symbol, in its color.
+struct OutcomeLine: View {
     let look: OutcomeLook
 
     var body: some View {
@@ -333,26 +349,29 @@ private struct OutcomeLine: View {
     }
 }
 
-/// How an outcome is named and colored everywhere in the app.
+/// How an outcome is named and colored everywhere in the app: a call's here, a text's in
+/// `TextsView.swift`.
 struct OutcomeLook {
     let title: String
     let symbol: String
     let tint: Color
-    /// False for an ordinary call, which needs no one's attention.
+    /// False for an ordinary call or text, which needs no one's attention.
     let isNotable: Bool
+}
 
+extension OutcomeLook {
     init(_ outcome: CallSummary.Outcome) {
         switch outcome {
         case .endedByShield:
             // The raised hand is the system's own sign for something blocked. An X on a
             // shield could be read as protection that failed.
-            (title, symbol, tint, isNotable) = ("Scam Call Stopped", "hand.raised.fill", Theme.danger, true)
+            self.init(title: "Scam Call Stopped", symbol: "hand.raised.fill", tint: Theme.danger, isNotable: true)
         case .warned:
-            (title, symbol, tint, isNotable) = ("Suspicious Call", "exclamationmark.triangle.fill", Theme.caution, true)
+            self.init(title: "Suspicious Call", symbol: "exclamationmark.triangle.fill", tint: Theme.caution, isNotable: true)
         case .completed:
-            (title, symbol, tint, isNotable) = ("Ordinary Call", "checkmark.circle.fill", Theme.watchful, false)
+            self.init(title: "Ordinary Call", symbol: "checkmark.circle.fill", tint: Theme.watchful, isNotable: false)
         case .inProgress:
-            (title, symbol, tint, isNotable) = ("Call in Progress", "phone.fill", Theme.safe, true)
+            self.init(title: "Call in Progress", symbol: "phone.fill", tint: Theme.safe, isNotable: true)
         }
     }
 }

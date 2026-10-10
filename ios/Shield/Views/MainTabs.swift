@@ -86,9 +86,7 @@ private struct HomePage: View {
         @Bindable var store = store
         NavigationStack(path: $store.homePath) {
             HomeView()
-                .navigationDestination(for: CallSummary.self) { call in
-                    CallDetailView(call: call)
-                }
+                .pageDestinations()
         }
     }
 }
@@ -111,14 +109,22 @@ private struct TextsPage: View {
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
-        NavigationStack {
-            MessagesView()
-                .navigationDestination(isPresented: Binding(
-                    get: { store.gatewayDetailID != nil },
-                    set: { if !$0 { store.gatewayDetailID = nil } }
-                )) {
-                    if let id = store.gatewayDetailID { GatewayDetailView(messageID: id) }
-                }
+        @Bindable var store = store
+        NavigationStack(path: $store.textsPath) {
+            TextsView()
+                .pageDestinations()
+        }
+    }
+}
+
+private extension View {
+    /// Where a row leads, on whichever page it was tapped: a call's summary, or a text.
+    func pageDestinations() -> some View {
+        navigationDestination(for: Page.self) { page in
+            switch page {
+            case .call(let call): CallDetailView(call: call)
+            case .text(let id): TextDetailView(textID: id)
+            }
         }
     }
 }
