@@ -1,4 +1,4 @@
-"""Shield backend: Twilio webhooks, the media stream, and the event feed.
+"""Palisade backend: Twilio webhooks, the media stream, and the event feed.
 
     uvicorn main:app --port 8000 --timeout-graceful-shutdown 2
 """
@@ -36,7 +36,7 @@ from stt import STTFactory, STTResult, STTStream, make_stt_factory
 
 log = logging.getLogger("shield")
 
-DISCLOSURE = "This call is monitored by Shield, a scam protection service."
+DISCLOSURE = "This call is monitored by Palisade, a scam protection service."
 GOODBYE = "Goodbye."
 FINISHED = {"completed", "busy", "no-answer", "failed", "canceled"}
 MEDIA_REPORT_EVERY_S = 5.0
@@ -98,7 +98,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         log.info(
-            "Shield ready: scorer=%s stt=%s senior=%s caregiver=%s public_host=%s actions=%s signature_check=%s",
+            "Palisade ready: scorer=%s stt=%s senior=%s caregiver=%s public_host=%s actions=%s signature_check=%s",
             scorer_llm.model if scorer_llm else "rules only",
             settings.stt_provider if stt else "none (audio is counted, not transcribed)",
             mask_phone(settings.senior_phone),
@@ -115,7 +115,7 @@ def create_app(
             await scorer_llm.aclose()
         bus.close()
 
-    app = FastAPI(title="Shield", lifespan=lifespan)
+    app = FastAPI(title="Palisade", lifespan=lifespan)
     app.state.bus = bus
     app.state.registry = registry
     app.state.history = history
@@ -172,7 +172,7 @@ def create_app(
         response = VoiceResponse()
         if not settings.senior_phone:
             log.error("SENIOR_PHONE is not set, so call %s cannot be connected", call_sid)
-            response.say("Shield is not set up yet. Goodbye.", **voice)
+            response.say("Palisade is not set up yet. Goodbye.", **voice)
             response.hangup()
             return twiml(response)
 
@@ -192,7 +192,7 @@ def create_app(
             status_callback_event="initiated ringing answered completed",
             status_callback_method="POST",
         )
-        # Reached when the senior's leg ends, including when Shield ends it.
+        # Reached when the senior's leg ends, including when Palisade ends it.
         response.say(GOODBYE, **voice)
         response.hangup()
         return twiml(response)
@@ -432,7 +432,7 @@ def create_app(
 
     @app.get("/")
     async def root() -> dict:
-        return {"service": "Shield", "endpoints": ["/dashboard", "/health", "/events", "/calls", "/metrics/last"]}
+        return {"service": "Palisade", "endpoints": ["/dashboard", "/health", "/events", "/calls", "/metrics/last"]}
 
     return app
 

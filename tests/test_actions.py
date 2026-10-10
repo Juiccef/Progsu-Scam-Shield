@@ -72,7 +72,7 @@ def test_end_speaks_to_the_senior_then_hangs_up_and_texts_the_caregiver():
     assert f"<Say>{END_MESSAGE}</Say><Hangup />" in twiml
     (sms,) = fake.messages_sent
     assert sms["to"] == "+15555550102" and sms["from_"] == "+15555550100"
-    assert sms["body"] == f"Shield ended a likely scam call to Margaret. {REASON}"
+    assert sms["body"] == f"Palisade ended a likely scam call to Margaret. {REASON}"
     assert sms["status_callback"] == "https://shield.example.test/sms/status"
 
 
@@ -100,7 +100,7 @@ def test_end_reports_failure_instead_of_raising():
 def test_warn_texts_the_caregiver_and_survives_a_blocked_sms():
     fake = FakeTwilio()
     assert asyncio.run(make_actions(fake).warn("CAparent", REASON)) == {"sms": "queued: SMtest"}
-    assert fake.messages_sent[0]["body"].startswith("Shield warning: a call to Margaret shows signs of a scam.")
+    assert fake.messages_sent[0]["body"].startswith("Palisade warning: a call to Margaret shows signs of a scam.")
     assert fake.updates == []  # a warning never touches the call
 
     blocked = asyncio.run(make_actions(FakeTwilio(fail_sms=True)).warn("CAparent", REASON))

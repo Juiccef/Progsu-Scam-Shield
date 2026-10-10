@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shield dashboard (temporary)</title>
+<title>Palisade dashboard (temporary)</title>
 <style>
   :root {
     --bg: #f4f5f7; --card: #fff; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6eb;
@@ -50,7 +50,7 @@
 </head>
 <body>
 <header>
-  <h1>Shield <span class="muted">temporary dashboard</span></h1>
+  <h1>Palisade <span class="muted">temporary dashboard</span></h1>
   <span class="pill" id="p-feed">feed: connecting</span>
   <span class="pill" id="p-actions">actions: ?</span>
   <span class="pill" id="p-model">scorer: ?</span>
@@ -175,7 +175,7 @@ function onEvent(ev) {
     }
     case "action": {
       const b = $("banner"); b.className = "banner " + ev.kind;
-      b.textContent = ev.kind === "END" ? "Shield ended this call" : "Shield warned the caregiver";
+      b.textContent = ev.kind === "END" ? "Palisade ended this call" : "Palisade warned the caregiver";
       break;
     }
     case "action_result":

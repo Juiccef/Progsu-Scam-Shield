@@ -151,12 +151,12 @@ def test_incoming_call_gets_disclosure_stream_and_dial(tmp_path):
         response = incoming(client)
     twiml = response.text
     assert response.status_code == 200 and response.headers["content-type"].startswith("application/xml")
-    assert "This call is monitored by Shield, a scam protection service." in twiml
+    assert "This call is monitored by Palisade, a scam protection service." in twiml
     assert f'<Stream track="both_tracks" url="wss://{HOST}/media">' in twiml
     assert f'statusCallback="https://{HOST}/voice/status"' in twiml
     assert 'statusCallbackEvent="initiated ringing answered completed"' in twiml
     assert f">{SENIOR}</Number>" in twiml
-    order = [twiml.index(tag) for tag in ("monitored by Shield", "<Start>", "<Dial", "Goodbye.", "<Hangup")]
+    order = [twiml.index(tag) for tag in ("monitored by Palisade", "<Start>", "<Dial", "Goodbye.", "<Hangup")]
     assert order == sorted(order)  # disclosure, then stream, then dial, then the fall-through goodbye
 
 

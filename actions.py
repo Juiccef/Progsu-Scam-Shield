@@ -1,4 +1,4 @@
-"""What Shield does when the decision engine fires: warn the caregiver, or end the call.
+"""What Palisade does when the decision engine fires: warn the caregiver, or end the call.
 
 Every text sent to the caregiver is built from fixed templates and flag IDs. Nothing the
 caller said, and nothing the LLM wrote, is ever put in an SMS or spoken to the senior.
@@ -21,7 +21,7 @@ from events import EventBus, mask_phone
 log = logging.getLogger("shield.actions")
 
 END_MESSAGE = (
-    "Shield has detected a likely scam and is ending this call. You are safe. Your caregiver has been notified."
+    "Palisade has detected a likely scam and is ending this call. You are safe. Your caregiver has been notified."
 )
 
 # Most telling first: the SMS names the top two.
@@ -82,7 +82,7 @@ class Actions:
     async def warn(self, call_sid: str, reason: str) -> dict:
         """Text the caregiver. `reason` must come from reason_for()."""
         body = (
-            f"Shield warning: a call to {self.settings.senior_name} shows signs of a scam. "
+            f"Palisade warning: a call to {self.settings.senior_name} shows signs of a scam. "
             f"{reason} The call is still in progress."
         )
         return {"sms": await self._sms(call_sid, body)}
@@ -98,7 +98,7 @@ class Actions:
                 log.error("Could not end call %s: %s", call_sid, _describe(exc))
                 call_control = f"failed: {_describe(exc)}"
         call_control_at = time.time()
-        body = f"Shield ended a likely scam call to {self.settings.senior_name}. {reason}"
+        body = f"Palisade ended a likely scam call to {self.settings.senior_name}. {reason}"
         return {
             "call_control": call_control,
             "call_control_at": call_control_at,
