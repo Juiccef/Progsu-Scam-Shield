@@ -10,6 +10,7 @@ struct CallStats: Equatable {
 /// The app's pages, one per tab.
 enum AppTab: Hashable {
     case home
+    case notifications
     case calls
     case texts
     case signs

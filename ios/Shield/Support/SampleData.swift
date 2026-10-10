@@ -332,7 +332,7 @@ extension ShieldStore {
             store.tab = .calls
             store.callsPath = [.blocked]
             return store
-        case "texts", "texts-paused", "text-held", "text-delivered":
+        case "texts", "texts-paused", "text-held", "text-delivered", "notifications":
             let store = preview(history: CallSummary.samples).withTexts(
                 GatewayMessage.samples,
                 whole: GatewayMessage.wholeSamples,
@@ -340,7 +340,10 @@ extension ShieldStore {
                 protection: name == "texts-paused" ? .paused : .on,
                 number: sampleNumber
             )
-            store.tab = .texts
+            switch name {
+            case "notifications": store.tab = .notifications
+            default: store.tab = .texts
+            }
             if name == "text-held" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }
             if name == "text-delivered" { store.textsPath = [.text(GatewayMessage.delivered.id)] }
             return store
