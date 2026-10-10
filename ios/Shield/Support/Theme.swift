@@ -98,10 +98,10 @@ enum RiskLevel: Equatable {
 
     var title: String {
         switch self {
-        case .calm: "Looks normal"
-        case .watchful: "Listening closely"
+        case .calm: "Looks Normal"
+        case .watchful: "Listening Closely"
         case .suspicious: "Suspicious"
-        case .scam: "Likely scam"
+        case .scam: "Likely Scam"
         }
     }
 }

@@ -14,7 +14,7 @@ struct CallDetailView: View {
                     .padding(.vertical, 5)
             }
             if call.points.count > 1 {
-                Section("Risk during the call") {
+                Section("Risk During the Call") {
                     RiskChart(
                         points: call.points,
                         warnAt: store.warnThreshold,
@@ -25,14 +25,14 @@ struct CallDetailView: View {
                 }
             }
             if !call.flags.isEmpty {
-                Section("What Shield noticed") {
+                Section("What Shield Noticed") {
                     ForEach(call.flags) { flag in
                         FlagRow(flag: flag)
                     }
                 }
             }
             if !call.actions.isEmpty {
-                Section("What Shield did") {
+                Section("What Shield Did") {
                     ForEach(call.actions, id: \.self) { action in
                         ActionRow(action: action)
                     }
@@ -45,7 +45,7 @@ struct CallDetailView: View {
         }
         .groupedListStyle()
         .headerProminence(.increased)
-        .navigationTitle("What happened")
+        .navigationTitle("What Happened")
         .inlineNavigationTitle()
     }
 }
@@ -81,7 +81,7 @@ private struct ActionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(action.kind == ShieldAction.Kind.end.rawValue ? "Ended the call" : "Warned you")
+            Text(action.kind == ShieldAction.Kind.end.rawValue ? "Ended the Call" : "Warned You")
             if let seconds = action.seconds {
                 Text("\(seconds, format: .number.precision(.fractionLength(1))) seconds after the caller’s request")
                     .font(.subheadline)
@@ -129,7 +129,7 @@ struct RiskChart: View {
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 .foregroundStyle(Color.secondary)
                 .annotation(position: .top, alignment: .leading) {
-                    Text("Ends the call").font(.caption2).foregroundStyle(Color.secondary)
+                    Text("Ends the Call").font(.caption2).foregroundStyle(Color.secondary)
                 }
         }
         .chartYScale(domain: 0...100)
@@ -146,9 +146,9 @@ struct RiskChart: View {
                 AxisValueLabel()
             }
         }
-        .chartXAxisLabel("Seconds into the call")
+        .chartXAxisLabel("Seconds Into the Call")
         .frame(height: 180)
-        .accessibilityLabel("Risk during the call")
+        .accessibilityLabel("Risk During the Call")
         .accessibilityValue("Peaked at \(points.map(\.risk).max() ?? 0) out of 100")
     }
 }

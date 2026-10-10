@@ -44,7 +44,7 @@ struct RiskDial: View {
         }
         .animation(Motion.change, value: risk)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Scam risk")
+        .accessibilityLabel("Scam Risk")
         .accessibilityValue("\(risk) out of 100, \(level.title)")
     }
 
@@ -71,8 +71,9 @@ struct RiskDial: View {
                 .stroke(color, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
                 .opacity(risk > 0 ? 1 : 0)
             // Kept inside the ring: on a small screen the dial shrinks and its words with it.
+            // The margin is just wide enough for "Looks Normal" to stay on one line.
             center()
-                .padding(.horizontal, Self.lineWidth + 10)
+                .padding(.horizontal, Self.lineWidth + 6)
         }
         .padding(Self.lineWidth / 2)
         .aspectRatio(1, contentMode: .fit)

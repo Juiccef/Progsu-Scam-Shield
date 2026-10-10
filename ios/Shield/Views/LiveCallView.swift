@@ -68,7 +68,7 @@ private struct CallHeader: View {
                 .replaces(reduceMotion: reduceMotion)
             } else {
                 // The call goes on; this only puts its screen away.
-                Button("Hide call", systemImage: "chevron.down") {
+                Button("Hide Call", systemImage: "chevron.down") {
                     store.closeCall()
                 }
                 .labelStyle(.iconOnly)
@@ -108,7 +108,7 @@ private struct CallStatusLine: View {
                             .monospacedDigit()
                     }
                 case .ended:
-                    Text("Call ended")
+                    Text("Call Ended")
                 }
             }
             .id(phase)
@@ -126,9 +126,9 @@ private struct CallStatusLine: View {
 /// Who called, in words, the same on every screen. The server masks numbers to "***1234"; a
 /// demo call has no real caller, and saying so here is how every screen marks it as a demo.
 func callerDescription(_ masked: String, isDemo: Bool = false) -> String {
-    if isDemo { return "Demo call" }
+    if isDemo { return "Demo Call" }
     let digits = masked.filter(\.isNumber)
-    return digits.isEmpty ? "Unknown number" : "Number ending \(digits)"
+    return digits.isEmpty ? "Unknown Number" : "Number ending \(digits)"
 }
 
 // MARK: - While the call is going
@@ -256,7 +256,7 @@ private struct CallOverBar: View {
         Card {
             VStack(alignment: .leading, spacing: 4) {
                 CardLabel(
-                    title: "Call ended",
+                    title: "Call Ended",
                     symbol: wasWarned ? "exclamationmark.triangle.fill" : "checkmark.circle.fill",
                     tint: wasWarned ? Theme.caution : Theme.safe
                 )
@@ -299,7 +299,7 @@ struct ShieldEndedContent: View {
                     .accessibilityHidden(true)
                     .arrives(0, when: hasArrived)
                 VStack(spacing: 8) {
-                    Text("Shield ended the call")
+                    Text("Shield Ended the Call")
                         .font(.largeTitle.weight(.bold))
                         .multilineTextAlignment(.center)
                     Text(explanation)
@@ -379,7 +379,7 @@ private struct ShieldEndedActions: View {
         Button {
             Task { await store.showSummary(of: call.id) }
         } label: {
-            Text("What happened")
+            Text("What Happened")
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
         }
@@ -395,7 +395,7 @@ private struct ResponseTime: View {
         if let seconds {
             Card {
                 VStack(alignment: .leading, spacing: 2) {
-                    CardLabel(title: "Response time")
+                    CardLabel(title: "Response Time")
                         .padding(.bottom, 2)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(seconds, format: .number.precision(.fractionLength(1)))

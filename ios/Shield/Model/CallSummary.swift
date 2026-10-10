@@ -84,10 +84,10 @@ struct DemoScript: Decodable, Identifiable, Hashable, Sendable {
     }
 
     var isScam: Bool { label == "scam" }
-    /// "scam_05_utility_shutoff" -> "Utility shutoff", "scam_08_card_otp" -> "Card OTP"
+    /// "scam_05_utility_shutoff" -> "Utility Shutoff", "scam_08_card_otp" -> "Card OTP"
     var title: String {
-        let words = id.split(separator: "_").dropFirst(2).map { $0 == "otp" ? "OTP" : String($0) }.joined(separator: " ")
-        return words.isEmpty ? id : words.prefix(1).uppercased() + words.dropFirst()
+        let words = id.split(separator: "_").dropFirst(2).map { $0 == "otp" ? "OTP" : $0.capitalized }
+        return words.isEmpty ? id : words.joined(separator: " ")
     }
 }
 

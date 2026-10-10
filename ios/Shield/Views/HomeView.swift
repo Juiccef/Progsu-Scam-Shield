@@ -65,7 +65,7 @@ private struct StatusCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CardLabel(title: "\(seniorName)’s phone", symbol: symbol, tint: tint)
+            CardLabel(title: "\(seniorName)’s Phone", symbol: symbol, tint: tint)
             Text(title)
                 .font(.title2.weight(.bold))
             Text(detail)
@@ -96,7 +96,7 @@ private struct StatusCard: View {
         switch connection {
         case .connected: "Protected"
         case .connecting: "Connecting"
-        case .notConfigured, .failed: "Not connected"
+        case .notConfigured, .failed: "Not Connected"
         }
     }
 
@@ -134,8 +134,8 @@ private struct ActiveCallCard: View {
     var body: some View {
         let level = RiskLevel(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
         VStack(alignment: .leading, spacing: 6) {
-            CardLabel(title: "\(seniorName)’s phone", symbol: "phone.fill", tint: level.color)
-            Text(call.isDemo ? "On a demo call" : "On a call")
+            CardLabel(title: "\(seniorName)’s Phone", symbol: "phone.fill", tint: level.color)
+            Text(call.isDemo ? "On a Demo Call" : "On a Call")
                 .font(.title2.weight(.bold))
             Text(level.title)
                 .font(.subheadline)
@@ -143,7 +143,7 @@ private struct ActiveCallCard: View {
             Button {
                 store.showCall()
             } label: {
-                Text("Open the call")
+                Text("Open the Call")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -161,9 +161,9 @@ private struct RecentCalls: View {
     let calls: [CallSummary]
 
     var body: some View {
-        Section("Recent calls") {
+        Section("Recent Calls") {
             if calls.isEmpty {
-                Text("No calls yet")
+                Text("No Calls Yet")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(calls) { call in
@@ -241,13 +241,13 @@ struct OutcomeLook {
         case .endedByShield:
             // The raised hand is the system's own sign for something blocked. An X on a
             // shield could be read as protection that failed.
-            (title, symbol, tint, isNotable) = ("Scam call stopped", "hand.raised.fill", Theme.danger, true)
+            (title, symbol, tint, isNotable) = ("Scam Call Stopped", "hand.raised.fill", Theme.danger, true)
         case .warned:
-            (title, symbol, tint, isNotable) = ("Suspicious call", "exclamationmark.triangle.fill", Theme.caution, true)
+            (title, symbol, tint, isNotable) = ("Suspicious Call", "exclamationmark.triangle.fill", Theme.caution, true)
         case .completed:
-            (title, symbol, tint, isNotable) = ("Ordinary call", "checkmark.circle.fill", Theme.watchful, false)
+            (title, symbol, tint, isNotable) = ("Ordinary Call", "checkmark.circle.fill", Theme.watchful, false)
         case .inProgress:
-            (title, symbol, tint, isNotable) = ("Call in progress", "phone.fill", Theme.safe, true)
+            (title, symbol, tint, isNotable) = ("Call in Progress", "phone.fill", Theme.safe, true)
         }
     }
 }
@@ -260,13 +260,13 @@ private struct DemoMenu: View {
     @Environment(ShieldStore.self) private var store
 
     var body: some View {
-        Menu("Demo call", systemImage: "play.circle") {
-            Section("Scam calls") {
+        Menu("Demo Call", systemImage: "play.circle") {
+            Section("Scam Calls") {
                 ForEach(scripts.filter(\.isScam)) { script in
                     Button(script.title) { start(script) }
                 }
             }
-            Section("Ordinary calls") {
+            Section("Ordinary Calls") {
                 ForEach(scripts.filter { !$0.isScam }) { script in
                     Button(script.title) { start(script) }
                 }

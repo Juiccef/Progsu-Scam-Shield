@@ -17,12 +17,12 @@ struct SettingsView: View {
                         TextField("Address", text: $serverURL, prompt: Text("shield.example.com"))
                             .literalEntry()
                     }
-                    NamedField(name: "Access token") {
-                        SecureField("Access token", text: $accessToken, prompt: Text("Only if your server has one"))
+                    NamedField(name: "Access Token") {
+                        SecureField("Access Token", text: $accessToken, prompt: Text("Only if your server has one"))
                     }
                     ConnectionRow(connection: store.connection)
                 } header: {
-                    Text("Shield server")
+                    Text("Shield Server")
                 } footer: {
                     Text("The address of your Shield server, for example the ngrok address it is running behind.")
                 }
@@ -31,12 +31,12 @@ struct SettingsView: View {
                     NamedField(name: "Name") {
                         TextField("Name", text: $seniorName, prompt: Text("Mom"))
                     }
-                    NamedField(name: "Phone number") {
-                        TextField("Phone number", text: $seniorPhone, prompt: Text("Optional"))
+                    NamedField(name: "Phone Number") {
+                        TextField("Phone Number", text: $seniorPhone, prompt: Text("Optional"))
                             .phoneEntry()
                     }
                 } header: {
-                    Text("Who Shield protects")
+                    Text("Who Shield Protects")
                 } footer: {
                     Text("The number stays on this phone. It is only used for the Call button that appears when Shield warns you about a call or ends one.")
                 }
@@ -123,8 +123,8 @@ private struct ConnectionRow: View {
         switch connection {
         case .connected: "Connected"
         case .connecting: "Connecting"
-        case .notConfigured: "No address"
-        case .failed: "Can’t connect"
+        case .notConfigured: "No Address"
+        case .failed: "Can’t Connect"
         }
     }
 }

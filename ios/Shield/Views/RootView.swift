@@ -42,7 +42,7 @@ struct RootView: View {
             }
         }
         .animation(Motion.screen, value: store.presentedCall?.id)
-        .alert("Couldn’t start the demo call", isPresented: $store.isShowingDemoError) {
+        .alert("Couldn’t Start the Demo Call", isPresented: $store.isShowingDemoError) {
             Button("OK") {}
         } message: {
             Text(store.demoError ?? "")

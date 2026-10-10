@@ -22,39 +22,39 @@ struct Flag: Identifiable, Hashable, Sendable {
 
     private static let catalogue: [String: Entry] = [
         "UNUSUAL_PAYMENT": Entry(
-            title: "Gift cards, wire or crypto",
+            title: "Gift Cards, Wire or Crypto",
             detail: "The caller asked to be paid in a way that can't be traced or reversed."
         ),
         "SAFE_ACCOUNT_TRANSFER": Entry(
-            title: "“Safe account” transfer",
+            title: "“Safe Account” Transfer",
             detail: "The caller asked to move money into an account they control."
         ),
         "REMOTE_ACCESS": Entry(
-            title: "Remote access",
+            title: "Remote Access",
             detail: "The caller asked to install software or take control of a device."
         ),
         "OTP_REQUEST": Entry(
-            title: "Verification code",
+            title: "Verification Code",
             detail: "The caller asked for a one-time code that was sent by text."
         ),
         "CREDENTIAL_REQUEST": Entry(
-            title: "SSN, PIN or password",
+            title: "SSN, PIN or Password",
             detail: "The caller asked for a full account number, PIN, password or Social Security number."
         ),
         "SECRECY": Entry(
-            title: "Demands secrecy",
+            title: "Demands Secrecy",
             detail: "The caller said not to tell family or the bank."
         ),
         "FAMILY_EMERGENCY": Entry(
-            title: "Relative in trouble",
+            title: "Relative in Trouble",
             detail: "The caller claimed a family member urgently needs money."
         ),
         "PRIZE_OR_REFUND": Entry(
-            title: "Prize or refund bait",
+            title: "Prize or Refund Bait",
             detail: "The caller promised money in exchange for a fee."
         ),
         "VERIFICATION_AVOIDANCE": Entry(
-            title: "Discourages checking",
+            title: "Discourages Checking",
             detail: "The caller argued against hanging up to verify the story."
         ),
         "THREAT": Entry(
@@ -62,15 +62,15 @@ struct Flag: Identifiable, Hashable, Sendable {
             detail: "The caller threatened arrest, a shutoff or legal action."
         ),
         "STAY_ON_LINE": Entry(
-            title: "Won’t let them hang up",
+            title: "Won’t Let Them Hang Up",
             detail: "The caller insisted on staying on the line."
         ),
         "URGENCY_PRESSURE": Entry(
-            title: "Time pressure",
+            title: "Time Pressure",
             detail: "The caller demanded action right away."
         ),
         "AUTHORITY_IMPERSONATION": Entry(
-            title: "Claims to be an official",
+            title: "Claims to Be an Official",
             detail: "The caller said they were from the government, a bank or a company."
         ),
     ]
