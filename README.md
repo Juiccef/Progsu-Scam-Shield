@@ -1,9 +1,14 @@
-# Shield backend
+# Palisade backend
 
-Shield sits between a caller and an older adult's phone. A caller dials the Shield
-proxy number (Twilio); Shield bridges the call to the senior, transcribes both sides
+Palisade sits between a caller and an older adult's phone. A caller dials the Palisade
+proxy number (Twilio); Palisade bridges the call to the senior, transcribes both sides
 live, scores the caller for scam behavior, and when it is confident it warns the
 caregiver or ends the call with a short spoken message. Audio is never stored.
+
+Palisade was called Shield until 2026-10-10. Everything a person sees or hears says
+Palisade; the code keeps the old name where nobody sees it: the Xcode project
+(`ios/Shield.xcodeproj`), folder and type names, logger names, and the `shield` user and
+service on the Vultr server.
 
 This repo is the backend plus a temporary, plain dashboard (`/dashboard`) for watching calls.
 It is not the final UI. `tools/watch.py` prints the same live feed in a terminal.
@@ -21,7 +26,7 @@ cp .env.example .env        # then fill it in; .env is git-ignored
 Minimum `.env` for a real call: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
 `TWILIO_PROXY_NUMBER`, `SENIOR_PHONE`, `CAREGIVER_PHONE`, `PUBLIC_HOST`.
 Add `DEEPGRAM_API_KEY` for transcripts and one LLM key (`OPENAI_API_KEY` or
-`ANTHROPIC_API_KEY`) for the LLM scorer. Without an LLM key Shield runs on the
+`ANTHROPIC_API_KEY`) for the LLM scorer. Without an LLM key Palisade runs on the
 regex rules alone; without a Deepgram key it bridges calls and counts audio
 frames but hears nothing.
 
@@ -62,7 +67,7 @@ depend on a laptop and a tunnel, and the address stays the same between restarts
 # once: VULTR_API_KEY=... in .env. Vultr console: My Org, Manage Organization, Users, you, API Access.
 #   Switch API access on (that replaces any earlier key), then Create API Key (shown once), and allow
 #   your network under Access Control List if requests are refused with "Unauthorized IP address".
-python tools/vultr_deploy.py up                        # a 1 vCPU / 1 GB server in Atlanta, with Shield on it
+python tools/vultr_deploy.py up                        # a 1 vCPU / 1 GB server in Atlanta, with Palisade on it
 python tools/set_webhook.py <the address it prints>    # send the Twilio number's calls there
 ```
 
@@ -76,11 +81,11 @@ about $5 a month).
   and `LOG_TRANSCRIPTS=false`, and is where a setting that should differ on the server goes,
   for example `DRY_RUN_ACTIONS=false`. `VULTR_API_KEY` is never sent.
 - **The server always has an `EVENTS_TOKEN`**, because `/events` carries live transcripts.
-- **On the server** Shield is one `uvicorn` process under systemd, behind Caddy, which gets
+- **On the server** Palisade is one `uvicorn` process under systemd, behind Caddy, which gets
   the certificate by itself (`deploy/vultr-setup.sh` is the whole setup). The address is the
   server's IP as a name under sslip.io. `--host shield.example.com` uses your own domain
   once its A record points at the server.
-- **A push restarts Shield**, which would drop a call in progress, so it refuses while one is active.
+- **A push restarts Palisade**, which would drop a call in progress, so it refuses while one is active.
 - **Run on 2026-10-10** against a real account: `up` created the server and got its certificate, a
   demo call scored by Haiku on the server ended as expected, and the event feed streams through
   Caddy without buffering. Not tried: real Twilio calls through it, and a reboot of the server.
@@ -91,7 +96,7 @@ about $5 a month).
 With the server running, open `http://localhost:8000/dashboard` (or
 `https://YOUR-NGROK-HOST/dashboard` to show it on another device). It shows, live: the call
 status, the risk score and its history, the red flags, the transcript (caller and senior),
-whether Shield warned or ended the call, the call-control and SMS results, and the raw event log.
+whether Palisade warned or ended the call, the call-control and SMS results, and the raw event log.
 
 - If `EVENTS_TOKEN` is set in `.env`, open `/dashboard?token=YOUR_TOKEN`. The page itself
   holds no data; the token unlocks the event feed it reads.
@@ -128,7 +133,7 @@ Do these in order. Each one is a line or two in the server log.
    lines. If the labels are swapped, set `CALLER_TRACK=outbound`.
 4. **M3, scoring.** `score` lines appear a second or so after each caller sentence, with `rules` and `llm` numbers.
 5. **M4, actions.** Read `scam_01` from `eval/eval-scripts.json` aloud as the caller. Expect a `WARN`,
-   then an `END`: the senior hears "Shield has detected a likely scam and is ending this call...",
+   then an `END`: the senior hears "Palisade has detected a likely scam and is ending this call...",
    the caller hears "Goodbye", and `action_result` reports `call_control: child_redirect`.
    `parent_hangup` means the first method failed and the fallback ran; `failed: ...` means neither worked.
    Then read `legit_01` and confirm nothing fires.
@@ -138,7 +143,7 @@ caller's leg falls through to the goodbye when the senior's leg is redirected, h
 trial account's notice at the start of calls affects timing, and whether the caregiver
 SMS is delivered. US carriers block texts from unregistered local numbers (Twilio
 error 30034), and registration takes days, so expect `sms_status` to report a failure.
-Shield carries on: the `action` event is the alert.
+Palisade carries on: the `action` event is the alert.
 
 ### Twilio account gotchas we hit
 
@@ -149,7 +154,7 @@ Shield carries on: the `action` event is the alert.
 - **Set `DIAL_CALLER_ID` to your proxy number** so the call to the senior shows a caller ID Twilio allows.
 - **Senior leg is `busy` after 0 seconds:** the senior's carrier is blocking the proxy number. A T-Mobile
   line needs Scam Block off (dial `#632#`, or use the Scam Shield app). Test with a direct Twilio call to
-  the phone before blaming Shield.
+  the phone before blaming Palisade.
 - **"Application error" on the call:** read Twilio's error log (Monitor, Logs, Errors). A 502 from ngrok
   is a tunnel hiccup; retry.
 - The caller must use a different phone from `SENIOR_PHONE`.
@@ -194,7 +199,7 @@ Each event is JSON with `type`, `ts` (epoch seconds) and usually `call_sid`.
 
 ## iPhone app
 
-`ios/` holds the caregiver's app (SwiftUI): the call in progress, the "Shield ended the
+`ios/` holds the caregiver's app (SwiftUI): the call in progress, the "Palisade ended the
 call" screen, and recent calls. See [ios/README.md](ios/README.md) for how to run it
 and what it looks like. It needs Xcode to build.
 
@@ -235,7 +240,7 @@ python eval/run_eval.py --model claude-haiku-4-5 --only scam_03      # one scrip
 It feeds each script turn by turn through the same scorer and decision engine the
 live call uses, prints a markdown table, and writes `eval/results/<timestamp>.json`.
 "Seconds from trigger" is script time from the start of `trigger_turn` to the
-detection, plus the scorer's measured latency; negative means Shield acted before
+detection, plus the scorer's measured latency; negative means Palisade acted before
 the turn a careful listener would call it.
 
 Baseline on 2026-10-07 (default thresholds):
@@ -275,7 +280,7 @@ kinds of model spec work:
 - `vultr:<chat model>` is a chat model behind Vultr's OpenAI-compatible API, given the same
   prompt as the other models. Its reasoning is switched off: the scorer has 2.5 seconds.
 - `vultr-decision:<decision model>` is one of Vultr's decision models (`POST /v1/systemone`).
-  Such a model writes no text. Shield asks it one yes/no question per flag, worded by the
+  Such a model writes no text. Palisade asks it one yes/no question per flag, worded by the
   flag list in the prompt file, and one graded question for the risk, with the prompt's
   calibration bands as the grades. Each answer is a set of probabilities, and the risk is
   the value expected over the bands. There is no reply to cut short or to validate, and
@@ -286,7 +291,7 @@ kinds of model spec work:
 2026-10-10 the chat models included `deepseek-v4-flash-0731` and `mimo-v2.6-flash-rl`, and
 the decision models `clef-flash` and `clef`, all four served from Atlanta.
 
-**None of them has been measured on Shield's scripts yet.** Do that before one scores a call:
+**None of them has been measured on Palisade's scripts yet.** Do that before one scores a call:
 
 ```bash
 python eval/run_eval.py --models rules,claude-haiku-4-5,vultr:deepseek-v4-flash-0731,vultr-decision:clef-flash
@@ -301,7 +306,7 @@ python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --sc
 - Phone numbers are masked to the last four digits in every log line and event.
 - Caregiver texts and the spoken message are fixed templates filled from flag IDs. Nothing the
   caller said and nothing the model wrote is ever sent or spoken.
-- The only numbers Shield calls or texts are `SENIOR_PHONE` and `CAREGIVER_PHONE`.
+- The only numbers Palisade calls or texts are `SENIOR_PHONE` and `CAREGIVER_PHONE`.
 
 ## Layout
 
@@ -319,7 +324,7 @@ eval/              eval scripts, run_eval.py, results/
 history.py         recent-call summaries for GET /calls
 demo.py            demo calls (DEMO_MODE)
 tools/             fake_call.py, watch.py, set_webhook.py, vultr_deploy.py
-deploy/            vultr-setup.sh, which sets Shield up on the Vultr server
+deploy/            vultr-setup.sh, which sets Palisade up on the Vultr server
 ios/               the iPhone app
 tests/             pytest suite
 ```

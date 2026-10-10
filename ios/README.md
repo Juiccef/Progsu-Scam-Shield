@@ -1,33 +1,33 @@
-# Shield for iPhone
+# Palisade for iPhone
 
 The caregiver's app. It shows the call in progress (risk dial, warning signs, live
-transcript), takes over the screen when Shield ends a scam call, and keeps a list of
+transcript), takes over the screen when Palisade ends a scam call, and keeps a list of
 recent calls. It has three pages behind a tab bar: Summary, Calls and Scam Signs. The
 protected person needs no app at all.
 
 It is a SwiftUI app for iOS 17 and later with no third-party dependencies. It reads the
-Shield server's `GET /events` feed and `GET /calls` list.
+Palisade server's `GET /events` feed and `GET /calls` list.
 
 ## Status
 
 - Builds with Xcode 27 for the simulator and for a device. The project file was written
   by hand and Xcode takes it as is.
-- Run in the iPhone 17 simulator (iOS 27) against a Shield server playing demo calls, on
+- Run in the iPhone 17 simulator (iOS 27) against a Palisade server playing demo calls, on
   2026-10-07 and again on 2026-10-08: Home with real call history, a scam call from first
-  word to "Shield ended the call", the summary, Settings, the demo menu, an ordinary
+  word to "Palisade ended the call", the summary, Settings, the demo menu, an ordinary
   call that closes by itself, hiding and reopening a live call, and dark mode.
 - Restyled on 2026-10-08 to the system's own look (grouped backgrounds, system type,
   cards at the system's corner radius), then redrawn the way Health draws its cards:
   black and gray text, the system's green, orange and red, and color used once per
   card, on a small label. No tinted boxes, pills or icons on colored discs.
-- The same day it gained a "Call" button on Shield's warning and the caller's flagged
+- The same day it gained a "Call" button on Palisade's warning and the caller's flagged
   phrases marked in the transcript.
 - Settings has an Appearance choice: Automatic (follow the phone), Light or Dark.
 - Looked at on 2026-10-08 with sample data: the "Ringing" state, a call that ends after
   a warning with no hang-up, and an accessibility text size. The layouts hold; at that
   text size the header's status line is cut short.
 - On 2026-10-09 the motion was gone through frame by frame on a recorded demo call and
-  fixed at three moments: a call opening, Shield's warning arriving, and Shield ending
+  fixed at three moments: a call opening, Palisade's warning arriving, and Palisade ending
   the call. The same day the dial was redrawn around the level's name, Home and "What
   happened" became system lists, the call screen's header got the system's own buttons,
   and flagged phrases a rounded highlighter. All of it was checked in the iPhone 17e
@@ -41,6 +41,9 @@ Shield server's `GET /events` feed and `GET /calls` list.
   Version row in Settings. Checked in the iPhone 17e simulator in light and dark, at a
   large text size, with Reduce Motion on, and by walking a recorded demo call through
   every page.
+- Renamed from Shield to Palisade on 2026-10-10, with a new icon: three folded stakes
+  drawn in to a point like a shield. The icon was checked on a simulator's Home Screen
+  in its default, dark, clear and tinted looks.
 - **Not yet installed on a real iPhone.** That needs an Apple ID in Xcode; see below.
 - Not yet looked at: iPhones smaller than the 17e.
 
@@ -52,9 +55,9 @@ From the iPhone 17e simulator, with sample data.
 |---|---|---|
 | ![Summary](screens/home.png) | ![Calls](screens/calls.png) | ![Scam Signs](screens/scam-signs.png) |
 
-| Call in progress | Shield ended the call | What happened |
+| Call in progress | Palisade ended the call | What happened |
 |---|---|---|
-| ![Call in progress](screens/live-call.png) | ![Shield ended the call](screens/shield-ended-the-call.png) | ![What happened](screens/what-happened.png) |
+| ![Call in progress](screens/live-call.png) | ![Palisade ended the call](screens/palisade-ended-the-call.png) | ![What happened](screens/what-happened.png) |
 
 Dark mode: [screens/live-call-dark.png](screens/live-call-dark.png).
 
@@ -62,18 +65,18 @@ The tab bar is the system's own, which on iOS 26 and later is the glass one. Set
 is behind the gear on Summary.
 
 The "Call" button only appears once the protected person's phone number is in the app's
-Settings. In the transcript, the caller's words that matched one of Shield's rules are
+Settings. In the transcript, the caller's words that matched one of Palisade's rules are
 set in bold, and highlighted once the call looks suspicious. A demo call says "Demo
 Call" wherever a real call shows the caller's number.
 
 Summary shows the three newest calls, and Calls every call the server still keeps (its
-newest 50), with a control to show only the ones Shield warned about or ended. Each row
+newest 50), with a control to show only the ones Palisade warned about or ended. Each row
 leads with the caller, written "Number ending 2233" (the server masks numbers to their
 last four digits), says what came of the call under it, and ends with when it came in:
 the time if that was today, then "Yesterday", the day of the week, or the date. At
 large text sizes the day moves under the rest of the row.
 
-Scam Signs says what Shield does about a risky call and lists everything it listens
+Scam Signs says what Palisade does about a risky call and lists everything it listens
 for, in the order a scam call tends to go. The two risk numbers on that page are the
 server's own thresholds. When the server is set to record what it would do without
 doing it (`DRY_RUN_ACTIONS=true`), the page says practice mode is on.
@@ -82,7 +85,7 @@ The dial says how the call looks in words. The small number in its opening is th
 score out of 100 that the words come from. The dial arrives with the first words of the
 call: while the phone is ringing there is nothing for it to say.
 
-Shield's warning card says why it warned, and has the "Call" button. How the call looks
+Palisade's warning card says why it warned, and has the "Call" button. How the call looks
 is left to the dial above it.
 
 With no calls yet, Summary and Calls say so and, if the server offers demo calls, have
@@ -91,7 +94,7 @@ an "Open Settings" button.
 
 The call screen can be put away with the arrow in its header. The call then stays one
 tap off on every page, in a bar above the tab bar that says how it is going (iOS 26.1
-and later; before that, an "Open the Call" button on Summary). When Shield warns or
+and later; before that, an "Open the Call" button on Summary). When Palisade warns or
 ends a call, the call screen comes back by itself, and the phone buzzes. The transcript
 keeps up with the call until you scroll up to reread, and picks up again when you
 scroll back down (iOS 18 and later).
@@ -176,6 +179,13 @@ Shield/
   Support/                   Theme, Platform (iOS/macOS differences), SampleData, Previews
 Shield-Info.plist            allows plain http to a local server
 ```
+
+The project, the folder and the types keep the app's first name, Shield. The name
+people see is the target's Display Name. `Assets.xcassets/AppIcon.appiconset` holds
+the icon three times: as it is by default, with nothing behind the stakes for the Home
+Screen's dark look (the system draws the tile), and in gray for the tinted look (the
+system colors it). With only the first, iOS 27 leaves the icon a white tile in the
+dark, clear and tinted looks.
 
 `LiveCall.apply(_:)` is the one place where feed events become screen state. Demo
 calls say "Demo Call" everywhere and are left out of Summary's counts.
