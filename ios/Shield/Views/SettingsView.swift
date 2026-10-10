@@ -55,7 +55,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Label("No audio or transcript is stored. Shield keeps what it detected, not what was said.", systemImage: "lock.fill")
+                    Label("No call audio or transcript is stored. Texts received at the protected Shield number are encrypted temporarily for review and delivery, for up to 24 hours. The server keeps body-free results afterward.", systemImage: "lock.fill")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

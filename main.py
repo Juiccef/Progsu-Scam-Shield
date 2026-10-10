@@ -11,6 +11,7 @@ import dataclasses
 import hmac
 import json
 import logging
+import re
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -20,6 +21,7 @@ from urllib.parse import parse_qsl
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, StreamingResponse
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
 
@@ -28,9 +30,12 @@ from actions import Actions
 from config import ROOT, Settings, get_settings
 from events import EventBus, mask_phone
 from history import CallHistory
-from scorer.decision import is_allowlisted
+from messages import MessageHistory
+from gateway import GatewayMessage, GatewayService, address, gateway_router
+from scorer.decision import is_allowlisted, normalize_phone
 from scorer.flags import CALLER, SENIOR
 from scorer.llm import LLMScorer, ScorerPrompt
+from scorer.messages import MessageScorer
 from session import CallRegistry, CallSession
 from stt import STTFactory, STTResult, STTStream, make_stt_factory
 
@@ -42,6 +47,18 @@ FINISHED = {"completed", "busy", "no-answer", "failed", "canceled"}
 MEDIA_REPORT_EVERY_S = 5.0
 DEMO_SCRIPTS = ROOT / "eval" / "eval-scripts.json"
 _DEFAULT = object()
+
+
+class MessageInput(BaseModel):
+    text: str = Field(min_length=1, max_length=10000)
+    sender: str = Field(default="", max_length=128)
+
+    @field_validator("text")
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Message text cannot be blank")
+        return value
 
 
 def build_llm(settings: Settings) -> Optional[LLMScorer]:
@@ -60,15 +77,25 @@ def build_llm(settings: Settings) -> Optional[LLMScorer]:
 
 
 def create_app(
-    settings: Optional[Settings] = None, *, stt_factory=_DEFAULT, llm=_DEFAULT, twilio_client_factory=None
+    settings: Optional[Settings] = None, *, stt_factory=_DEFAULT, llm=_DEFAULT, message_llm=_DEFAULT, twilio_client_factory=None
 ) -> FastAPI:
     settings = settings or get_settings()
     stt: Optional[STTFactory] = make_stt_factory(settings) if stt_factory is _DEFAULT else stt_factory
     scorer_llm: Optional[LLMScorer] = build_llm(settings) if llm is _DEFAULT else llm
+    sms_llm = (
+        build_llm(dataclasses.replace(settings, scorer_prompt=ROOT / "prompts/message-scorer-prompt.md", llm_early_exit=False))
+        if message_llm is _DEFAULT else message_llm
+    )
+    message_scorer = MessageScorer(sms_llm)
     history = CallHistory.from_log(settings.log_dir / "events.jsonl")
+    message_history = MessageHistory.from_log(settings.log_dir / "events.jsonl")
     bus = EventBus(settings.log_dir)
     bus.add_listener(history.record)
+    bus.add_listener(message_history.record)
+    message_lock = asyncio.Lock()
     state = {"public_host": settings.public_host, "last_action": None, "actions": {}, "demo_task": None}
+    gateway = GatewayService(settings, bus, message_scorer, client_factory=twilio_client_factory,
+                             public_host=lambda: state["public_host"]) if settings.text_gateway_enabled else None
 
     def remember_action(metrics: dict) -> None:
         state["last_action"] = metrics
@@ -97,6 +124,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if gateway:
+            gateway.start()
         log.info(
             "Shield ready: scorer=%s stt=%s senior=%s caregiver=%s public_host=%s actions=%s signature_check=%s",
             scorer_llm.model if scorer_llm else "rules only",
@@ -108,17 +137,24 @@ def create_app(
             "on" if settings.validate_signature else "OFF",
         )
         yield
+        if gateway:
+            await gateway.close()
         if state["demo_task"] is not None:
             state["demo_task"].cancel()
         await registry.close_all()
         if scorer_llm is not None and llm is _DEFAULT:
             await scorer_llm.aclose()
+        if sms_llm is not None and message_llm is _DEFAULT:
+            await sms_llm.aclose()
         bus.close()
 
     app = FastAPI(title="Shield", lifespan=lifespan)
+    app.include_router(gateway_router(gateway, settings))
+    app.state.gateway = gateway
     app.state.bus = bus
     app.state.registry = registry
     app.state.history = history
+    app.state.message_history = message_history
 
     # --- helpers ---------------------------------------------------------
 
@@ -162,6 +198,76 @@ def create_app(
         return Response(str(response), media_type="application/xml")
 
     # --- Twilio webhooks ---------------------------------------------------
+
+    async def analyze_message(text: str, sender: str, message_id: str, source: str, *, text_only: bool = False) -> dict:
+        result = await message_scorer.evaluate(text)
+        # Deliberately exclude the body, URLs and model evidence from events/history.
+        # Fixed advice can be reconstructed by the client; events.py strips explanation on disk.
+        return bus.publish(
+            "message_scored", message_id=message_id, sender=mask_phone(sender),
+            source=source, text_only=text_only, **result,
+        )
+
+    @app.post("/messages/analyze")
+    async def message_analyze(request: Request, body: MessageInput) -> dict:
+        authorize(request)
+        return await analyze_message(body.text, body.sender, "manual_" + secrets.token_hex(16), "manual")
+
+    @app.get("/messages")
+    async def message_list(request: Request) -> dict:
+        authorize(request)
+        return {"messages": message_history.list()}
+
+    @app.post("/sms/incoming")
+    async def sms_incoming(request: Request) -> Response:
+        form = await twilio_form(request)
+        if not settings.twilio_proxy_number or normalize_phone(form.get("To", "")) != normalize_phone(settings.twilio_proxy_number):
+            raise HTTPException(400, "Message is not addressed to the Shield proxy number")
+        message_id = form.get("MessageSid", "")
+        text = form.get("Body", "")
+        if not message_id or len(message_id) > 128:
+            raise HTTPException(400, "Missing or invalid MessageSid")
+        if gateway:
+            # Sender-number echoes and participant replies cannot loop into deliveries.
+            if not form.get("From", "").strip():
+                raise HTTPException(400, "Missing sender address")
+            if address(form.get("From", "")) in {
+                address(settings.twilio_proxy_number), address(settings.senior_phone),
+                address(settings.caregiver_phone), address(settings.photon_caregiver_address),
+            }:
+                return Response("<Response></Response>", media_type="application/xml")
+            if not re.fullmatch(r"(?:SM|MM)[0-9a-fA-F]{32}", message_id):
+                raise HTTPException(400, "Invalid MessageSid")
+            media_count = form.get("NumMedia", "0")
+            if len(media_count) > 6 or not media_count.isascii() or not media_count.isdigit():
+                raise HTTPException(400, "Invalid media count")
+            try:
+                item = GatewayMessage(message_id="twilio_" + message_id, sender=form.get("From", ""),
+                                      line=form["To"], text=text,
+                                      content_type="unsupported" if int(media_count) > 0 else "text")
+            except ValidationError:
+                raise HTTPException(400, "Invalid text message content") from None
+            gateway.accept(item)
+            return Response("<Response></Response>", media_type="application/xml")
+        if not text.strip() or len(text) > 10000:
+            raise HTTPException(400, "A text body of 1-10000 characters is required; media-only MMS is not supported")
+        # Serializes duplicate deliveries; bounded persistent summaries also cover recent retries after restart.
+        async with message_lock:
+            if not message_history.contains(message_id):
+                await analyze_message(
+                    text, form.get("From", ""), message_id, "twilio",
+                    text_only=form.get("NumMedia", "0") != "0",
+                )
+        # Never reply to the sender or forward the original content.
+        return Response("<Response></Response>", media_type="application/xml")
+
+    @app.post("/gateway/sms/status/{job_id}/{attempt_id}")
+    async def gateway_sms_status(request: Request, job_id: str, attempt_id: str) -> Response:
+        form = await twilio_form(request)
+        if gateway is None:
+            raise HTTPException(503, "Text gateway is disabled")
+        gateway.store.sms_status(job_id, attempt_id, form)
+        return Response(status_code=204)
 
     @app.post("/voice/incoming")
     async def voice_incoming(request: Request) -> Response:
@@ -423,6 +529,8 @@ def create_app(
             "warn_threshold": settings.decision.warn_threshold,
             "end_threshold": settings.decision.end_threshold,
             "active_calls": len(registry),
+            "message_scorer_model": sms_llm.model if sms_llm else "rules",
+            "gateway": gateway.store.health() if gateway else {"enabled": False},
         }
 
     @app.get("/dashboard", response_class=HTMLResponse)
@@ -432,7 +540,7 @@ def create_app(
 
     @app.get("/")
     async def root() -> dict:
-        return {"service": "Shield", "endpoints": ["/dashboard", "/health", "/events", "/calls", "/metrics/last"]}
+        return {"service": "Shield", "endpoints": ["/dashboard", "/health", "/events", "/calls", "/messages", "/messages/analyze", "/metrics/last"]}
 
     return app
 

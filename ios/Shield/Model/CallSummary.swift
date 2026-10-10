@@ -63,9 +63,10 @@ struct ServerHealth: Decodable, Equatable, Sendable {
     var demoMode: Bool?
     var warnThreshold: Int?
     var endThreshold: Int?
+    var gateway: GatewayHealth?
 
     enum CodingKeys: String, CodingKey {
-        case ok
+        case ok, gateway
         case demoMode = "demo_mode"
         case warnThreshold = "warn_threshold"
         case endThreshold = "end_threshold"

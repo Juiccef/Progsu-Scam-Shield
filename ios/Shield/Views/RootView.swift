@@ -7,6 +7,7 @@ import SwiftUI
 struct RootView: View {
     @State private var store: ShieldStore
     @AppStorage(SettingsKey.appearance) private var appearance = Appearance.automatic
+    @Environment(\.scenePhase) private var scenePhase
     /// False when the store holds fixed sample data, which a live feed must not replace.
     private let connectsToServer: Bool
 
@@ -24,12 +25,51 @@ struct RootView: View {
     }
 
     var body: some View {
+        @Bindable var store = store
         ZStack {
-            NavigationStack(path: $store.path) {
-                HomeView()
-                    .navigationDestination(for: CallSummary.self) { call in
-                        CallDetailView(call: call)
+            TabView(selection: $store.selectedTab) {
+                NavigationStack(path: $store.path) {
+                    HomeView()
+                        .navigationDestination(for: CallSummary.self) { call in
+                            CallDetailView(call: call)
+                        }
+                }
+                .tabItem { Label("Home", systemImage: "shield") }
+                .tag(ShieldStore.Tab.home)
+                NavigationStack {
+                    MessagesView()
+                        .navigationDestination(isPresented: Binding(
+                            get: { store.gatewayDetailID != nil },
+                            set: { if !$0 { store.gatewayDetailID = nil } }
+                        )) {
+                            if let id = store.gatewayDetailID { GatewayDetailView(messageID: id) }
+                        }
+                }
+                .tabItem { Label("Texts", systemImage: "message") }
+                .badge(store.unreadGatewayIDs.count)
+                .tag(ShieldStore.Tab.texts)
+            }
+            .overlay(alignment: .top) {
+                if let id = store.gatewayBannerID, store.presentedCall == nil {
+                    HStack {
+                        Button {
+                            store.selectedTab = .texts
+                            store.gatewayDetailID = id
+                            store.gatewayBannerID = nil
+                        } label: {
+                            Label("Shield held a text. Review it.", systemImage: "exclamationmark.bubble")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        Spacer()
+                        Button("Dismiss", systemImage: "xmark") { store.gatewayBannerID = nil }
+                            .labelStyle(.iconOnly)
                     }
+                    .padding(16)
+                    .background(Theme.surface, in: .rect(cornerRadius: 16))
+                    .shadow(radius: 4)
+                    .padding()
+                    .zIndex(2)
+                }
             }
             if let call = store.presentedCall {
                 LiveCallView(call: call)
@@ -49,8 +89,24 @@ struct RootView: View {
             // At launch the two are the same: set it at once, with no fade from the wrong appearance.
             new.apply(animated: old != new)
         }
+        .onChange(of: store.selectedTab) { _, tab in
+            if tab == .texts { store.markGatewayRead() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active, connectsToServer { Task { await store.refresh() } }
+        }
         .task {
             if connectsToServer { store.connect() }
+            #if DEBUG
+            // Deterministic simulator entrypoints for the protected inbox/review.
+            if UserDefaults.standard.string(forKey: "tab") == "texts" {
+                store.selectedTab = .texts
+            }
+            if let id = UserDefaults.standard.string(forKey: "gatewayMessageID") {
+                store.selectedTab = .texts
+                store.gatewayDetailID = id
+            }
+            #endif
         }
     }
 }

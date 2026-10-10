@@ -17,12 +17,16 @@ enum ShieldAPIError: LocalizedError {
     case unauthorized
     case server(Int)
     case notAShieldServer
+    case reviewConflict
+    case gatewayUnavailable
 
     var errorDescription: String? {
         switch self {
         case .unauthorized: "The access token was not accepted."
         case .server(let status): "The server answered with error \(status)."
         case .notAShieldServer: "That address did not answer like a Shield server."
+        case .reviewConflict: "This message can no longer be released. Refresh to see its current status."
+        case .gatewayUnavailable: "Text protection is not enabled on this server."
         }
     }
 }
@@ -65,6 +69,39 @@ struct ShieldAPI: Equatable, Sendable {
     func calls() async throws -> [CallSummary] {
         let list: CallList = try await get("calls")
         return list.calls
+    }
+
+    func messages() async throws -> [MessageSummary] {
+        let list: MessageList = try await get("messages")
+        return list.messages
+    }
+
+    func gatewayMessages() async throws -> GatewayMessageList {
+        try await get("gateway/messages")
+    }
+
+    func gatewayDetail(_ id: String) async throws -> GatewayMessage {
+        try await get("gateway/messages/\(id)")
+    }
+
+    func gatewayDecision(_ id: String, action: String) async throws -> GatewayMessage {
+        var request = request("gateway/messages/\(id)/decision")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["action": action])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.check(response)
+        return try JSONDecoder().decode(GatewayMessage.self, from: data)
+    }
+
+    func analyzeMessage(_ text: String) async throws -> MessageSummary {
+        var request = request("messages/analyze")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["text": text])
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.check(response)
+        return try JSONDecoder().decode(MessageSummary.self, from: data)
     }
 
     func demoScripts() async throws -> [DemoScript] {
@@ -119,6 +156,10 @@ struct ShieldAPI: Equatable, Sendable {
         var url = baseURL.appending(path: path)
         if !query.isEmpty { url.append(queryItems: query) }
         var request = URLRequest(url: url)
+        if path.hasPrefix("gateway/") {
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        }
         request.timeoutInterval = 10
         if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         // Without this, ngrok's free tier answers the first request with an HTML warning page.
@@ -129,6 +170,8 @@ struct ShieldAPI: Equatable, Sendable {
     private static func check(_ response: URLResponse) throws {
         guard let status = (response as? HTTPURLResponse)?.statusCode else { return }
         if status == 401 { throw ShieldAPIError.unauthorized }
+        if status == 409 { throw ShieldAPIError.reviewConflict }
+        if status == 503 { throw ShieldAPIError.gatewayUnavailable }
         guard (200..<300).contains(status) else { throw ShieldAPIError.server(status) }
     }
 }
