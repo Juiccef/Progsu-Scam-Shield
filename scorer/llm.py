@@ -85,6 +85,8 @@ class ScorerPrompt:
         return cls(system, examples, _user_template(text))
 
     def user_message(self, transcript: str, previous_risk: int) -> str:
+        # The caller controls this text, so it must not be able to close the <transcript> fence.
+        transcript = transcript.replace("<", "(").replace(">", ")")
         return self.user_template.replace("{previous_risk}", str(previous_risk)).replace("{transcript}", transcript)
 
     def messages(self, transcript: str, previous_risk: int) -> list[dict]:
