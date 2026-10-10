@@ -8,7 +8,7 @@ from main import create_app
 from tests.test_auth import AUDIENCE, DOMAIN, auth0, token
 from tests.test_auth import CAREGIVER as CAREGIVER_EMAIL
 from tests.test_gateway import BRIDGE, CAREGIVER, MID, SCAM, SENDER, claim, decide, form, settings, submit
-from tests.test_server import incoming, signed_post
+from tests.test_server import incoming, signed_post, wait_for
 
 
 def signed_in(**claims) -> dict:
@@ -102,3 +102,37 @@ def test_health_names_no_error_when_text_protection_is_simply_off(tmp_path):
     app = create_app(settings(tmp_path, TEXT_GATEWAY_ENABLED="false"), stt_factory=None)
     with TestClient(app) as client:
         assert client.get("/health").json()["gateway"] == {"enabled": False}
+
+
+# --- tools/fake_text.py ----------------------------------------------------------
+
+
+def test_a_made_up_text_is_taken_for_a_real_one(tmp_path, capsys):
+    from tools import fake_text
+
+    conf = settings(tmp_path, TEXT_FORWARDING_ENABLED="false")
+    with TestClient(create_app(conf, stt_factory=None)) as client:
+        assert fake_text.send(client, conf, "", SCAM, sender=SENDER) == 0
+        assert fake_text.send(client, conf, "", "A photo for you", sender="+15555550177", attachment=True) == 0
+        assert wait_for(lambda: all(m["status"] == "held" for m in listed(client)) and len(listed(client)) == 2)
+        assert {m["hold_reason"] for m in listed(client)} == {"scam_signals", "unsupported_content"}
+    said = capsys.readouterr().out
+    assert "from ***0999" in said and SENDER not in said  # the tool masks numbers like everything else
+
+
+def test_a_made_up_text_is_never_sent_to_a_server_that_would_forward_it(tmp_path, capsys):
+    """Forwarding is on and the server can send: a text it lets through reaches a real phone."""
+    from tools import fake_text
+
+    conf = settings(tmp_path, DRY_RUN_ACTIONS="false")
+    sent = []
+    app = create_app(conf, stt_factory=None, twilio_client_factory=lambda: sent.append("client") or None)
+    with TestClient(app) as client:
+        assert client.get("/health").json()["gateway"]["sms_ready"] is True
+        assert fake_text.send(client, conf, "", "Your appointment is tomorrow at 2pm.", sender=SENDER) == 1
+        assert listed(client) == [] and sent == []
+    assert "Nothing was sent" in capsys.readouterr().err
+
+
+def listed(client) -> list:
+    return client.get("/gateway/messages", headers=CAREGIVER).json()["messages"]
