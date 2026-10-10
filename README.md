@@ -161,6 +161,128 @@ Each event is JSON with `type`, `ts` (epoch seconds) and usually `call_sid`.
 
 ## iPhone app
 
+### Protected SMS gateway with Photon caregiver agent
+
+Senders text `TWILIO_PROXY_NUMBER`, the same protected number used for calls.
+The signed Twilio webhook stores a pending encrypted record before acknowledging
+receipt; scoring then runs in the background. Scores below 30 queue an SMS to
+`SENIOR_PHONE`, sent **from the same Twilio number**. Scores of 30 or above,
+incomplete analysis, attachments (even with a benign caption), and texts that
+cannot fit with the footer are held for caregiver review in **Texts**.
+
+Forwarded SMS keeps the original text and appends a fixed footer:
+
+```text
+Your appointment is tomorrow at 2 PM.
+
+— Shield screening —
+Original sender: +15555550999
+Passed automated screening: low scam risk detected.
+Sender identity has not been verified.
+Replies are not forwarded.
+```
+
+Caregiver release replaces the low-risk sentence with **Released after caregiver
+review.** It never labels a high-risk released message as having passed screening.
+The senior needs no manual forwarding or new app. Messages from different original
+senders share one Shield thread; replies are ignored rather than routed to the
+wrong person. Texts addressed to the senior's personal number bypass Shield.
+
+**Photon remains an iMessage agent.** Spectrum on Vultr sends body-free caregiver
+warnings and receives caregiver `HELP`, `STATUS`, and `WHY` commands. Release and
+discard happen in the authenticated app. A shared Photon line works: add the
+caregiver's actual iMessage phone/email as a Photon user, not the Twilio number.
+`PHOTON_LINE` is optional and only pins an explicitly provisioned dedicated line.
+
+Enable `TEXT_GATEWAY_ENABLED` after configuring Twilio, distinct caregiver/bridge
+tokens, destination addresses, and a stable Fernet key. Set `TEXT_FORWARDING_ENABLED`
+only after staging; live SMS also needs `DRY_RUN_ACTIONS=false`. Both new gateway
+flags default false. The old `PHOTON_GATEWAY_ENABLED`, `PHOTON_FORWARDING_ENABLED`
+and `PHOTON_SENIOR_ADDRESS` settings no longer configure this architecture.
+See [Vultr deployment and live checks](deploy/README.md) and [Spectrum service](photon/README.md).
+
+Gateway text and original sender addresses are encrypted temporarily for review
+and delivery, then removed on successful send, discard or after 24 hours.
+Summaries/events contain no original text or links. `/gateway/messages/{id}` requires the
+caregiver bearer token to retrieve available private text. This temporary storage
+applies to the gateway; pasted checks still use the existing summary-only path.
+The app shows foreground banners and unread warnings; iMessage caregiver alerts
+provide coverage when the app is closed. Native app push is not included.
+
+The gateway endpoints are `GET /gateway/messages`, `GET /gateway/messages/{id}`,
+and `POST /gateway/messages/{id}/decision` (`release` or `discard`). The internal
+`/integrations/photon/` endpoints require the bridge token and stay behind the
+loopback interface/reverse-proxy restriction and can claim only caregiver alerts.
+Only the Python worker can claim approved SMS relay jobs. SQLite preserves review
+and delivery state across restarts; uncertain sends are never blindly repeated.
+`POST /gateway/sms/status/{job_id}/{attempt_id}` accepts signed Twilio delivery
+callbacks. **Sent** means accepted by Twilio; **Delivered** means a carrier delivery
+report, never confirmation that the senior read it. Later carrier rejection is
+shown as **Delivery failed**. Records from the old Photon gateway survive the
+schema upgrade but cannot be released over SMS.
+
+### Text message scam checks
+
+Shield can check pasted text in the caregiver app and automatically analyze
+texts sent to the Twilio proxy number. **Texts** opens the protected inbox, checker
+and recent results. Rebuild the iPhone app and restart the backend after updating.
+
+With `TEXT_GATEWAY_ENABLED=false`, the existing analysis-only flow remains:
+SMS to Shield number → signed `POST /sms/incoming` webhook → SMS
+rules plus an optional SMS-specific LLM → `message_scored` event → app results.
+There is no speech-to-text step, call timer, automatic reply, or forwarding to the
+senior. The original text is not included in events or saved by Shield. Twilio and
+the configured LLM provider receive the text; their retention policies are separate.
+Results and masked sender numbers survive server restarts. This is an estimated
+risk score, not verification of a sender or website. Links are never fetched.
+
+Set up the existing SMS-capable Twilio number:
+
+1. Set `PUBLIC_HOST` to the tunnel hostname and `EVENTS_TOKEN` to a private token
+   in `.env`. Enter that token and server address in the app’s Settings.
+2. Restart the server between calls:
+   ```bash
+   .venv/bin/uvicorn main:app --port 8000 --timeout-graceful-shutdown 2
+   ```
+3. With the tunnel running, configure the incoming messaging webhook:
+   ```bash
+   .venv/bin/python tools/set_webhook.py --sms-only
+   ```
+   This updates the SMS webhook and preserves the existing voice webhook. In the
+   Twilio console the equivalent is the number’s Messaging → “A message comes in”
+   webhook: `https://PUBLIC_HOST/sms/incoming`, method **POST**. If the number belongs
+   to a Messaging Service, configure that service’s incoming webhook or choose
+   “Defer to sender’s webhook” so the number-level setting is used.
+4. Send a text from another phone to the Shield number and open **Text messages**
+   in the caregiver app. Try an ordinary appointment reminder, then a fake package
+   fee such as `USPS: your package is held. Pay the redelivery fee immediately at
+   https://parcel-fee.example/pay`. Do not use real payment details.
+
+Texts addressed to the senior’s **personal number** do not reach Twilio. They can
+be copied into the checker or manually forwarded to Shield (the forwarded sender
+will be the forwarding phone). Automatic personal-phone filtering on iOS requires
+an IdentityLookup Message Filter extension installed and enabled on the senior’s
+phone; that extension is not part of this version. Apple documents restrictions
+to SMS/MMS from unknown senders, excluding contacts and iMessage:
+https://developer.apple.com/documentation/identitylookup/sms-and-mms-message-filtering.
+Twilio incoming webhook details: https://www.twilio.com/docs/usage/webhooks/messaging-webhooks.
+
+API:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /messages/analyze` | JSON `{"text":"...", "sender":"optional phone number"}`. Returns a result and records a summary. Uses `EVENTS_TOKEN`, like `/calls`. |
+| `GET /messages` | Latest 50 results, newest first; no original bodies or links. Uses `EVENTS_TOKEN`. |
+| `POST /sms/incoming` | Signed Twilio webhook. Checks the destination matches `TWILIO_PROXY_NUMBER`; returns empty TwiML without replying. |
+
+Rules run without API keys. An LLM uses the existing `SCORER_MODEL` setting and
+`prompts/message-scorer-prompt.md`, with a separate scorer from live calls.
+In analysis-only mode, MMS attachments are not analyzed: a text caption is marked `text_only`, and
+media-only messages are rejected. Recent webhook duplicates (within the retained
+50 results) are ignored, including after a restart. State remains in one process;
+keep the existing single-worker setup. SMS accuracy needs validation on a larger
+independent message dataset before using this to automatically filter messages.
+
 `ios/` holds the caregiver's app (SwiftUI): the call in progress, the "Shield ended the
 call" screen, and recent calls. See [ios/README.md](ios/README.md) for how to run it
 and what it looks like. It needs Xcode to build.

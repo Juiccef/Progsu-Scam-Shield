@@ -1,5 +1,22 @@
 # Shield for iPhone
 
+The **Texts** tab now supports the Twilio protected-number gateway: held texts,
+private review, Release/Discard, delivery status, foreground banners, and unread
+warnings. Enter the Vultr HTTPS URL and caregiver access token in Settings.
+Closed-app warnings arrive through caregiver iMessage rather than native push.
+Twilio forwards approved texts to the senior's normal Messages app with the
+original sender and screening footer. Photon is the caregiver's iMessage agent;
+its shared line is sufficient. Replies to forwarded SMS are not relayed.
+See [deployment setup](../deploy/README.md) for service configuration and
+temporary encrypted text storage. The existing manual paste checker remains
+available beneath the protected inbox.
+
+The [October 10 text-feature review](../docs/text-feature-review.md) includes
+test results, remaining live acceptance checks, and simulator screenshots.
+Run the focused gateway state-store regressions with
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer bash tools/test_ios_gateway.sh`.
+These use the real Swift store/models and an in-memory transport; no texts are sent.
+
 The caregiver's app. It shows the call in progress (risk dial, warning signs, live
 transcript), takes over the screen when Shield ends a scam call, and keeps a list of
 recent calls. The protected person needs no app at all.
@@ -29,6 +46,12 @@ Shield server's `GET /events` feed and `GET /calls` list.
 - Not yet looked at: smaller iPhones.
 
 ## Screens
+
+Home also opens **Text messages**: paste a text to check it, or review results for
+texts received by the Shield Twilio number. The screen receives result updates
+through the existing event feed and refreshes from `GET /messages`. Message bodies
+are not kept in history. This version does not read the personal phone’s Messages
+inbox or install a Message Filter extension; see the backend README for SMS setup.
 
 From the iPhone 17 simulator, with sample data.
 

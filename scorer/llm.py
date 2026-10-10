@@ -207,11 +207,12 @@ class LLMScorer:
         except ValueError as exc:
             error = f"bad_output: {exc}"
         except Exception as exc:  # never let a scorer bug take the call down
-            log.exception("Unexpected LLM scorer failure")
+            # Provider exceptions can contain message bodies. Log the type only.
+            log.warning("Unexpected LLM scorer failure (%s)", type(exc).__name__)
             error = f"error: {type(exc).__name__}"
         latency_s = time.perf_counter() - started
         if error:
-            log.warning("LLM scorer fell back to rules (%s) model=%s after %.2fs", error, self.model, latency_s)
+            log.warning("LLM scorer fell back to rules (%s) model=%s after %.2fs", error.split(":", 1)[0], self.model, latency_s)
         return LLMOutcome(result, latency_s, error)
 
     async def warm_up(self) -> None:

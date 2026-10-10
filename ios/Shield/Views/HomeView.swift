@@ -43,6 +43,23 @@ struct HomeContent: View {
     var body: some View {
         VStack(spacing: 12) {
             ProtectionCard(seniorName: seniorName)
+            Button {
+                store.selectedTab = .texts
+            } label: {
+                Card {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Text messages").font(.headline)
+                            Text("Check a text or review messages sent to Shield.")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(.primary)
+                }
+            }
+            .buttonStyle(.plain)
             RecentCalls(calls: store.history)
         }
     }

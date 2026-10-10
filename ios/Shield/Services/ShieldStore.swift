@@ -11,6 +11,8 @@ struct CallStats: Equatable {
 @Observable
 @MainActor
 final class ShieldStore {
+    enum Tab { case home, texts }
+    var selectedTab: Tab = .home
     enum Connection: Equatable {
         case notConfigured
         case connecting
@@ -29,6 +31,14 @@ final class ShieldStore {
         didSet { stats = Self.stats(for: history) }
     }
     private(set) var stats = CallStats()
+    private(set) var messages: [MessageSummary] = []
+    private(set) var gatewayMessages: [GatewayMessage] = []
+    private(set) var gatewayHealth: GatewayHealth?
+    private(set) var shieldNumber = ""
+    private(set) var gatewayError: String?
+    var gatewayBannerID: String?
+    var gatewayDetailID: String?
+    private(set) var unreadGatewayIDs: Set<String> = []
     private(set) var demoScripts: [DemoScript] = []
     private(set) var warnThreshold = 60
     private(set) var endThreshold = 85
@@ -43,6 +53,9 @@ final class ShieldStore {
     @ObservationIgnored private var followsSettings = true
     @ObservationIgnored private var feedTask: Task<Void, Never>?
     @ObservationIgnored private var settleTask: Task<Void, Never>?
+    @ObservationIgnored private var seenGatewayIDs: [String] = []
+    @ObservationIgnored private var alertedGatewayIDs: Set<String> = []
+    private var gatewaySeenKey: String { "gatewaySeen.\(api?.baseURL.absoluteString ?? "")" }
 
     /// Events older than this when we connect are history: they rebuild state but never pop up the call screen.
     private static let freshness: TimeInterval = 10
@@ -53,12 +66,21 @@ final class ShieldStore {
         settleTask?.cancel()
         call = nil
         presentedCall = nil
+        messages = []
+        gatewayMessages = []
+        gatewayHealth = nil
+        gatewayError = nil
+        gatewayBannerID = nil
+        gatewayDetailID = nil
+        unreadGatewayIDs = []
+        alertedGatewayIDs = []
         guard let api = ShieldAPI.fromSettings else {
             self.api = nil
             connection = .notConfigured
             return
         }
         self.api = api
+        seenGatewayIDs = UserDefaults.standard.stringArray(forKey: gatewaySeenKey) ?? []
         connection = .connecting
         feedTask = Task { await self.follow(api) }
     }
@@ -73,6 +95,33 @@ final class ShieldStore {
         await loadServerInfo(api)
     }
 
+    func analyzeMessage(_ text: String) async throws -> MessageSummary {
+        guard let api else { throw ShieldAPIError.notAShieldServer }
+        let result = try await api.analyzeMessage(text)
+        await loadMessages(api)
+        return result
+    }
+
+    func gatewayDetail(_ id: String) async throws -> GatewayMessage {
+        guard let api else { throw ShieldAPIError.notAShieldServer }
+        return try await api.gatewayDetail(id)
+    }
+
+    func decideGatewayMessage(_ id: String, action: String) async throws {
+        guard let api else { throw ShieldAPIError.notAShieldServer }
+        _ = try await api.gatewayDecision(id, action: action)
+        await loadGateway(api)
+    }
+
+    func markGatewayRead() {
+        for message in gatewayMessages where message.needsReview && !seenGatewayIDs.contains(message.id) {
+            seenGatewayIDs.append(message.id)
+        }
+        seenGatewayIDs = Array(seenGatewayIDs.suffix(2000))
+        UserDefaults.standard.set(seenGatewayIDs, forKey: gatewaySeenKey)
+        unreadGatewayIDs = []
+    }
+
     func showCall() {
         if let call, !call.hasEnded { presentedCall = call }
     }
@@ -83,6 +132,7 @@ final class ShieldStore {
 
     /// Leaves the call screen and opens the summary of that call.
     func showSummary(of callID: String) async {
+        selectedTab = .home
         if let api, !history.contains(where: { $0.id == callID }) {
             await loadHistory(api)
         }
@@ -133,6 +183,20 @@ final class ShieldStore {
     }
 
     private func handle(_ event: ShieldEvent, isFresh: Bool) {
+        if event.type == "gateway_message_updated" {
+            if let id = event.messageID, event.status == "held", isFresh,
+               !seenGatewayIDs.contains(id), alertedGatewayIDs.insert(id).inserted {
+                gatewayBannerID = id
+            }
+            if let api { Task { await self.loadGateway(api) } }
+            return
+        }
+        if event.type == "message_scored" {
+            if isFresh, let api {
+                Task { await self.loadMessages(api) }
+            }
+            return
+        }
         guard let callID = event.callSID else { return }
         if event.type == "call_started" {
             let started = LiveCall(
@@ -170,11 +234,38 @@ final class ShieldStore {
 
     private func loadServerInfo(_ api: ShieldAPI) async {
         if let health = try? await api.health() {
+            guard self.api == api else { return }
+            gatewayHealth = health.gateway
             warnThreshold = health.warnThreshold ?? warnThreshold
             endThreshold = health.endThreshold ?? endThreshold
         }
         demoScripts = (try? await api.demoScripts()) ?? []
         await loadHistory(api)
+        await loadMessages(api)
+        if gatewayHealth?.enabled == true { await loadGateway(api) }
+    }
+
+    private func loadGateway(_ api: ShieldAPI) async {
+        do {
+            let list = try await api.gatewayMessages()
+            guard self.api == api else { return }
+            gatewayMessages = list.messages
+            shieldNumber = list.shieldNumber
+            gatewayError = nil
+            // A pending record has not raised a review alert yet. Remember only
+            // held records so delayed analysis can still trigger its first banner.
+            alertedGatewayIDs.formUnion(list.messages.filter(\.needsReview).map(\.id))
+            unreadGatewayIDs = Set(list.messages.filter { $0.needsReview && !seenGatewayIDs.contains($0.id) }.map(\.id))
+            if selectedTab == .texts { markGatewayRead() }
+        } catch {
+            if self.api == api { gatewayError = Self.describe(error) }
+        }
+    }
+
+    private func loadMessages(_ api: ShieldAPI) async {
+        if let messages = try? await api.messages(), self.api == api {
+            self.messages = messages
+        }
     }
 
     private func loadHistory(_ api: ShieldAPI) async {

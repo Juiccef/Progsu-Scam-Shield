@@ -18,4 +18,9 @@ eval/results/*.json
 xcuserdata/
 *.xcuserstate
 DerivedData/
+node_modules/
+photon/dist/
+*.sqlite3
+*.sqlite3-journal
+*.p8
 ios/build/
