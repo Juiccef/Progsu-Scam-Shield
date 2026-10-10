@@ -14,7 +14,7 @@ struct TranscriptLine: Identifiable, Equatable, Sendable {
     var isFinal: Bool
     /// True when the previous line was the other speaker's.
     var startsTurn = true
-    /// Phrases in `text` that Shield flagged. Only ever set on the caller's lines.
+    /// Phrases in `text` that Palisade flagged. Only ever set on the caller's lines.
     var highlights: [String] = []
 }
 
@@ -52,12 +52,12 @@ final class LiveCall: Identifiable {
     /// Most telling first.
     private(set) var rankedFlags: [Flag] = []
     private(set) var lines: [TranscriptLine] = []
-    /// True once the first words are in. Until then Shield has heard nothing to judge, and
+    /// True once the first words are in. Until then Palisade has heard nothing to judge, and
     /// the screens say so rather than call the call normal.
     private(set) var hasSpeech = false
     private(set) var timeline: [RiskPoint] = []
     private(set) var warning: ShieldAction?
-    /// Set when Shield ended the call.
+    /// Set when Palisade ended the call.
     private(set) var ending: ShieldAction?
     private(set) var duration: TimeInterval?
 

@@ -5,7 +5,7 @@ struct Flag: Identifiable, Hashable, Sendable {
     let id: String
 
     var title: String { Self.catalogue[id]?.title ?? id.replacingOccurrences(of: "_", with: " ").capitalized }
-    var detail: String { Self.catalogue[id]?.detail ?? "Shield flagged this as a warning sign." }
+    var detail: String { Self.catalogue[id]?.detail ?? "Palisade flagged this as a warning sign." }
     /// Lower is more telling. Payment and secrecy demands outrank a claimed job title.
     var rank: Int { Self.order.firstIndex(of: id) ?? Self.order.count }
 
@@ -23,7 +23,7 @@ struct Flag: Identifiable, Hashable, Sendable {
         var id: String { title }
     }
 
-    /// Every sign Shield listens for, in the order a scam call tends to go: who the caller
+    /// Every sign Palisade listens for, in the order a scam call tends to go: who the caller
     /// says they are, how they push, and what they are after.
     static let groups = [
         Group(title: "Who They Claim to Be", flags: ["AUTHORITY_IMPERSONATION", "FAMILY_EMERGENCY"].map(Flag.init(id:))),

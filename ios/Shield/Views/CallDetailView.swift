@@ -1,7 +1,7 @@
 import Charts
 import SwiftUI
 
-/// "What happened" on one call: what Shield noticed and what it did. Never what was said.
+/// "What happened" on one call: what Palisade noticed and what it did. Never what was said.
 struct CallDetailView: View {
     let call: CallSummary
 
@@ -25,14 +25,14 @@ struct CallDetailView: View {
                 }
             }
             if !call.flags.isEmpty {
-                Section("What Shield Noticed") {
+                Section("What Palisade Noticed") {
                     ForEach(call.flags) { flag in
                         FlagRow(flag: flag)
                     }
                 }
             }
             if !call.actions.isEmpty {
-                Section("What Shield Did") {
+                Section("What Palisade Did") {
                     ForEach(call.actions, id: \.self) { action in
                         ActionRow(action: action)
                     }
@@ -40,7 +40,7 @@ struct CallDetailView: View {
             }
             Section {
             } footer: {
-                Label("Shield keeps what it detected, not what was said. No audio or transcript of this call was stored.", systemImage: "lock.fill")
+                Label("Palisade keeps what it detected, not what was said. No audio or transcript of this call was stored.", systemImage: "lock.fill")
             }
         }
         .groupedListStyle()
@@ -75,7 +75,7 @@ private struct OutcomeHeader: View {
     }
 }
 
-/// One thing Shield did, and how soon after the words that set it off.
+/// One thing Palisade did, and how soon after the words that set it off.
 private struct ActionRow: View {
     let action: CallSummary.Action
 

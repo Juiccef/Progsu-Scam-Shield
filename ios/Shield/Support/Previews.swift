@@ -15,7 +15,7 @@ import SwiftUI
 
 #Preview("Summary, not connected") {
     MainTabs()
-        .environment(ShieldStore.preview(connection: .failed("Can’t reach the Shield server.")))
+        .environment(ShieldStore.preview(connection: .failed("Can’t reach the Palisade server.")))
 }
 
 #Preview("Calls") {
@@ -40,7 +40,7 @@ import SwiftUI
         .environment(ShieldStore.preview(call: call, isShowingCall: true))
 }
 
-#Preview("Shield ended the call") {
+#Preview("Palisade ended the call") {
     let call = LiveCall.endedByShield
     LiveCallView(call: call)
         .environment(ShieldStore.preview(call: call, isShowingCall: true))

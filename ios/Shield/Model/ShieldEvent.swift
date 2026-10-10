@@ -1,6 +1,6 @@
 import Foundation
 
-/// One event from the Shield server's `/events` feed.
+/// One event from the Palisade server's `/events` feed.
 ///
 /// The server sends a flat JSON object whose fields depend on `type`, so everything
 /// except `type` and `ts` is optional.
@@ -12,7 +12,7 @@ struct ShieldEvent: Decodable, Equatable, Sendable {
     var simulated: Bool?
     var speaker: String?
     var text: String?
-    /// On a caller's line: the phrases in `text` that matched one of Shield's rules.
+    /// On a caller's line: the phrases in `text` that matched one of Palisade's rules.
     var highlights: [String]?
     var isFinal: Bool?
     var t: Double?
@@ -36,7 +36,7 @@ struct ShieldEvent: Decodable, Equatable, Sendable {
     var date: Date { Date(timeIntervalSince1970: ts) }
 }
 
-/// What Shield did about a call: a warning to the caregiver, or ending the call.
+/// What Palisade did about a call: a warning to the caregiver, or ending the call.
 struct ShieldAction: Equatable, Sendable {
     enum Kind: String, Sendable {
         case warn = "WARN"

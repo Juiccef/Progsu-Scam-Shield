@@ -72,7 +72,7 @@ private struct ProtectionCard: View {
     }
 }
 
-/// Whose phone it is, its state in a word, and one line of detail. When Shield is not
+/// Whose phone it is, its state in a word, and one line of detail. When Palisade is not
 /// connected, the way to fix that is offered here, where the problem is stated.
 private struct StatusCard: View {
     let connection: ShieldStore.Connection
@@ -133,11 +133,11 @@ private struct StatusCard: View {
     private var detail: String {
         switch connection {
         case .connected:
-            stats.screened == 0 ? "Shield is screening calls to this number." : tally
+            stats.screened == 0 ? "Palisade is screening calls to this number." : tally
         case .connecting:
-            "Reaching your Shield server."
+            "Reaching your Palisade server."
         case .notConfigured:
-            "Add your Shield server’s address in Settings."
+            "Add your Palisade server’s address in Settings."
         case .failed(let reason):
             "\(reason) Check the address in Settings."
         }
@@ -310,7 +310,7 @@ struct CallRow: View {
     }
 }
 
-/// What came of a call, in gray. Only a call Shield acted on gets a symbol, in its color.
+/// What came of a call, in gray. Only a call Palisade acted on gets a symbol, in its color.
 private struct OutcomeLine: View {
     let look: OutcomeLook
 

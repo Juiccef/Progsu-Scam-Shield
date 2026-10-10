@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The full-screen view of a call in progress. It becomes the "Shield ended the call" screen
-/// the moment Shield hangs up on a scammer.
+/// The full-screen view of a call in progress. It becomes the "Palisade ended the call" screen
+/// the moment Palisade hangs up on a scammer.
 struct LiveCallView: View {
     let call: LiveCall
 
@@ -90,7 +90,7 @@ private struct CallStatusLine: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        // The line takes a few seconds to drop after Shield hangs up. Don't call that "Live".
+        // The line takes a few seconds to drop after Palisade hangs up. Don't call that "Live".
         let phase = call.ending == nil ? call.phase : .ended
         HStack(spacing: 6) {
             HStack(spacing: 6) {
@@ -156,7 +156,7 @@ private struct CallMonitor: View {
             }
             TranscriptArea(call: call, seniorName: seniorName)
                 .frame(minHeight: 120)
-            // A call Shield warned about gets no second card when it ends: the header says it
+            // A call Palisade warned about gets no second card when it ends: the header says it
             // is over, and the warning is still on screen.
             if call.hasEnded, call.warning == nil {
                 CallOverBar()
@@ -166,7 +166,7 @@ private struct CallMonitor: View {
         }
         // Declared on the stack, not on the piece that changes, so that what arrives and what
         // makes room for it move as one. The warning waits a moment for the signs under the
-        // dial, which it replaces, to clear; listed first, it is the one used when Shield warns.
+        // dial, which it replaces, to clear; listed first, it is the one used when Palisade warns.
         .animation(Motion.change.delay(Motion.lead), value: call.warning != nil)
         // The dial and the first words likewise wait for the "Listening" line to clear.
         .animation(Motion.change.delay(Motion.lead), value: call.hasSpeech)
@@ -185,7 +185,7 @@ private struct RiskPanel: View {
         VStack(spacing: 10) {
             RiskDial(risk: call.risk, warnAt: store.warnThreshold, endAt: store.endThreshold)
                 .frame(maxWidth: 196)
-            // Once Shield has warned, its warning says why. Until then these lines do.
+            // Once Palisade has warned, its warning says why. Until then these lines do.
             if call.warning == nil, !call.rankedFlags.isEmpty {
                 VStack(spacing: 2) {
                     ForEach(call.rankedFlags) { flag in
@@ -205,7 +205,7 @@ private struct RiskPanel: View {
     }
 }
 
-/// Shield's warning: why it warned, and the one thing the caregiver can do about it, which is
+/// Palisade's warning: why it warned, and the one thing the caregiver can do about it, which is
 /// to ring the person being called. How the call looks is the dial's to say, just above.
 private struct WarningCard: View {
     let warning: ShieldAction
@@ -260,7 +260,7 @@ private struct TranscriptArea: View {
     }
 }
 
-/// Shown when a call ends on its own and Shield never had to warn.
+/// Shown when a call ends on its own and Palisade never had to warn.
 private struct CallOverBar: View {
     var body: some View {
         Card {
@@ -277,7 +277,7 @@ private struct CallOverBar: View {
     }
 }
 
-// MARK: - After Shield ended the call
+// MARK: - After Palisade ended the call
 
 struct ShieldEndedContent: View {
     let call: LiveCall
@@ -305,7 +305,7 @@ struct ShieldEndedContent: View {
                     .accessibilityHidden(true)
                     .arrives(0, when: hasArrived)
                 VStack(spacing: 8) {
-                    Text("Shield Ended the Call")
+                    Text("Palisade Ended the Call")
                         .font(.largeTitle.weight(.bold))
                         .multilineTextAlignment(.center)
                     Text(explanation)
@@ -393,7 +393,7 @@ private struct ShieldEndedActions: View {
     }
 }
 
-/// How quickly Shield acted, once the server has measured it.
+/// How quickly Palisade acted, once the server has measured it.
 private struct ResponseTime: View {
     let seconds: Double?
 
@@ -424,7 +424,7 @@ private struct ResponseTime: View {
 
 // MARK: - Arriving in order
 
-/// Brings in one piece of the "Shield ended the call" screen, a beat after the piece above it.
+/// Brings in one piece of the "Palisade ended the call" screen, a beat after the piece above it.
 /// This is the one moment in the app that is given time: it is what the caregiver was waiting for.
 private struct Arrives: ViewModifier {
     let order: Int
@@ -444,7 +444,7 @@ private extension View {
     }
 }
 
-// MARK: - Calling the person Shield protects
+// MARK: - Calling the person Palisade protects
 
 /// Dials the protected person. Shows nothing until their number has been added in Settings.
 struct CallSeniorButton: View {

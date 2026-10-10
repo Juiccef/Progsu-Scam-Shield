@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The "Calls" page: every call the server still keeps, newest first, or only the ones
-/// Shield stepped into.
+/// Palisade stepped into.
 struct CallsView: View {
     @Environment(ShieldStore.self) private var store
     @AppStorage(SettingsKey.seniorName) private var seniorName = SettingsKey.defaultSeniorName
@@ -18,11 +18,11 @@ struct CallsView: View {
                         }
                     }
                 } else if !store.history.isEmpty {
-                    // There are calls; none of them is one Shield stepped into.
+                    // There are calls; none of them is one Palisade stepped into.
                     ContentUnavailableView(
                         "No Flagged Calls",
                         systemImage: "hand.raised",
-                        description: Text("Calls Shield warned about or ended show up here.")
+                        description: Text("Calls Palisade warned about or ended show up here.")
                     )
                     .listRowBackground(Color.clear)
                 } else {
@@ -34,7 +34,7 @@ struct CallsView: View {
                         ContentUnavailableView(
                             "Not Connected",
                             systemImage: "exclamationmark.shield",
-                            description: Text("Calls show up here once Shield reaches its server.")
+                            description: Text("Calls show up here once Palisade reaches its server.")
                         )
                         .listRowBackground(Color.clear)
                     case .connecting:
@@ -69,7 +69,7 @@ struct CallsView: View {
 /// Which calls the Calls page lists.
 private enum CallFilter: CaseIterable, Identifiable {
     case all
-    /// The calls Shield warned about or ended.
+    /// The calls Palisade warned about or ended.
     case flagged
 
     var id: Self { self }

@@ -22,12 +22,12 @@ enum ShieldAPIError: LocalizedError {
         switch self {
         case .unauthorized: "The access token was not accepted."
         case .server(let status): "The server answered with error \(status)."
-        case .notAShieldServer: "That address did not answer like a Shield server."
+        case .notAShieldServer: "That address did not answer like a Palisade server."
         }
     }
 }
 
-/// The Shield server's HTTP interface.
+/// The Palisade server's HTTP interface.
 struct ShieldAPI: Equatable, Sendable {
     enum FeedItem: Sendable {
         case connected
@@ -37,7 +37,7 @@ struct ShieldAPI: Equatable, Sendable {
     let baseURL: URL
     let token: String
 
-    /// Builds a client from what the caregiver typed. Accepts "shield.ngrok-free.app" or a full URL.
+    /// Builds a client from what the caregiver typed. Accepts "palisade.ngrok-free.app" or a full URL.
     init?(address: String, token: String) {
         var text = address.trimmingCharacters(in: .whitespacesAndNewlines)
         while text.hasSuffix("/") { text.removeLast() }

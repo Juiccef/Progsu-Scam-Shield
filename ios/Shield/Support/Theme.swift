@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shield's look. Screens are drawn in the system's grouped colors with ordinary black and
+/// Palisade's look. Screens are drawn in the system's grouped colors with ordinary black and
 /// gray text. Green, orange and red each report a state and nothing else: once per card
 /// (its label) and on the dial. What can be tapped is the system's blue, the app's accent
 /// color, so a button is never mistaken for a state.
@@ -20,7 +20,7 @@ enum Theme {
     static let cardRadius: CGFloat = 26
 }
 
-/// How things move. Nothing in Shield is thrown by a finger, so nothing bounces: every change
+/// How things move. Nothing in Palisade is thrown by a finger, so nothing bounces: every change
 /// eases to rest. These three timings are the only ones the app uses.
 enum Motion {
     /// A whole screen arriving or leaving.

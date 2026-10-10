@@ -14,7 +14,7 @@ enum AppTab: Hashable {
     case signs
 }
 
-/// The app's state: the connection to the Shield server, the call in progress, and recent calls.
+/// The app's state: the connection to the Palisade server, the call in progress, and recent calls.
 @Observable
 @MainActor
 final class ShieldStore {
@@ -30,7 +30,7 @@ final class ShieldStore {
     private(set) var call: LiveCall?
     /// The call shown full screen. Set when a call starts; cleared when the caregiver closes it.
     private(set) var presentedCall: LiveCall?
-    /// What Shield just did on the call in progress, for the buzz that goes with it. History
+    /// What Palisade just did on the call in progress, for the buzz that goes with it. History
     /// replayed when the app connects never sets it.
     private(set) var latestAction: ShieldAction?
     /// The page showing under the call screen.
@@ -167,7 +167,7 @@ final class ShieldStore {
         call.apply(event)
         if event.type == "action", isFresh {
             latestAction = event.kind == ShieldAction.Kind.end.rawValue ? call.ending : call.warning
-            // Shield stepping in is what the caregiver has the app for: show it, even if they
+            // Palisade stepping in is what the caregiver has the app for: show it, even if they
             // had put the call screen away.
             if presentedCall == nil { presentedCall = call }
         }
@@ -222,12 +222,12 @@ final class ShieldStore {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .cannotConnectToHost, .cannotFindHost, .timedOut, .networkConnectionLost, .notConnectedToInternet:
-                return "Can’t reach the Shield server."
+                return "Can’t reach the Palisade server."
             default:
                 break
             }
         }
-        return "Something went wrong talking to the Shield server."
+        return "Something went wrong talking to the Palisade server."
     }
 }
 

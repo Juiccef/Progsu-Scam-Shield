@@ -14,7 +14,7 @@ struct SettingsView: View {
             Form {
                 Section {
                     NamedField(name: "Address") {
-                        TextField("Address", text: $serverURL, prompt: Text("shield.example.com"))
+                        TextField("Address", text: $serverURL, prompt: Text("palisade.example.com"))
                             .literalEntry()
                     }
                     NamedField(name: "Access Token") {
@@ -22,9 +22,9 @@ struct SettingsView: View {
                     }
                     ConnectionRow(connection: store.connection)
                 } header: {
-                    Text("Shield Server")
+                    Text("Palisade Server")
                 } footer: {
-                    Text("The address of your Shield server, for example the ngrok address it is running behind.")
+                    Text("The address of your Palisade server, for example the ngrok address it is running behind.")
                 }
 
                 Section {
@@ -36,9 +36,9 @@ struct SettingsView: View {
                             .phoneEntry()
                     }
                 } header: {
-                    Text("Who Shield Protects")
+                    Text("Who Palisade Protects")
                 } footer: {
-                    Text("The number stays on this phone. It is only used for the Call button that appears when Shield warns you about a call or ends one.")
+                    Text("The number stays on this phone. It is only used for the Call button that appears when Palisade warns you about a call or ends one.")
                 }
 
                 Section {
@@ -57,7 +57,7 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Version", value: Bundle.main.versionText)
                 } footer: {
-                    Label("No audio or transcript is stored. Shield keeps what it detected, not what was said.", systemImage: "lock.fill")
+                    Label("No audio or transcript is stored. Palisade keeps what it detected, not what was said.", systemImage: "lock.fill")
                 }
             }
             .formStyle(.grouped)

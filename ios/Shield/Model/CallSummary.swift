@@ -1,7 +1,7 @@
 import Foundation
 
 /// A finished (or running) call as the server summarizes it in `GET /calls`.
-/// It records what Shield detected and did, never what was said.
+/// It records what Palisade detected and did, never what was said.
 struct CallSummary: Decodable, Identifiable, Hashable, Sendable {
     enum Outcome: String, Decodable, Sendable {
         case inProgress = "in_progress"

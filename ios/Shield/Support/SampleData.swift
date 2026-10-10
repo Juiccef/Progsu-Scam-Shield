@@ -82,7 +82,7 @@ extension LiveCall {
         ])
     }
 
-    /// The caller hung up after Shield's warning, before it had grounds to end the call.
+    /// The caller hung up after Palisade's warning, before it had grounds to end the call.
     static var warnedThenOver: LiveCall {
         make(opening + pressure + [.sample("call_ended", at: 24)])
     }
@@ -157,7 +157,7 @@ extension ShieldStore {
         switch name {
         case "home": return preview(history: CallSummary.samples)
         case "home-empty": return preview()
-        case "home-offline": return preview(connection: .failed("Can’t reach the Shield server."))
+        case "home-offline": return preview(connection: .failed("Can’t reach the Palisade server."))
         case "home-call": return preview(call: .suspicious, history: CallSummary.samples)
         case "ringing": return preview(call: .ringing, isShowingCall: true)
         case "calm": return preview(call: .calm, isShowingCall: true)

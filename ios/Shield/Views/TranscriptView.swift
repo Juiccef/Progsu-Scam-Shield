@@ -4,7 +4,7 @@ import SwiftUI
 struct TranscriptView: View {
     let lines: [TranscriptLine]
     let seniorName: String
-    /// The highlighter color for the words Shield flagged, once the call looks risky enough to mark them.
+    /// The highlighter color for the words Palisade flagged, once the call looks risky enough to mark them.
     let markColor: Color?
 
     private static let bottom = "bottom"
@@ -83,7 +83,7 @@ struct TranscriptBubble: View {
         .padding(.top, line.startsTurn ? 10 : 0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(speakerName): \(line.text)")
-        .accessibilityValue(line.highlights.isEmpty ? "" : "Shield flagged: \(line.highlights.formatted(.list(type: .and)))")
+        .accessibilityValue(line.highlights.isEmpty ? "" : "Palisade flagged: \(line.highlights.formatted(.list(type: .and)))")
     }
 
     /// The line with the flagged phrases set in a heavier weight and, once the call looks
@@ -123,7 +123,7 @@ private extension TranscriptLine {
         let isFlagged: Bool
     }
 
-    /// The line cut into the phrases Shield flagged and the words between them, in order.
+    /// The line cut into the phrases Palisade flagged and the words between them, in order.
     var pieces: [Piece] {
         var flagged: [Range<String.Index>] = []
         for phrase in highlights where !phrase.isEmpty {
@@ -151,7 +151,7 @@ private extension TranscriptLine {
     }
 }
 
-/// Marks a run of text as one of the phrases Shield flagged.
+/// Marks a run of text as one of the phrases Palisade flagged.
 @available(iOS 18, macOS 15, *)
 private struct Flagged: TextAttribute {}
 
