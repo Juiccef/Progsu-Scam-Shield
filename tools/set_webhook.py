@@ -54,7 +54,10 @@ def main() -> int:
     )
     print(f"Voice webhook is now:   https://{host}/voice/incoming")
     if host != settings.public_host:
-        print(f"Set PUBLIC_HOST={host} in .env and restart the server, or webhook signatures will not validate.")
+        print(
+            f"The server at that address needs PUBLIC_HOST={host}, or webhook signatures will not validate.\n"
+            "tools/vultr_deploy.py sets it on a Vultr server. For a server on this computer, put it in .env and restart."
+        )
     return 0
 
 
