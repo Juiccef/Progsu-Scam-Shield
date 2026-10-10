@@ -1,6 +1,6 @@
 {
   "meta": {
-    "description": "Synthetic phone call scripts for evaluating Shield's scam scorer. All organizations, names and amounts are fictional. Scam scripts follow commonly documented scam patterns; to add realism, add more scripts based on public scam-awareness materials rather than copying creators' recordings.",
+    "description": "Synthetic phone call scripts for evaluating Palisade's scam scorer. All organizations, names and amounts are fictional. Scam scripts follow commonly documented scam patterns; to add realism, add more scripts based on public scam-awareness materials rather than copying creators' recordings.",
     "speakers": "caller = the person who phoned the senior; senior = the protected person",
     "t": "approximate seconds from call start when the turn begins",
     "trigger_turn": "index of the earliest turn where a careful listener should call the call a likely scam (a judgment call). null for legitimate calls.",

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Run Shield on a Vultr server instead of this computer behind a tunnel.
+"""Run Palisade on a Vultr server instead of this computer behind a tunnel.
 
-    python tools/vultr_deploy.py up        # create the server if there is none, then send Shield to it
-    python tools/vultr_deploy.py push      # send the code and settings again and restart Shield
+    python tools/vultr_deploy.py up        # create the server if there is none, then send Palisade to it
+    python tools/vultr_deploy.py push      # send the code and settings again and restart Palisade
     python tools/vultr_deploy.py status    # where it is and what its /health says
-    python tools/vultr_deploy.py logs      # follow Shield's log on the server (Ctrl+C to stop)
+    python tools/vultr_deploy.py logs      # follow Palisade's log on the server (Ctrl+C to stop)
     python tools/vultr_deploy.py down      # delete the server
 
 Needs VULTR_API_KEY (in .env or the environment) and an SSH key (~/.ssh/id_ed25519.pub
@@ -18,7 +18,7 @@ token, ...) and is git-ignored. VULTR_API_KEY itself is never sent.
 
 The server gets a public https address and a certificate by itself: its IP address as a
 name under sslip.io, or your own domain with --host once its A record points at the server.
-A push restarts Shield, which would drop a call in progress, so it refuses while one is active.
+A push restarts Palisade, which would drop a call in progress, so it refuses while one is active.
 """
 
 from __future__ import annotations
@@ -295,7 +295,7 @@ def wait_for_health(host: str, *, timeout_s: float = 180) -> dict:
             problem = type(exc).__name__
         if time.monotonic() > deadline:
             raise Failure(
-                f"Shield is running on the server, but https://{host}/health does not answer yet ({problem}).\n"
+                f"Palisade is running on the server, but https://{host}/health does not answer yet ({problem}).\n"
                 "The certificate may still be on its way: try `status` in a minute. If it stays this way,\n"
                 "`journalctl -u caddy -n 50` on the server says why. Your own domain (--host) avoids\n"
                 "the limits shared by everyone who uses sslip.io."
@@ -309,7 +309,7 @@ def wait_for_health(host: str, *, timeout_s: float = 180) -> dict:
 def public_host(args: argparse.Namespace, overrides: Mapping[str, Optional[str]], ip: str) -> str:
     host = _host(args.host or overrides.get("PUBLIC_HOST") or sslip_host(ip))
     if not _HOSTNAME.fullmatch(host):
-        raise Failure(f"{host!r} is not a host name. Give it bare, for example shield.example.com.")
+        raise Failure(f"{host!r} is not a host name. Give it bare, for example palisade.example.com.")
     try:
         resolved = socket.gethostbyname(host)
     except OSError:
@@ -358,7 +358,7 @@ def push(args: argparse.Namespace, server: dict) -> int:
     health = wait_for_health(host)
 
     token = env["EVENTS_TOKEN"]
-    print(f"\nShield is running at https://{host}")
+    print(f"\nPalisade is running at https://{host}")
     print(f"  {describe(health)}")
     if health.get("actions") == "dry_run":
         print("  Actions are a dry run, so a real call is not ended. For real calls put")
@@ -402,9 +402,9 @@ def status(api: Vultr, server: dict) -> int:
     print(f"Server: {server['plan']} in {server['region']}, {ip}, {server['status']}")
     print(f"Address: https://{host}")
     try:
-        print(f"Shield: {describe(httpx.get(f'https://{host}/health', timeout=8).json())}")
+        print(f"Palisade: {describe(httpx.get(f'https://{host}/health', timeout=8).json())}")
     except (httpx.HTTPError, ValueError) as exc:
-        print(f"Shield: no answer from https://{host}/health ({type(exc).__name__})")
+        print(f"Palisade: no answer from https://{host}/health ({type(exc).__name__})")
     account = api.call("GET", "/account")["account"]
     print(f"Vultr charges so far this month: ${account.get('pending_charges', 0):.2f}")
     return 0

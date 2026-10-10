@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Sets up Shield on a fresh Ubuntu 24.04 server. tools/vultr_deploy.py copies the code and
+# Sets up Palisade on a fresh Ubuntu 24.04 server. tools/vultr_deploy.py copies the code and
 # .env to /opt/shield and then runs this there as root. Safe to run again.
 #
 #   bash /opt/shield/deploy/vultr-setup.sh <public host>
 #
-# Shield runs as one uvicorn process on 127.0.0.1:8000 (all call state is in memory, so
+# Palisade runs as one uvicorn process on 127.0.0.1:8000 (all call state is in memory, so
 # never more than one). Caddy answers on 443, gets the certificate for <public host> by
 # itself, and passes webhooks, the audio WebSocket and the event feed through.
 set -euo pipefail
@@ -37,10 +37,10 @@ mkdir -p "$APP/logs"
 chown -R shield:shield "$APP"
 chmod 600 "$APP/.env"
 
-echo "== Shield service"
+echo "== Palisade service"
 cat > /etc/systemd/system/shield.service <<EOF
 [Unit]
-Description=Shield scam protection backend
+Description=Palisade scam protection backend
 After=network-online.target
 Wants=network-online.target
 
@@ -72,9 +72,9 @@ fi
 systemctl enable --quiet caddy
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
 
-echo "== checking that Shield answers"
+echo "== checking that Palisade answers"
 if ! curl -fsS --retry 15 --retry-delay 1 --retry-connrefused -o /dev/null http://127.0.0.1:8000/health; then
-  echo "Shield did not start. Its log:" >&2
+  echo "Palisade did not start. Its log:" >&2
   journalctl -u shield -n 40 --no-pager >&2
   exit 1
 fi

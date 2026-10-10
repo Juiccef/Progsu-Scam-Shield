@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Point the Shield proxy number's voice webhook at this server's public address.
+"""Point the Palisade proxy number's voice webhook at this server's public address.
 
     python tools/set_webhook.py                       # uses PUBLIC_HOST from .env
     python tools/set_webhook.py abc.ngrok-free.app

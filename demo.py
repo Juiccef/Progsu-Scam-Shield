@@ -24,7 +24,7 @@ RECOGNITION_DELAY_S = 0.3  # typical lag of streaming speech-to-text
 FINAL_DELAY_S = 0.5  # pause before an utterance is finalized
 PAUSE_BETWEEN_TURNS_S = 0.4
 LINGER_AFTER_LAST_TURN_S = 5.0  # leaves room for a pending confirmation
-LINGER_AFTER_END_S = 2.0  # a real call drops shortly after Shield ends it
+LINGER_AFTER_END_S = 2.0  # a real call drops shortly after Palisade ends it
 DEMO_CALLER = "+15555550123"
 
 

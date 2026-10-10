@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Play an eval script into a running Shield server the way Twilio would. No phone needed.
+"""Play an eval script into a running Palisade server the way Twilio would. No phone needed.
 
     python tools/fake_call.py scam_01_benefits_suspension
     python tools/fake_call.py legit_01_pharmacy_refill --url http://localhost:8000
@@ -140,7 +140,7 @@ async def stream_call(ws_url: str, call_sid: str, token: str, caller: bytes, sen
         hang_up_at = None
         for index in range(len(caller) // FRAME_BYTES):
             if ended.is_set() and hang_up_at is None:
-                hang_up_at = time.monotonic() + 1.0  # a real call drops shortly after Shield ends it
+                hang_up_at = time.monotonic() + 1.0  # a real call drops shortly after Palisade ends it
             if hang_up_at is not None and time.monotonic() >= hang_up_at:
                 break
             chunk = slice(index * FRAME_BYTES, (index + 1) * FRAME_BYTES)
@@ -162,7 +162,7 @@ async def stream_call(ws_url: str, call_sid: str, token: str, caller: bytes, sen
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("script", nargs="?", help="script id from eval/eval-scripts.json (a unique part of it is enough)")
-    parser.add_argument("--url", default="http://localhost:8000", help="where the Shield server is listening")
+    parser.add_argument("--url", default="http://localhost:8000", help="where the Palisade server is listening")
     parser.add_argument("--from", dest="caller", default="+15555550123", help="caller number to present")
     parser.add_argument("--list", action="store_true", help="list the available scripts")
     args = parser.parse_args()
@@ -189,7 +189,7 @@ def main() -> int:
         try:
             health = client.get(base_url + "/health").json()
         except httpx.HTTPError as exc:
-            print(f"No Shield server at {base_url} ({exc}). Start it with: uvicorn main:app --port 8000", file=sys.stderr)
+            print(f"No Palisade server at {base_url} ({exc}). Start it with: uvicorn main:app --port 8000", file=sys.stderr)
             return 1
         if health.get("actions") == "live":
             print("WARNING: the server is not in dry-run mode. A detection will text CAREGIVER_PHONE for real.")
@@ -207,7 +207,7 @@ def main() -> int:
     print(f"Script (what is being said), stt={health.get('stt')}, scorer={health.get('scorer_model')}:")
     for at, speaker, text in spoken:
         print(f"  {at:5.1f}s  {speaker:<6}  {text}")
-    print("\nWhat Shield heard and decided:")
+    print("\nWhat Palisade heard and decided:")
     ended = threading.Event()
     printer = threading.Thread(target=print_events, args=(base_url, settings.events_token, call_sid, ended), daemon=True)
     printer.start()

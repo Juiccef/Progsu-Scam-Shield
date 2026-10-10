@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print Shield's live event feed in a readable form. It stands in for the dashboard for now.
+"""Print Palisade's live event feed in a readable form. It stands in for the dashboard for now.
 
     python tools/watch.py                                   # http://localhost:8000
     python tools/watch.py https://abc.ngrok-free.app --token s3cret
@@ -65,7 +65,7 @@ def describe(event: dict, *, interim: bool = False) -> Optional[str]:
 
 
 def read_events(url: str, token: str = "", *, replay: bool = False) -> Iterator[dict]:
-    """Yield events from a Shield server's /events feed until the connection drops."""
+    """Yield events from a Palisade server's /events feed until the connection drops."""
     params = {"replay": "true" if replay else "false"}
     if token:
         params["token"] = token
