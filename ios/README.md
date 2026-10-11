@@ -107,6 +107,15 @@ last four digits), says what came of the call under it, and ends with when it ca
 the time if that was today, then "Yesterday", the day of the week, or the date. At
 large text sizes the day moves under the rest of the row.
 
+A finished call's page ends with one switch, "Palisade Got This Wrong". On a call
+Palisade warned about or ended, turning it on says the call was not a scam; on one it
+left alone, that it was. The server keeps the mark with the call, and that is all it
+does: nothing is retrained, and no number is trusted or blocked. A marked call's row and
+page then read "Marked as Not a Scam" or "Marked as a Scam", in gray, and Summary stops
+counting it as a scam stopped. The switch is there only when the server keeps marks, so
+it does not show against a server from before them. A save that fails says so and puts
+the switch back.
+
 Texts starts with a card like Summary's: whose texts, how their protection stands in a
 word ("Protected", "Forwarding Paused", "Not Set Up"), and one line saying which number
 is protected. Under it, the texts waiting for a decision ("Needs Review"), the ones that
@@ -216,7 +225,9 @@ Every screen also has an Xcode preview with sample data (`Support/Previews.swift
 so the UI can be worked on with no server running. A debug build shows the same sample
 screens on a simulator or phone with the launch argument `-sample <name>`: `home`,
 `home-empty`, `home-offline`, `home-call`, `calls`, `signs`, `ringing`, `calm`,
-`watchful`, `suspicious`, `warned-over`, `ended` or `detail`. For texts: `texts`,
+`watchful`, `suspicious`, `warned-over`, `ended`, `detail`, `detail-marked` (a call
+marked as one Palisade got wrong) or `detail-ordinary` (a call it left alone); the switch
+on a sample call's page works with no server. For texts: `texts`,
 `texts-paused`, `texts-empty`, `texts-off`, `text-held`, `text-released`,
 `text-delivered`, `alerts` and `home-texts`; a decision on a sample text changes
 it, so Release and Discard can be tried with no server. Three more are a server
