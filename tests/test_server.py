@@ -174,18 +174,19 @@ def test_a_backup_model_stands_behind_the_scorer(tmp_path, monkeypatch, caplog):
     assert build_llm(make_settings(tmp_path, SCORER_MODEL="jev-latest", SCORER_BACKUP_MODEL="jev-latest")).model == "jev-latest"
 
 
-def test_incoming_call_gets_disclosure_stream_and_dial(tmp_path):
+def test_incoming_call_gets_stream_and_dial_with_no_spoken_notice(tmp_path):
     with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
         response = incoming(client)
     twiml = response.text
     assert response.status_code == 200 and response.headers["content-type"].startswith("application/xml")
-    assert "This call is monitored by Palisade, a scam protection service." in twiml
+    assert "monitored" not in twiml and twiml.index("<Start>") < twiml.index("<Dial")  # nothing is said before it rings
+    assert twiml.count("<Say") == 1  # only the goodbye after the dial
     assert f'<Stream track="both_tracks" url="wss://{HOST}/media">' in twiml
     assert f'statusCallback="https://{HOST}/voice/status"' in twiml
     assert 'statusCallbackEvent="initiated ringing answered completed"' in twiml
     assert f">{SENIOR}</Number>" in twiml
-    order = [twiml.index(tag) for tag in ("monitored by Palisade", "<Start>", "<Dial", "Goodbye.", "<Hangup")]
-    assert order == sorted(order)  # disclosure, then stream, then dial, then the fall-through goodbye
+    order = [twiml.index(tag) for tag in ("<Start>", "<Dial", "Goodbye.", "<Hangup")]
+    assert order == sorted(order)  # stream, then dial, then the fall-through goodbye
 
 
 def test_webhooks_reject_bad_or_missing_signatures(tmp_path):

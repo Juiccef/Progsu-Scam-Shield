@@ -134,8 +134,8 @@ texts to a real phone.
 
 Do these in order. Each one is a line or two in the server log.
 
-1. **M0, bridging.** Call the proxy number from a third phone. You hear the
-   disclosure, `SENIOR_PHONE` rings, and both sides can talk.
+1. **M0, bridging.** Call the proxy number from a third phone. You hear
+   ringing, `SENIOR_PHONE` rings, and both sides can talk.
    Log: `incoming call=CA... from=***1234 monitored=True`, then `status leg=CA... status=in-progress`.
 2. **M1, audio.** During that call the log shows `media stream started ... tracks=['inbound', 'outbound']`,
    `media first frame ... track=inbound`, `... track=outbound`, and every 5 seconds
@@ -177,7 +177,7 @@ Palisade carries on: the `action` event is the alert.
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /voice/incoming` | Twilio voice webhook. Returns disclosure, `<Start><Stream track="both_tracks">`, `<Dial>`, then goodbye. |
+| `POST /voice/incoming` | Twilio voice webhook. Returns `<Start><Stream track="both_tracks">`, `<Dial>`, then goodbye. |
 | `POST /voice/status` | Status callbacks. Learns the senior leg's CallSid and when the senior answers. |
 | `POST /sms/status` | Delivery reports for caregiver texts. |
 | `POST /sms/incoming` | Twilio's webhook for a text sent to the proxy number. Answers with empty TwiML: nobody is texted back. |

@@ -44,7 +44,6 @@ from stt import STTFactory, STTResult, STTStream, make_stt_factory
 
 log = logging.getLogger("shield")
 
-DISCLOSURE = "This call is monitored by Palisade, a scam protection service."
 GOODBYE = "Goodbye."
 FINISHED = {"completed", "busy", "no-answer", "failed", "canceled"}
 MEDIA_REPORT_EVERY_S = 5.0
@@ -331,7 +330,7 @@ def create_app(
 
     @app.post("/voice/incoming")
     async def voice_incoming(request: Request) -> Response:
-        """A call reached the proxy number: disclose, start the audio stream, ring the senior."""
+        """A call reached the proxy number: start the audio stream, ring the senior."""
         form = await twilio_form(request)
         call_sid, caller = form.get("CallSid", ""), form.get("From", "")
         host = public_host(request)
@@ -347,7 +346,6 @@ def create_app(
         bus.publish("call_started", call_sid=call_sid, caller=session.caller, monitored=monitored, simulated=False)
         log.info("incoming call=%s from=%s monitored=%s", call_sid, session.caller, monitored)
         if monitored:
-            response.say(DISCLOSURE, **voice)
             stream = response.start().stream(url=f"wss://{host}/media", track="both_tracks")
             stream.parameter(name="token", value=session.token)
         dial_options = {"caller_id": settings.dial_caller_id} if settings.dial_caller_id else {}
