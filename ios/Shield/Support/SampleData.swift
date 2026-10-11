@@ -226,7 +226,7 @@ extension GatewayMessage {
         flags: ["OTP_REQUEST", "FAMILY_EMERGENCY"],
         hold: "scam_signals",
         explanation: "Verify independently before sharing account details or verification codes.",
-        words: "Hi Mom, I dropped my phone and this is my new number. The bank is texting you a code, can you send it to me?",
+        words: "Hi Grandma, I dropped my phone and this is my new number. The bank is texting you a code, can you send it to me?",
         from: "+14045550164"
     )
 

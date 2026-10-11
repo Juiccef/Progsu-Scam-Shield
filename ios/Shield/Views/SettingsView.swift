@@ -56,7 +56,7 @@ struct SettingsView: View {
 
                 Section {
                     NamedField(name: "Name") {
-                        TextField("Name", text: $seniorName, prompt: Text("Mom"))
+                        TextField("Name", text: $seniorName, prompt: Text("Grandma"))
                     }
                     NamedField(name: "Phone Number") {
                         TextField("Phone Number", text: $seniorPhone, prompt: Text("Optional"))

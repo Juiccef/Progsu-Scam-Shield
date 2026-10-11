@@ -253,6 +253,9 @@ private struct TranscriptArea: View {
                 }
             }
             .foregroundStyle(.secondary)
+            // With a long name or large text the line wraps: keep both lines under the symbol.
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Out of the way first, and quickly, before the dial and the first words arrive.
             .transition(.asymmetric(insertion: .opacity, removal: .opacity.animation(Motion.quick)))

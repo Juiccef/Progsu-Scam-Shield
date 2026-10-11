@@ -11,7 +11,7 @@ enum SettingsKey {
     static let appearance = "appearance"
 
     static let defaultServerURL = "http://localhost:8000"
-    static let defaultSeniorName = "Mom"
+    static let defaultSeniorName = "Grandma"
 }
 
 enum ShieldAPIError: LocalizedError {
