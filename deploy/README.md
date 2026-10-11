@@ -11,12 +11,16 @@ and 7 need phones and a Photon account, and are the first time those parts run f
 ## What runs where
 
 - **The Palisade server** (the `shield` service) receives texts sent to the Twilio number,
-  scores them, keeps them encrypted, and sends the approved ones on by SMS from that same
-  number. No second backend is needed.
+  scores them, keeps them encrypted, and queues the approved ones for the senior. No second
+  backend is needed.
 - **The iMessage agent** (`photon/`, the `shield-spectrum` service) sends the caregiver an
-  iMessage when a text is held and answers `HELP`, `STATUS` and `WHY`. It never sees a
-  text's words and never texts the protected person. Without it, text protection still
-  works; the app is then the only place a held text shows up.
+  iMessage when a text is held and answers `HELP`, `STATUS` and `WHY`. Without it, text
+  protection still works; the app is then the only place a held text shows up. In iMessage
+  mode (section 7) it also carries the approved texts to the senior.
+- **How an approved text reaches the senior** is one of two ways, chosen by
+  `TEXT_FORWARD_VIA`: `sms` (the default), by Twilio from the proxy number, which US carriers
+  refuse until the number is registered with them; or `imessage`, through the agent, which
+  needs no carrier registration.
 - **Caddy** passes everything through to the server except `/integrations/`, which the
   agent asks on `127.0.0.1` and which answers 404 from outside.
 
@@ -92,7 +96,7 @@ On the server, as root. `ssh root@<server ip>` gets you there.
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs
 cd /opt/shield/photon && sudo -u shield npm ci --ignore-scripts && sudo -u shield npm run build
 install -d -m 700 /etc/shield
-grep -E '^(SPECTRUM_PROJECT_ID|SPECTRUM_PROJECT_SECRET|PHOTON_LINE|PHOTON_CAREGIVER_ADDRESS|CAREGIVER_PHONE|PHOTON_BRIDGE_TOKEN|TWILIO_PROXY_NUMBER)=' \
+grep -E '^(SPECTRUM_PROJECT_ID|SPECTRUM_PROJECT_SECRET|PHOTON_LINE|PHOTON_CAREGIVER_ADDRESS|CAREGIVER_PHONE|PHOTON_BRIDGE_TOKEN|TWILIO_PROXY_NUMBER|TEXT_FORWARD_VIA|SENIOR_IMESSAGE_ADDRESS|SENIOR_PHONE)=' \
   /opt/shield/.env > /etc/shield/photon.env && chmod 600 /etc/shield/photon.env
 cp /opt/shield/deploy/shield-spectrum.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now shield-spectrum
@@ -116,6 +120,38 @@ of warning and none of the text's words, and `WHY` sent back to it should be ans
 ## 7. Switch forwarding on
 
 Only with people who have agreed to get the texts, and with texts you wrote yourself.
+
+### By iMessage (no carrier registration)
+
+The senior must have an iPhone or Mac signed in to iMessage, and must have agreed that their
+texts pass through Photon: the text and the sender's number go through Photon's service.
+
+1. In Photon, add the senior's iMessage phone or email under Users, and have the senior text
+   their own "Texts on" number once. The conversation has to exist before the agent can write.
+2. In `.env.vultr`:
+
+   ```dotenv
+   TEXT_FORWARD_VIA=imessage
+   SENIOR_IMESSAGE_ADDRESS=      # only if the senior's iMessage is an email or another number than SENIOR_PHONE
+   TEXT_FORWARDING_ENABLED=true
+   DRY_RUN_ACTIONS=false
+   ```
+
+3. Push, then rebuild the agent (section 6, all of it: a push deletes it, and its settings file
+   must be written again so that it knows `TEXT_FORWARD_VIA`).
+4. `tools/vultr_deploy.py status` says `texts: on`, and the app's Texts page says Protected.
+   It says Can't Forward when the agent is not checking in.
+5. Text the Twilio number an ordinary text. It should arrive in the senior's Messages
+   from the Photon number, with "— Palisade screening —" under it. In the app it goes from
+   "Waiting to Be Forwarded" to "Forwarded". It never becomes "Delivered": iMessage does not
+   report that to Palisade.
+6. A scam must stay held until released in the app, and then say "Released after caregiver
+   review."
+
+**Every text already waiting is sent the moment forwarding comes on.** Switching from SMS
+to iMessage moves the ones that are waiting onto iMessage.
+
+### By SMS (needs the number registered)
 
 ```dotenv
 TEXT_FORWARDING_ENABLED=true

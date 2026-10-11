@@ -282,6 +282,17 @@ agent in `photon/` (Photon's Spectrum SDK), sends the caregiver an iMessage and 
 `HELP`, `STATUS` and `WHY`. That message is a fixed sentence that names the kind of
 warning, never the text's words. Releasing and discarding happen in the app only.
 
+**How an approved text reaches the senior** is chosen by `TEXT_FORWARD_VIA`. `sms` (the
+default) sends it by Twilio from the proxy number, which US carriers refuse until the number
+is registered with them (error 30034). `imessage` sends it through the same agent, to the
+senior's iMessage address (`SENIOR_IMESSAGE_ADDRESS`, or `SENIOR_PHONE`), which needs no
+carrier registration but does need the senior to have an iPhone, to be a Photon user, and to
+have agreed that their texts pass through Photon. Exactly one way carries a text; the other
+never sees it. The agent may write to the caregiver and, only in `imessage` mode, to the
+senior, and to nobody else; a text for the senior is handed to it only while forwarding is
+on and the server is not in practice mode. By iMessage a text becomes "Forwarded" and never
+"Delivered": iMessage does not report that to Palisade.
+
 A wrong setting for text protection does not stop the server: it starts without text
 protection, logs why, and `/health` says so (`gateway.error`). Calls come first.
 
@@ -408,8 +419,13 @@ python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --sc
   caller said and nothing the model wrote is ever sent or spoken. The same goes for the
   iMessage about a held text: a fixed sentence and the kinds of warning, never its words.
 - The only numbers Palisade calls or texts are `SENIOR_PHONE` and `CAREGIVER_PHONE`. The
-  iMessage agent writes only to `PHOTON_CAREGIVER_ADDRESS`, which is the caregiver too.
+  iMessage agent writes only to `PHOTON_CAREGIVER_ADDRESS` (the caregiver) and, when
+  `TEXT_FORWARD_VIA=imessage`, to `SENIOR_IMESSAGE_ADDRESS` or `SENIOR_PHONE` (the senior).
   Nobody who texts the proxy number is ever texted back.
+- **In `imessage` mode a text's words pass through Photon.** The agent is handed an approved
+  text, with its sender's number, to send to the senior, which it otherwise never sees. In
+  `sms` mode they pass through Twilio instead. Neither provider's own retention is Palisade's
+  to promise.
 - **Text protection stores what was written, which calls never do.** With it on, a text
   and its sender's whole number are kept in `logs/gateway/queue.sqlite3`, encrypted with
   `GATEWAY_ENCRYPTION_KEY`, until the text is forwarded, discarded or 24 hours old. After
