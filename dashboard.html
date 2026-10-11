@@ -2,214 +2,1551 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Palisade dashboard (temporary)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Palisade</title>
+<!--
+  The web dashboard, served at /dashboard. One file, no build step. It holds no data: it
+  reads this server's feed and lists with the viewer's access token or sign-in.
+
+  The look is the iPhone app's, laid out for a wide screen: a list of pages down the side,
+  and the same words for the same things. Text is black or gray. Blue is for what can be
+  clicked. Green, orange and red each report a state and nothing else. Headings, labels and
+  buttons are in title case. Each thing is said once.
+-->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='20' y1='20' x2='82' y2='84'%3E%3Cstop stop-color='%2333D6C4'/%3E%3Cstop offset='.5' stop-color='%232B8BF0'/%3E%3Cstop offset='1' stop-color='%233D5BE8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='%23fff'/%3E%3Cpath fill='url(%23g)' d='M30.2 16V69.97L21.7 62.66V25.5ZM30.2 16L38.7 25.5V77.28L30.2 69.97ZM50 16V87L41.5 79.69V25.5ZM50 16L58.5 25.5V79.69L50 87ZM69.8 16V69.97L61.3 77.28V25.5ZM69.8 16L78.3 25.5V62.66L69.8 69.97Z'/%3E%3Cpath fill='%2306143F' fill-opacity='.24' d='M30.2 16L38.7 25.5V77.28L30.2 69.97ZM50 16L58.5 25.5V79.69L50 87ZM69.8 16L78.3 25.5V62.66L69.8 69.97Z'/%3E%3C/svg%3E">
 <style>
+  /* The system's own colors, as the app uses them. A state's color has a darker twin for
+     small text on white, where the bright one is too faint to read. */
   :root {
-    --bg: #f4f5f7; --card: #fff; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6eb;
-    --ok: #1f9d55; --warn: #d97706; --bad: #dc2626; --accent: #2563eb;
+    --canvas: #f2f2f7; --surface: #fff; --raised: #fff;
+    --label: #000; --secondary: #6a6a6f; --tertiary: #aeaeb2; --separator: #e5e5ea;
+    --fill: #e9e9eb; --hover: #f5f5f7; --bubble: #f2f2f7; --bubble-own: #e4e4e9;
+    --blue: #0066cc; --blue-fill: #0071e3;
+    --green: #34c759; --orange: #ff9500; --red: #ff3b30; --gray: #8e8e93;
+    --green-text: #1d7f37; --orange-text: #b25000; --red-text: #d70015;
+    --radius: 16px;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #0f1218; --card: #181c25; --ink: #e7eaf0; --muted: #98a1b3; --line: #2a303c; }
+    :root {
+      --canvas: #000; --surface: #1c1c1e; --raised: #636366;
+      --label: #fff; --secondary: #98989d; --tertiary: #636366; --separator: #38383a;
+      --fill: #2c2c2e; --hover: #242426; --bubble: #2c2c2e; --bubble-own: #3a3a3c;
+      --blue: #2997ff;
+      --green: #30d158; --orange: #ff9f0a; --red: #ff453a;
+      --green-text: #30d158; --orange-text: #ff9f0a; --red-text: #ff453a;
+    }
   }
+
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, system-ui, sans-serif; }
-  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
-  header h1 { font-size: 18px; margin: 0; margin-right: auto; }
-  .pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
-  .pill.on { color: var(--ok); border-color: var(--ok); }
-  .pill.off { color: var(--bad); border-color: var(--bad); }
-  .pill.dry { color: var(--warn); border-color: var(--warn); }
-  button.pill { background: none; font: inherit; font-size: 12px; cursor: pointer; color: var(--accent); border-color: var(--accent); }
-  main { display: grid; gap: 16px; padding: 16px 20px; grid-template-columns: minmax(280px, 1fr) minmax(320px, 2fr); max-width: 1200px; margin: 0 auto; }
-  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
-  .span { grid-column: 1 / -1; }
-  .big { font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-  .bar { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 12px 0 4px; position: relative; }
-  .bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .3s, background .3s; }
-  .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .35; }
-  .muted { color: var(--muted); font-size: 13px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 26px; }
-  .chip { font-size: 12px; background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); padding: 3px 9px; border-radius: 99px; }
-  .banner { padding: 10px 14px; border-radius: 8px; font-weight: 600; margin-bottom: 12px; display: none; }
-  .banner.WARN { display: block; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-  .banner.END { display: block; background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
-  #transcript { height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-  .line { padding: 6px 10px; border-radius: 8px; max-width: 85%; }
-  .line.CALLER { background: color-mix(in srgb, var(--bad) 10%, transparent); align-self: flex-start; }
-  .line.SENIOR { background: color-mix(in srgb, var(--accent) 12%, transparent); align-self: flex-end; }
-  .line.interim { opacity: .55; font-style: italic; }
-  .line b { font-size: 11px; display: block; color: var(--muted); font-weight: 600; }
-  svg { width: 100%; height: 90px; display: block; }
-  #log { max-height: 220px; overflow-y: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--muted); }
-  #log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
-  dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--label);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, p { margin: 0; }
+  h1 { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.015em; }
+  h2 { font-size: 18px; line-height: 24px; font-weight: 700; letter-spacing: -0.01em; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--blue-fill); outline-offset: 2px; }
+  .number { font-variant-numeric: tabular-nums; }
+  /* Read out, not seen: what a number or a mark stands for. */
+  .spoken { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* Drawings. An outline for a page or an empty list, a solid shape for a state. */
+  .icon, .glyph { flex: none; width: 20px; height: 20px; }
+  .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .glyph { fill: currentColor; stroke: none; }
+  .glyph .cut { fill: none; stroke: var(--surface); stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .green { color: var(--green); } .orange { color: var(--orange); } .red { color: var(--red); } .gray { color: var(--gray); }
+
+  /* The frame: pages down the side, the page beside them. */
+  .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
+  .sidebar {
+    position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; padding: 18px 12px 16px;
+    background: var(--surface); border-right: 1px solid var(--separator);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 2px 10px 18px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand svg { width: 23px; height: 27px; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav a { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; color: var(--label); }
+  .nav a:hover { background: var(--hover); text-decoration: none; }
+  .nav a[aria-current="page"] { background: var(--fill); color: var(--blue); font-weight: 600; }
+  .nav .tail { display: flex; align-items: center; margin-left: auto; }
+  .count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #d70015; color: #fff; font-size: 12px; font-weight: 600; line-height: 18px; text-align: center; }
+  .live-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+  .side-foot { display: grid; gap: 10px; margin-top: auto; padding: 0 10px; color: var(--secondary); font-size: 13px; }
+  .side-foot .line { display: flex; align-items: center; gap: 8px; color: var(--label); }
+  .side-foot .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-foot .links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .main { min-width: 0; padding: 28px 32px 56px; }
+  .page { max-width: 1180px; margin: 0 auto; }
+  .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; min-height: 36px; margin-bottom: 18px; }
+  .back { display: inline-flex; align-items: center; gap: 2px; margin: 0 0 8px -5px; }
+  .back .icon { width: 18px; height: 18px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 26px 4px 10px; }
+  .page-head + .columns > .column > div:first-child > .section-head:first-child { margin-top: 4px; }
+  .columns { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 24px; align-items: start; }
+  .columns.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .column { display: flex; flex-direction: column; min-width: 0; }
+  .column > :empty { display: none; }
+  .stack { display: grid; gap: 16px; }
+  .stack:empty { display: none; }
+  .for-call:not(:empty):not([hidden]) + .for-system { margin-top: 16px; }
+
+  /* Cards and what goes in them. */
+  .card { background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+  .pad { padding: 16px 18px; }
+  .pad + .pad { border-top: 1px solid var(--separator); }
+  .label { display: flex; align-items: center; gap: 6px; color: var(--secondary); font-size: 13px; font-weight: 600; }
+  .label .glyph { width: 15px; height: 15px; }
+  .label.green { color: var(--green-text); } .label.orange { color: var(--orange-text); } .label.red { color: var(--red-text); }
+  .label.green .glyph { color: var(--green); } .label.orange .glyph { color: var(--orange); } .label.red .glyph { color: var(--red); }
+  .label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .label-row a { font-size: 13px; }
+  .card > .label-row { padding: 16px 18px 4px; }
+  .after { margin-top: 26px; }
+  .headline { margin: 4px 0 2px; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  .detail { color: var(--secondary); font-size: 14px; }
+  .label + p { margin-top: 5px; }
+  .status .button { margin-top: 12px; }
+  .figure { display: flex; align-items: baseline; gap: 4px; margin: 2px 0; }
+  .figure b { font: 600 32px/38px ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .figure span { color: var(--secondary); font-weight: 600; }
+  .footnote { display: flex; gap: 6px; margin: 14px 4px 0; color: var(--secondary); font-size: 13px; }
+  .footnote .glyph { width: 13px; height: 13px; margin-top: 2px; }
+  .notice { margin: -6px 4px 14px; color: var(--secondary); font-size: 14px; }
+  .notice:empty { display: none; }
+
+  /* A list in a card: who or what, how it stands, when. */
+  .rows > * { position: relative; display: flex; align-items: center; gap: 12px; padding: 11px 18px; color: var(--label); }
+  .rows > * + *::before, .table > .tr + .tr::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; height: 1px; background: var(--separator); }
+  .rows > a:hover, .table > a.tr:hover { background: var(--hover); text-decoration: none; }
+  .who { flex: 1; min-width: 0; }
+  .clip { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outcome { display: flex; align-items: center; gap: 5px; color: var(--secondary); font-size: 14px; }
+  .outcome .glyph { width: 14px; height: 14px; }
+  .when { color: var(--secondary); font-size: 14px; white-space: nowrap; }
+  .chevron { width: 16px; height: 16px; color: var(--tertiary); }
+  .fact { justify-content: space-between; }
+  .fact .name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .fact .value { color: var(--secondary); text-align: right; }
+  .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .told { display: block; }
+  .rows > .phone-only { display: none; }
+  .told .detail { display: block; margin-top: 1px; }
+
+  /* A table, for a page that is one. Each row is a link to what it lists. */
+  .thead, .tr { display: grid; grid-template-columns: var(--columns); column-gap: 16px; align-items: center; padding: 0 18px; }
+  .thead { height: 38px; border-bottom: 1px solid var(--separator); color: var(--secondary); font-size: 12px; font-weight: 600; }
+  .tr { position: relative; min-height: 48px; padding-top: 8px; padding-bottom: 8px; color: var(--label); font-size: 14px; }
+  .thead > *, .tr > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tr > .outcome { overflow: visible; }
+  .tr > .outcome > span { overflow: hidden; text-overflow: ellipsis; }
+  .end { justify-self: end; text-align: right; }
+  .quiet { color: var(--secondary); }
+  .calls { --columns: minmax(130px, 1.1fr) minmax(170px, 1.3fr) 118px minmax(120px, 1.5fr) 84px 132px 16px; }
+  .texts { --columns: minmax(130px, 1.1fr) minmax(170px, 1.4fr) 56px minmax(120px, 1.6fr) 132px; }
+  .risk { display: flex; align-items: center; gap: 10px; }
+  .spark { flex: none; width: 64px; height: 18px; fill: none; stroke: var(--gray); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .events { --columns: 92px 190px 64px minmax(0, 1fr); }
+  .events .tr { align-items: baseline; min-height: 0; padding-top: 6px; padding-bottom: 6px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .events .tr > :last-child { white-space: normal; overflow-wrap: anywhere; }
+
+  /* Controls. One filled button to a screen; the rest are quiet. */
+  .button {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 6px 16px;
+    border: 0; border-radius: 980px; background: var(--fill); color: var(--label);
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .button.filled { background: var(--blue-fill); color: #fff; }
+  .button:active { opacity: 0.7; }
+  .text-button { padding: 0; border: 0; background: none; color: var(--blue); font: inherit; cursor: pointer; }
+  .text-button:hover { text-decoration: underline; }
+  select.button {
+    appearance: none; -webkit-appearance: none; width: 128px; padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5l3 3 3-3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
+  }
+  .segmented { display: inline-flex; padding: 2px; border-radius: 980px; background: var(--fill); }
+  .segmented button { min-width: 76px; padding: 5px 14px; border: 0; border-radius: 980px; background: none; color: var(--label); font: inherit; font-size: 14px; cursor: pointer; }
+  .segmented button[aria-pressed="true"] { background: var(--raised); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
+  .switch { flex: none; appearance: none; -webkit-appearance: none; position: relative; width: 44px; height: 26px; margin: 0; border-radius: 13px; background: var(--fill); cursor: pointer; transition: background 0.2s ease-out; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.2s ease-out; }
+  .switch:checked { background: var(--green); }
+  .switch:checked::after { transform: translateX(18px); }
+  .switch:disabled { opacity: 0.6; cursor: default; }
+  .field { width: 190px; max-width: 50%; padding: 5px 10px; border: 0; border-radius: 8px; background: var(--fill); color: var(--label); font: inherit; text-align: right; }
+
+  /* The call in progress: its words on the left, how it looks on the right. */
+  .call-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 4px 12px; }
+  .call-head h2 { font-size: 20px; line-height: 25px; }
+  .status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 1px; color: var(--secondary); font-size: 14px; }
+  .transcript-card { display: flex; flex-direction: column; height: clamp(360px, 62vh, 600px); }
+  .transcript-card .label-row { padding: 14px 18px 2px; }
+  .transcript-card .detail { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+  .transcript-card .detail .glyph { width: 12px; height: 12px; }
+  .transcript {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 6px 18px 16px; overflow-y: auto;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px); mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  }
+  .speaker { margin: 8px 8px 1px; color: var(--secondary); font-size: 12px; }
+  .speaker.own, .bubble.own { align-self: flex-end; }
+  .bubble { align-self: flex-start; max-width: min(78%, 560px); padding: 8px 13px; border-radius: 17px; background: var(--bubble); overflow-wrap: anywhere; }
+  .bubble.own { background: var(--bubble-own); }
+  .bubble.unfinished { color: var(--secondary); }
+  /* A flagged phrase. Until the call looks suspicious it is only set heavier. */
+  mark { margin: 0 -2px; padding: 0 2px; border-radius: 4px; background: none; color: inherit; font-weight: 600; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .transcript.suspicious mark { background: color-mix(in srgb, var(--orange) 26%, transparent); }
+  .transcript.scam mark { background: color-mix(in srgb, var(--red) 24%, transparent); }
+  .waiting { flex: 1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px; color: var(--secondary); font-size: 14px; text-align: center; }
+  .waiting .icon { width: 30px; height: 30px; stroke-width: 1.5; }
+  .dial-card { display: grid; justify-items: center; gap: 10px; padding: 20px 18px 16px; }
+  .dial { position: relative; width: 176px; }
+  .dial svg { display: block; width: 100%; transform: rotate(135deg); }
+  .dial circle { fill: none; stroke-width: 10; stroke-linecap: round; }
+  .dial .track { stroke: var(--fill); }
+  .dial .value { stroke: currentColor; transition: stroke-dasharray 0.35s ease, stroke 0.35s ease; }
+  .dial .level { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 24px; font-size: 20px; line-height: 1.15; font-weight: 700; letter-spacing: -0.01em; text-align: center; }
+  .dial .score { position: absolute; left: 0; right: 0; bottom: 0; color: var(--secondary); font: 600 18px/22px ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; text-align: center; }
+  .signs { color: var(--secondary); font-size: 13px; text-align: center; }
+  .chart { margin-top: 8px; }
+  .chart svg { display: block; overflow: visible; }
+  .chart .scale { stroke: var(--separator); }
+  .chart .threshold { stroke: var(--gray); stroke-dasharray: 4 4; }
+  .chart .line { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .chart text { fill: var(--secondary); font-size: 11px; }
+
+  /* An empty list says what will turn up in it. */
+  .empty { display: grid; justify-items: center; gap: 3px; padding: 44px 24px; color: var(--secondary); text-align: center; }
+  .empty .icon, .empty .glyph { width: 34px; height: 34px; margin-bottom: 8px; stroke-width: 1.4; }
+  .empty strong { color: var(--label); font-size: 17px; }
+  .empty .button { margin-top: 12px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* A narrower window: one column, the call's dial above its words. */
+  @media (max-width: 1080px) {
+    .columns, .columns.even { grid-template-columns: minmax(0, 1fr); }
+    .columns > .column { display: contents; }
+    .for-call { order: 1; margin-bottom: 16px; }
+    .for-words { order: 2; }
+    .for-status { order: 3; }
+    .for-review { order: 4; }
+    .for-recent { order: 5; }
+    .for-system { order: 6; margin-top: 26px; }
+    .page-head + .columns > .column + .column > div:first-child > .section-head:first-child { margin-top: 26px; }
+    .columns > .column > :empty { display: none; }
+  }
+  /* A phone: the pages go to a bar along the bottom, as in the app, and a table becomes a list. */
+  @media (max-width: 760px) {
+    .app { display: block; }
+    .sidebar {
+      position: fixed; z-index: 5; top: auto; right: 0; bottom: 0; left: 0; height: auto; flex-direction: row;
+      padding: 5px 6px calc(5px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--separator);
+    }
+    .brand, .side-foot { display: none; }
+    .rows > .phone-only { display: flex; }
+    .nav { flex: 1; flex-direction: row; gap: 0; }
+    .nav a { position: relative; flex: 1; flex-direction: column; gap: 2px; padding: 4px 2px; font-size: 10.5px; font-weight: 500; text-align: center; }
+    .nav a[aria-current="page"] { background: none; }
+    .nav a .icon { width: 23px; height: 23px; }
+    .nav .tail { position: absolute; top: 1px; left: calc(50% + 7px); margin: 0; }
+    .main { padding: 18px 16px calc(84px + env(safe-area-inset-bottom)); }
+    h1 { font-size: 26px; }
+    .thead { display: none; }
+    .calls .tr, .texts .tr { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who when" "outcome when"; row-gap: 1px; font-size: 15px; }
+    .calls .tr > *, .texts .tr > * { display: none; }
+    .tr > .who { display: block; grid-area: who; }
+    .tr > .outcome { display: flex; grid-area: outcome; }
+    .tr > .when { display: block; grid-area: when; }
+    .events .tr { grid-template-columns: 78px minmax(0, 1fr); }
+    .events .tr > :nth-child(3) { display: none; }
+    .events .tr > :last-child { grid-column: 1 / -1; }
+    .bubble { max-width: 86%; }
+    .field { width: 150px; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Palisade <span class="muted">temporary dashboard</span></h1>
-  <span class="pill" id="p-feed">feed: connecting</span>
-  <span class="pill" id="p-actions">actions: ?</span>
-  <span class="pill" id="p-model">scorer: ?</span>
-  <span class="pill" id="p-stt">stt: ?</span>
-  <span class="pill" id="p-user" hidden></span>
-  <button class="pill" id="sign-in" hidden>Sign In</button>
-  <button class="pill" id="sign-out" hidden>Sign Out</button>
-</header>
-
-<main>
-  <section class="card">
-    <h2>Call</h2>
-    <div id="banner" class="banner"></div>
-    <dl>
-      <dt>Status</dt><dd id="c-status">waiting for a call</dd>
-      <dt>Caller</dt><dd id="c-caller">-</dd>
-      <dt>Audio frames</dt><dd id="c-frames">-</dd>
-      <dt>Timing</dt><dd id="c-timing">-</dd>
-      <dt>Call control</dt><dd id="c-control">-</dd>
-      <dt>Caregiver SMS</dt><dd id="c-sms">-</dd>
-    </dl>
-  </section>
-
-  <section class="card">
-    <h2>Risk</h2>
-    <div class="big" id="risk">-</div>
-    <div class="bar"><i id="risk-bar"></i><span class="tick" style="left:60%"></span><span class="tick" style="left:85%"></span></div>
-    <div class="muted" id="risk-detail">warn at 60, end at 85</div>
-    <div class="chips" id="flags"></div>
-    <svg id="spark" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
-  </section>
-
-  <section class="card span">
-    <h2>Transcript</h2>
-    <div id="transcript"><span class="muted">Nothing yet.</span></div>
-  </section>
-
-  <section class="card span">
-    <h2>Event log</h2>
-    <div id="log"></div>
-  </section>
-</main>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="18 14 64 75" aria-hidden="true">
+        <defs><linearGradient id="stakes" gradientUnits="userSpaceOnUse" x1="20" y1="20" x2="82" y2="84"><stop stop-color="#33D6C4"/><stop offset=".5" stop-color="#2B8BF0"/><stop offset="1" stop-color="#3D5BE8"/></linearGradient></defs>
+        <path fill="url(#stakes)" d="M30.2 16V69.97L21.7 62.66V25.5ZM30.2 16L38.7 25.5V77.28L30.2 69.97ZM50 16V87L41.5 79.69V25.5ZM50 16L58.5 25.5V79.69L50 87ZM69.8 16V69.97L61.3 77.28V25.5ZM69.8 16L78.3 25.5V62.66L69.8 69.97Z"/>
+        <path fill="#06143F" fill-opacity=".24" d="M30.2 16L38.7 25.5V77.28L30.2 69.97ZM50 16L58.5 25.5V79.69L50 87ZM69.8 16L78.3 25.5V62.66L69.8 69.97Z"/>
+      </svg>
+      Palisade
+    </div>
+    <nav class="nav" id="nav" aria-label="Pages"></nav>
+    <div class="side-foot">
+      <div>
+        <div class="line"><span class="dot gray" id="connection-dot"></span><span id="connection">Connecting</span></div>
+        <div class="clip" id="host"></div>
+      </div>
+      <div id="account" hidden></div>
+      <div class="links"><a href="/privacy">Privacy Policy</a><a href="/support">Support</a></div>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<noscript><p style="padding: 24px">This page needs JavaScript to show calls.</p></noscript>
 
 <script>
 "use strict";
-// Everything the page shows that came from a caller (transcript, flags) goes in with
-// textContent, never innerHTML: a scammer controls that text.
+// Everything on this page that came from a caller or a texter (the transcript, a number, a
+// reason) goes in as text, never as HTML: a scammer chooses those words.
+
+const SVG_NS = "http://www.w3.org/2000/svg";
 const $ = (id) => document.getElementById(id);
-const token = new URLSearchParams(location.search).get("token");
-const q = token ? "token=" + encodeURIComponent(token) : "";
 
-let call = null;          // current call_sid
-let points = [];          // [t, risk] for the sparkline
-let interim = {};         // speaker -> element of their non-final line
-
-function resetCall(sid) {
-  call = sid; points = []; interim = {};
-  $("banner").className = "banner"; $("banner").textContent = "";
-  $("transcript").replaceChildren();
-  for (const id of ["c-caller", "c-frames", "c-timing", "c-control", "c-sms"]) $(id).textContent = "-";
-  $("risk").textContent = "-"; $("risk-bar").style.width = "0"; $("flags").replaceChildren();
-  $("risk-detail").textContent = "warn at 60, end at 85"; drawSpark();
-}
-
-function riskColor(r) { return r >= 85 ? "var(--bad)" : r >= 60 ? "var(--warn)" : "var(--ok)"; }
-
-function drawSpark() {
-  const svg = $("spark");
-  if (!points.length) { svg.replaceChildren(); return; }
-  const tmax = Math.max(20, points[points.length - 1][0]);
-  const xy = points.map(([t, r]) => (t / tmax * 300).toFixed(1) + "," + (90 - r * 0.9).toFixed(1)).join(" ");
-  svg.innerHTML =
-    '<line x1="0" x2="300" y1="36" y2="36" stroke="currentColor" opacity=".2" stroke-dasharray="3"/>' +
-    '<line x1="0" x2="300" y1="13.5" y2="13.5" stroke="currentColor" opacity=".2" stroke-dasharray="3"/>' +
-    '<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="' + xy + '"/>';  // numbers only
-}
-
-function addLine(speaker, text, final) {
-  const box = $("transcript");
-  const placeholder = box.querySelector(".muted");
-  if (placeholder) placeholder.remove();
-  let el = interim[speaker];
-  if (!el) {
-    el = document.createElement("div");
-    const who = document.createElement("b"); who.textContent = speaker;
-    const body = document.createElement("span");
-    el.append(who, body); box.append(el);
+/** An element. `props` are attributes, with `class`, `text` and `on...` listeners; children are nodes or text. */
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (value == null || value === false) continue;
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value === true ? "" : value);
   }
-  el.className = "line " + speaker + (final ? "" : " interim");
-  el.lastChild.textContent = text;
-  interim[speaker] = final ? null : el;
-  box.scrollTop = box.scrollHeight;
+  node.append(...children.flat(Infinity).filter((child) => child != null && child !== false));
+  return node;
 }
 
-function logLine(ev) {
-  const row = document.createElement("div");
-  const time = new Date(ev.ts * 1000).toLocaleTimeString();
-  const { type, ts, call_sid, text, ...rest } = ev;
-  row.textContent = time + "  " + type + "  " + (type === "transcript" ? "(" + ev.speaker + ")" : JSON.stringify(rest));
-  const log = $("log"); log.prepend(row);
-  while (log.children.length > 200) log.lastChild.remove();
+/** Fills a box anew. Lists are taken apart, and what is not there (null, false) is left out. */
+function put(box, ...children) {
+  box.replaceChildren(...children.flat(Infinity).filter((child) => child != null && child !== false));
 }
 
-function onEvent(ev) {
-  if (ev.type === "media") return;                       // noisy, shown in the call card instead
-  if (ev.type === "call_marked") { logLine(ev); return; } // a mark on an earlier call: the call card is not about it
-  if (ev.type === "call_started") resetCall(ev.call_sid);
-  else if (ev.call_sid && ev.call_sid !== call) resetCall(ev.call_sid);
-  if (ev.type !== "transcript" || ev.final) logLine(ev);
+function svg(tag, attributes, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attributes || {})) if (value != null) node.setAttribute(key, value);
+  node.append(...children.flat(Infinity).filter(Boolean));
+  return node;
+}
 
-  switch (ev.type) {
-    case "call_started":
-      $("c-status").textContent = "ringing"; $("c-caller").textContent = ev.caller + (ev.monitored ? "" : " (allowlisted, not monitored)"); break;
-    case "stream_started": $("c-status").textContent = "audio streaming"; break;
-    case "call_answered": $("c-status").textContent = "in progress (senior answered)"; break;
-    case "transcript": addLine(ev.speaker, ev.text, ev.final); break;
-    case "score": {
-      const r = Math.round(ev.risk);
-      $("risk").textContent = r; $("risk").style.color = riskColor(r);
-      $("risk-bar").style.width = Math.min(100, r) + "%"; $("risk-bar").style.background = riskColor(r);
-      $("risk-detail").textContent = "rules " + (ev.rule_risk ?? "-") + "  |  llm " + (ev.llm_risk ?? "-") +
-        (ev.llm_latency_ms ? " (" + ev.llm_latency_ms + " ms)" : "") + (ev.llm_error ? "  [llm error: " + ev.llm_error + "]" : "");
-      const flags = $("flags"); flags.replaceChildren();
-      for (const f of ev.flags || []) { const c = document.createElement("span"); c.className = "chip"; c.textContent = f; flags.append(c); }
-      points.push([ev.t, r]); drawSpark(); break;
-    }
-    case "action": {
-      const b = $("banner"); b.className = "banner " + ev.kind;
-      b.textContent = ev.kind === "END" ? "Palisade ended this call" : "Palisade warned the caregiver";
-      break;
-    }
-    case "action_result":
-      $("c-timing").textContent = ev.seconds != null ? ev.seconds.toFixed(1) + " s from utterance to " + ev.kind : "-";
-      if (ev.call_control) $("c-control").textContent = ev.call_control;
-      if (ev.sms) $("c-sms").textContent = ev.sms; break;
-    case "sms_status":
-      $("c-sms").textContent = ev.status + (ev.error_code ? " (error " + ev.error_code + ")" : ""); break;
-    case "stt_error": $("c-status").textContent = "speech-to-text error: " + ev.error; break;
-    case "call_ended":
-      $("c-status").textContent = "ended: " + ev.outcome.replaceAll("_", " ") + " after " + Math.round(ev.duration_s) + " s"; break;
+// The page's own drawings, on a 24 by 24 grid. This fixed markup is the only HTML the script parses.
+const OUTLINES = {
+  summary: '<path d="M12 3l7.5 2.8v5.5c0 4.4-3 8-7.5 9.7-4.5-1.7-7.5-5.3-7.5-9.7V5.8L12 3z"/><path d="M8.8 12.1l2.3 2.3 4.2-4.6"/>',
+  calls: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  texts: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  log: '<path d="M8.5 6H21M8.5 12H21M8.5 18H21M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  system: '<rect x="3" y="3.5" width="18" height="7" rx="2"/><rect x="3" y="13.5" width="18" height="7" rx="2"/><path d="M7 7h.01M7 17h.01"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  back: '<path d="M15 6l-6 6 6 6"/>',
+  wave: '<path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4"/>',
+};
+const SHIELD = "M12 2.6l7.8 2.9v5.9c0 4.6-3.1 8.4-7.8 10.1-4.7-1.7-7.8-5.5-7.8-10.1V5.5L12 2.6z";
+const HANDSET = '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>';
+const GLYPHS = {
+  protected: `<path d="${SHIELD}"/><path class="cut" d="M8.7 12.2l2.3 2.3 4.4-4.8"/>`,
+  attention: `<path d="${SHIELD}"/><path class="cut" d="M12 7.4v5.2M12 16.3h.01"/>`,
+  shield: `<path d="${SHIELD}"/>`,
+  // A raised hand, the sign for something stopped. An X on a shield could be read as protection that failed.
+  hand: '<rect x="7.4" y="3.4" width="2.3" height="10" rx="1.15"/><rect x="10.1" y="2.2" width="2.3" height="11" rx="1.15"/><rect x="12.8" y="3" width="2.3" height="10" rx="1.15"/><rect x="15.5" y="5.2" width="2.3" height="8" rx="1.15"/><path d="M7.4 11h10.4v4.4a6.4 6.4 0 0 1-6.4 6.4 6 6 0 0 1-4-1.5z"/><path d="M8.4 17.7L4.7 13.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>',
+  warning: '<path d="M12 4.6l8.4 14.6H3.6z" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path class="cut" d="M12 9.6v4.3M12 16.9h.01"/>',
+  phone: HANDSET,
+  hangup: `<g transform="rotate(135 12 12)">${HANDSET}</g>`,
+  check: '<circle cx="12" cy="12" r="9.6"/><path class="cut" d="M8.1 12.3l2.6 2.6 5.1-5.4"/>',
+  marked: '<circle cx="12" cy="12" r="9.6"/><path class="cut" d="M16 15.2a4.2 4.2 0 0 0-4.2-4.2H8.2M10.6 8.4L8 11l2.6 2.6"/>',
+  lock: '<rect x="5.2" y="10.6" width="13.6" height="10" rx="2.6"/><path d="M8.3 10.6V8a3.7 3.7 0 0 1 7.4 0v2.6" fill="none" stroke="currentColor" stroke-width="2"/>',
+};
+
+function icon(name, className = "") {
+  const filled = name in GLYPHS;
+  const node = svg("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", class: (filled ? "glyph " : "icon ") + className });
+  node.innerHTML = filled ? GLYPHS[name] : OUTLINES[name];
+  return node;
+}
+
+// ---------- what the page knows ----------
+
+const store = {
+  connection: "connecting",   // connecting, connected, signedOut, refused, failed
+  reason: "",                 // the server's sentence, when it turned someone away
+  email: "",
+  health: null,               // GET /health, which anyone may read
+  calls: null,                // null until the server has answered
+  texts: null,                // null on a server that holds no texts
+  scripts: [],                // the demo calls this server offers
+  settled: new Set(),         // calls that were over before this page looked
+  live: new Map(),            // call_sid -> the call as the feed has told it
+  shown: null,                // the call on Summary
+  log: [],                    // recent events, newest first
+  clockAhead: 0,              // seconds this browser's clock runs ahead of the server's
+  callFilter: "all",
+  notice: "",
+};
+
+// How the page names the protected person, like the Name setting in the app. Kept in this browser.
+const NAME_KEY = "palisade.name";
+const DEFAULT_NAME = "Grandma";
+function seniorName() {
+  try { return (localStorage.getItem(NAME_KEY) || "").trim() || DEFAULT_NAME; } catch (e) { return DEFAULT_NAME; }
+}
+
+const warnAt = () => store.health?.warn_threshold ?? 60;
+const endAt = () => store.health?.end_threshold ?? 85;
+const serverNow = () => Date.now() / 1000 - store.clockAhead;
+/** True for an event that just happened, false for one replayed from before the page was opened. */
+const isNew = (event) => event.ts >= serverNow() - 4;
+
+// ---------- the app's words for what the server sends ----------
+
+// Every warning sign, most telling first: a demand for payment outranks a claimed job title.
+const SIGNS = {
+  UNUSUAL_PAYMENT: ["Gift Cards, Wire or Crypto", "The caller asked to be paid in a way that can’t be traced or reversed."],
+  SAFE_ACCOUNT_TRANSFER: ["“Safe Account” Transfer", "The caller asked to move money into an account they control."],
+  REMOTE_ACCESS: ["Remote Access", "The caller asked to install software or take control of a device."],
+  OTP_REQUEST: ["Verification Code", "The caller asked for a one-time code that was sent by text."],
+  CREDENTIAL_REQUEST: ["SSN, PIN or Password", "The caller asked for a full account number, PIN, password or Social Security number."],
+  SECRECY: ["Demands Secrecy", "The caller said not to tell family or the bank."],
+  FAMILY_EMERGENCY: ["Relative in Trouble", "The caller claimed a family member urgently needs money."],
+  PRIZE_OR_REFUND: ["Prize or Refund Bait", "The caller promised money in exchange for a fee."],
+  VERIFICATION_AVOIDANCE: ["Discourages Checking", "The caller argued against hanging up to verify the story."],
+  THREAT: ["Threats", "The caller threatened arrest, a shutoff or legal action."],
+  STAY_ON_LINE: ["Won’t Let Them Hang Up", "The caller insisted on staying on the line."],
+  URGENCY_PRESSURE: ["Time Pressure", "The caller demanded action right away."],
+  AUTHORITY_IMPERSONATION: ["Claims to Be an Official", "The caller said they were from the government, a bank or a company."],
+};
+const SIGN_RANK = Object.keys(SIGNS);
+const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+const signTitle = (id) => SIGNS[id]?.[0] ?? String(id).split("_").map(capitalized).join(" ");
+const signDetail = (id) => SIGNS[id]?.[1] ?? "Palisade flagged this as a warning sign.";
+function ranked(ids) {
+  const rank = (id) => (SIGN_RANK.includes(id) ? SIGN_RANK.indexOf(id) : SIGN_RANK.length);
+  return [...(ids || [])].sort((a, b) => rank(a) - rank(b));
+}
+
+/** How worried to be, given the risk score and the server's two thresholds. */
+function riskLevel(risk) {
+  if (risk >= endAt()) return { title: "Likely Scam", tint: "red" };
+  if (risk >= warnAt()) return { title: "Suspicious", tint: "orange" };
+  if (risk >= 30) return { title: "Listening Closely", tint: "gray" };
+  return { title: "Looks Normal", tint: "green" };
+}
+
+const steppedInto = (call) => call.outcome === "warned" || call.outcome === "ended_by_shield";
+
+/** A call as every list and page names it. Only one Palisade acted on gets a sign in a list. */
+function callLook(call) {
+  if (call.marked_wrong) {
+    // The caregiver's word, not something to act on: gray, like an ordinary call.
+    return { title: steppedInto(call) ? "Marked as Not a Scam" : "Marked as a Scam", glyph: "marked", tint: "gray", notable: false };
+  }
+  // The line takes a few seconds to drop after Palisade hangs up. The list should not call that a call in progress.
+  const outcome = call.outcome === "in_progress" && store.live.get(call.call_sid)?.ending ? "ended_by_shield" : call.outcome;
+  switch (outcome) {
+    case "ended_by_shield": return { title: "Scam Call Stopped", glyph: "hand", tint: "red", notable: true };
+    case "warned": return { title: "Suspicious Call", glyph: "warning", tint: "orange", notable: true };
+    case "in_progress": return { title: "Call in Progress", glyph: "phone", tint: "green", notable: true };
+    default: return { title: "Ordinary Call", glyph: "check", tint: "gray", notable: false };
   }
 }
 
-// Frame counts come from the throttled "media" events; show them without logging every one.
-function onMedia(ev) { const f = ev.frames || {}; $("c-frames").textContent = Object.entries(f).map(([k, v]) => k + " " + v).join(", "); }
+/** Where a text stands, in the app's words. */
+function textLook(text) {
+  const caution = (title) => ({ title, glyph: "warning", tint: "orange", notable: true });
+  const plain = (title) => ({ title, glyph: "check", tint: "gray", notable: false });
+  switch (text.status) {
+    case "held":
+      switch (text.hold_reason) {
+        case "analysis_incomplete": return caution("Could Not Be Checked");
+        case "unsupported_content": return caution("Has an Attachment");
+        case "message_too_long": return caution("Too Long to Forward");
+        case "transport_changed": return caution("Old Record");
+        default:
+          return text.label === "likely_scam" ? { title: "Likely Scam", glyph: "hand", tint: "red", notable: true } : caution("Suspicious Text");
+      }
+    case "pending": return plain("Checking");
+    case "queued": return plain("Waiting to Be Forwarded");
+    case "sending": return plain("Forwarding");
+    case "sent": return plain("Forwarded");
+    case "delivered": return plain("Delivered");
+    case "delivery_failed": return caution("Not Delivered");
+    case "delivery_unknown": return caution("Delivery Not Confirmed");
+    case "discarded": return plain("Discarded");
+    case "expired": return plain("Expired");
+    default: return plain(String(text.status || "").split("_").map(capitalized).join(" "));
+  }
+}
 
-// Sign-in. The server says whether it wants one and which Auth0 tenant to use (GET /auth/config).
+/** The server masks a number to "***1234". A demo call has no caller, and saying so is how it is marked. */
+function describeCaller(masked, isDemo) {
+  if (isDemo) return "Demo Call";
+  const digits = String(masked || "").replace(/\D/g, "");
+  return digits ? "Number ending " + digits : "Unknown Number";
+}
+function describeSender(masked) {
+  const digits = String(masked || "").replace(/\D/g, "");
+  return digits ? "Number ending " + digits : "Unknown Sender";
+}
+
+const sentence = (text) => (!text || /[.!?]$/.test(text) ? text || "" : text + ".");
+const counted = (count, one, many) => count + " " + (count === 1 ? one : many);
+const clockTime = new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" });
+const daysAgo = (date) => Math.round((new Date().setHours(0, 0, 0, 0) - new Date(date).setHours(0, 0, 0, 0)) / 86400000);
+
+/** When something came in, the way a phone's recent calls say it. */
+function when(seconds) {
+  if (!seconds) return "";
+  const date = new Date(seconds * 1000), days = daysAgo(date);
+  if (days <= 0) return clockTime.format(date);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return date.toLocaleDateString([], { weekday: "long" });
+  return date.toLocaleDateString([], { month: "numeric", day: "numeric", year: "2-digit" });
+}
+/** The same, with the time kept, for a table that has the room. */
+function whenExactly(seconds) {
+  if (!seconds) return "";
+  const date = new Date(seconds * 1000), days = daysAgo(date);
+  if (days <= 0) return clockTime.format(date);
+  const day = days === 1 ? "Yesterday" : date.toLocaleDateString([], { month: "short", day: "numeric" });
+  return day + ", " + clockTime.format(date);
+}
+function fullDate(seconds) {
+  const date = new Date(seconds * 1000);
+  return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) + " at " + clockTime.format(date);
+}
+function lasted(seconds) {
+  const whole = Math.max(0, Math.round(seconds));
+  return whole < 60 ? whole + " sec" : Math.floor(whole / 60) + " min " + (whole % 60) + " sec";
+}
+const stopwatch = (seconds) => Math.floor(seconds / 60) + ":" + String(Math.floor(seconds % 60)).padStart(2, "0");
+
+/** "typesafe:jev-1.13.0, then claude-haiku-4-5" as "Jev 1.13.0, then Claude Haiku 4.5". Anything else as it came. */
+function modelName(spec) {
+  return String(spec || "").split(", then ").map((one) => {
+    if (/^(rules|none)$/i.test(one)) return "Rules Only";
+    const id = one.slice(one.indexOf(":") + 1);
+    const jev = /^jev-(.+)$/.exec(id), claude = /^claude-([a-z]+)-(\d+)-(\d+)$/.exec(id);
+    if (jev) return jev[1] === "latest" ? "Jev" : "Jev " + jev[1];
+    if (claude) return "Claude " + capitalized(claude[1]) + " " + claude[2] + "." + claude[3];
+    return one;
+  }).join(", then ");
+}
+
+// ---------- a call in progress, rebuilt event by event ----------
+
+class LiveCall {
+  /** `listed` is the call as GET /calls has it, for a call the feed is already part-way through. */
+  constructor(sid, listed) {
+    this.sid = sid;
+    this.caller = listed?.caller ?? "unknown";
+    this.isDemo = Boolean(listed?.simulated);
+    this.monitored = listed?.monitored ?? true;
+    this.answeredAt = listed?.answered_at ?? null;
+    this.phase = this.answeredAt ? "talking" : "ringing";
+    this.risk = 0;
+    this.flags = [];
+    this.lines = [];          // the transcript: live only, never stored
+    this.open = {};           // speaker -> the line they are still saying
+    this.timeline = [];       // [seconds into the call, risk]
+    this.warning = null;
+    this.ending = null;       // set when Palisade ended the call
+    this.problem = "";
+    this.stale = false;           // true when a new connection is about to tell the call again from its start
+    this.putAway = false;         // true once the viewer has closed it
+  }
+
+  get hasSpeech() { return this.lines.length > 0; }
+  get isOver() { return this.phase === "ended"; }
+  /** True once nothing more is coming: the line dropped, or Palisade hung up and it is about to. */
+  get isDone() { return this.isOver || this.ending !== null; }
+
+  /** Takes in one event. Gives back the line of the transcript it added to or changed, if it did. */
+  apply(event) {
+    switch (event.type) {
+      case "call_started":
+        this.caller = event.caller ?? this.caller;
+        this.isDemo = Boolean(event.simulated);
+        this.monitored = event.monitored !== false;
+        break;
+      case "call_answered":
+        this.answeredAt = event.ts;
+        if (this.phase === "ringing") this.phase = "talking";
+        break;
+      case "transcript":
+        if (this.phase === "ringing") this.phase = "talking";
+        return this.hear(event);
+      case "rule_hit":
+        this.notice(event.flags);
+        // The rules answer before the model does: move the dial now, not a second later.
+        this.risk = Math.max(this.risk, event.rule_risk || 0);
+        break;
+      case "score":
+        this.notice(event.flags);
+        if (event.risk != null) { this.risk = event.risk; this.timeline.push([event.t || 0, event.risk]); }
+        break;
+      case "action": {
+        const action = { reason: event.reason || "", seconds: null };
+        this.notice(event.flags);
+        if (event.kind === "END") this.ending = action; else if (event.kind === "WARN") this.warning = action;
+        break;
+      }
+      case "action_result": {
+        const action = event.kind === "END" ? this.ending : this.warning;
+        if (action) action.seconds = event.seconds ?? null;
+        break;
+      }
+      case "stt_error":
+        this.problem = String(event.error || "");
+        break;
+      case "call_ended":
+        this.phase = "ended";
+        for (const line of this.lines) line.final = true;
+        this.open = {};
+        break;
+    }
+    return null;
+  }
+
+  notice(flags) {
+    for (const id of flags || []) if (!this.flags.includes(id)) this.flags.push(id);
+  }
+
+  /** One line of the transcript. A line still being said is replaced as the speaker goes on. */
+  hear(event) {
+    if (!event.text || (event.speaker !== "CALLER" && event.speaker !== "SENIOR")) return null;
+    let line = this.open[event.speaker];
+    if (!line) {
+      const last = this.lines[this.lines.length - 1];
+      line = { id: this.lines.length, speaker: event.speaker, startsTurn: !last || last.speaker !== event.speaker };
+      this.lines.push(line);
+    }
+    line.text = event.text;
+    line.final = event.final !== false;
+    line.highlights = event.highlights || [];
+    this.open[event.speaker] = line.final ? null : line;
+    return line;
+  }
+}
+
+const callInProgress = () => [...store.live.values()].find((call) => !call.isOver && !call.putAway) || null;
+const shownCall = () => (store.shown && store.live.get(store.shown)) || null;
+
+// ---------- pages ----------
+
+const PAGES = {
+  summary: { title: "Summary", icon: "summary", build: buildSummary },
+  calls: { title: "Calls", icon: "calls", build: buildCalls },
+  texts: { title: "Texts", icon: "texts", build: buildTexts, offered: () => Boolean(store.health?.gateway?.enabled || store.health?.gateway?.error) },
+  log: { title: "Event Log", icon: "log", build: buildLog },
+  system: { title: "System", icon: "system", build: buildSystem },
+};
+
+function route() {
+  const [page, id = ""] = location.hash.replace(/^#\/?/, "").split("/");
+  try {
+    return { page: Object.hasOwn(PAGES, page) ? page : "summary", id: decodeURIComponent(id) };
+  } catch (e) {
+    return { page: "summary", id: "" };       // an address nobody made: not worth an error
+  }
+}
+function go(page) {
+  if (route().page !== page) location.hash = "#/" + page;
+}
+
+// The parts of the page on screen that can be filled again by themselves when their facts change.
+const slots = new Map();
+let panel = null;       // the call on screen, while Summary is up
+let callBoxes = null;   // where on Summary it goes
+let logRows = null;     // the Event Log's rows, while that page is up
+
+function slot(name, fill, className = "") {
+  const box = el("div", { class: className });
+  slots.set(name, () => fill(box));
+  fill(box);
+  return box;
+}
+function refresh(...names) {
+  for (const name of names.length ? names : [...slots.keys()]) slots.get(name)?.();
+}
+
+function render() {
+  const { page, id } = route();
+  slots.clear();
+  panel = null;
+  callBoxes = null;
+  logRows = null;
+  fillNav();
+  document.title = page === "summary" ? "Palisade" : PAGES[page].title + " · Palisade";
+  $("main").replaceChildren(PAGES[page].build(id));
+  panel?.follow();      // a call's words open at the newest of them
+}
+
+function fillNav() {
+  const current = route().page;
+  const held = (store.texts || []).filter((text) => text.status === "held").length;
+  $("nav").replaceChildren(...Object.entries(PAGES).filter(([, page]) => !page.offered || page.offered()).map(([id, page]) => {
+    let tail = null;
+    if (id === "summary" && [...store.live.values()].some((call) => !call.isDone && !call.putAway)) {
+      tail = el("span", { class: "tail" }, el("span", { class: "live-dot" }), el("span", { class: "spoken", text: ", call in progress" }));
+    } else if (id === "texts" && held) {
+      tail = el("span", { class: "tail" }, el("span", { class: "count", text: String(held) }), el("span", { class: "spoken", text: " to review" }));
+    }
+    return el("a", { href: "#/" + id, "aria-current": id === current ? "page" : null }, icon(page.icon), el("span", { text: page.title }), tail);
+  }));
+}
+
+function fillFoot() {
+  const lines = {
+    connecting: ["gray", "Connecting"], connected: ["green", "Connected"], failed: ["orange", "Reconnecting"],
+    signedOut: ["gray", "Not Signed In"], refused: ["orange", "No Access"],
+  };
+  const [tint, text] = lines[store.connection];
+  $("connection-dot").className = "dot " + tint;
+  $("connection").textContent = text;
+  $("host").textContent = location.host;
+  $("account").hidden = !signIn;
+  $("account").replaceChildren(...account());
+}
+
+/** Who is signed in and the way out, or the way in. Nothing on a server that asks for no sign-in. */
+function account() {
+  if (!signIn) return [];
+  if (!store.email && store.connection !== "refused") return [el("button", { class: "text-button", type: "button", text: "Sign In", onclick: startSignIn })];
+  return [
+    el("div", { class: "clip", text: store.email }),
+    el("button", { class: "text-button", type: "button", text: "Sign Out", onclick: signOut }),
+  ];
+}
+
+const label = (title, glyph, tint = "") => el("div", { class: "label " + tint }, glyph && icon(glyph), el("span", { text: title }));
+const head = (title, ...right) => el("header", { class: "page-head" }, el("h1", { text: title }), ...right);
+const section = (title, ...right) => el("div", { class: "section-head" }, el("h2", { text: title }), ...right);
+const footnote = (text) => el("p", { class: "footnote" }, icon("lock"), el("span", { text }));
+const empty = (drawing, title, detail, action) =>
+  el("div", { class: "empty" }, icon(drawing), el("strong", { text: title }), detail && el("span", { text: detail }), action);
+const signInButton = () => el("button", { class: "button filled", type: "button", text: "Sign In", onclick: startSignIn });
+
+/** What came of a call or a text, in gray. Only one Palisade acted on gets a sign, in its color. */
+function outcome(look) {
+  return el("span", { class: "outcome" }, look.notable && icon(look.glyph, look.tint), el("span", { text: look.title }));
+}
+
+/** Why a page that needs the server has nothing to show, or null when it has. */
+function closedBecause(things) {
+  switch (store.connection) {
+    case "connected": return null;
+    // Not known to be empty yet: say nothing for the moment it takes.
+    case "connecting": return el("div");
+    case "signedOut": return el("div", { class: "card" }, empty("attention", "Not Signed In", things + " show up here once you sign in.", signInButton()));
+    case "refused": return el("div", { class: "card" }, empty("attention", "No Access", store.reason));
+    default:
+      if (store.calls) return null;      // the connection dropped: what was read stays up while it comes back
+      return el("div", { class: "card" }, empty("attention", "Not Connected", things + " show up here once this page reaches the Palisade server."));
+  }
+}
+
+// ---------- Summary ----------
+
+function buildSummary() {
+  // A call takes three places on the page: its name above, its words on the left, how it looks on the right.
+  callBoxes = { head: el("div"), words: el("div", { class: "for-words" }), side: el("div", { class: "for-call stack" }) };
+  slots.set("call", placeCall);
+  placeCall();
+  return el("div", { class: "page" },
+    head("Summary", slot("demo", fillDemo)),
+    slot("notice", fillNotice, "notice"),
+    callBoxes.head,
+    el("div", { class: "columns" },
+      el("div", { class: "column" },
+        callBoxes.words,
+        slot("status", fillStatus, "for-status"),
+        slot("review", fillReview, "for-review"),
+        slot("recent", fillRecent, "for-recent")),
+      el("aside", { class: "column" },
+        callBoxes.side,
+        slot("system", fillSystemCard, "for-system"))));
+}
+
+/** The demo calls the server offers, in the system's own menu. */
+function fillDemo(box) {
+  if (store.connection !== "connected" || !store.scripts.length) { put(box); return; }
+  // "scam_05_utility_shutoff" as "Utility Shutoff".
+  const title = (id) => id.split("_").slice(2).map((word) => (word === "otp" ? "OTP" : capitalized(word))).join(" ") || id;
+  const group = (name, scripts) =>
+    scripts.length ? el("optgroup", { label: name }, scripts.map((script) => el("option", { value: script.id, text: title(script.id) }))) : null;
+  const menu = el("select", { class: "button", "aria-label": "Start a demo call" },
+    el("option", { value: "", text: "Demo Call", selected: true, disabled: true, hidden: true }),
+    group("Scam Calls", store.scripts.filter((script) => script.label === "scam")),
+    group("Ordinary Calls", store.scripts.filter((script) => script.label !== "scam")));
+  menu.addEventListener("change", () => {
+    const script = menu.value;
+    menu.value = "";
+    if (script) startDemoCall(script);
+  });
+  put(box, menu);
+}
+
+async function startDemoCall(script) {
+  try {
+    await ask("/demo/call?script=" + encodeURIComponent(script), { method: "POST" });
+  } catch (refused) {
+    // The server's own words: "A demo call is already running".
+    notify(sentence(refused.detail) || "The demo call could not be started.");
+  }
+}
+
+let noticeTimer = 0;
+function notify(text) {
+  store.notice = text;
+  refresh("notice");
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => { store.notice = ""; refresh("notice"); }, 6000);
+}
+function fillNotice(box) {
+  box.setAttribute("role", "status");
+  box.textContent = store.notice;
+}
+
+/** Whose phone it is, its state in a word, and one line of detail. */
+function fillStatus(box) {
+  if (shownCall()) { put(box); return; }     // the call says it all while it is up
+  const state = standing();
+  put(box, el("div", { class: "card pad status" },
+    label(seniorName() + "’s Phone", state.glyph, state.tint),
+    el("div", { class: "headline", text: state.title }),
+    el("div", { class: "detail", text: state.detail }),
+    state.action));
+}
+
+function standing() {
+  const health = store.health;
+  switch (store.connection) {
+    case "connecting":
+      return { glyph: "shield", tint: "gray", title: "Connecting", detail: "Reaching your Palisade server." };
+    case "signedOut":
+      return { glyph: "attention", tint: "orange", title: "Not Signed In", detail: store.reason || "Sign in to see calls to this phone.", action: signInButton() };
+    case "refused":
+      return { glyph: "attention", tint: "orange", title: "No Access", detail: store.reason };
+    case "failed":
+      return { glyph: "attention", tint: "orange", title: "Not Connected", detail: (store.reason || "Can’t reach the Palisade server.") + " Trying again." };
+  }
+  // What would keep Palisade from doing its job on a call, most serious first.
+  const wrong = !health ? "" :
+    !health.twilio_configured ? "The server has no phone service set up, so calls cannot reach it." :
+    !health.senior_phone_set ? "The server has no phone number to protect." :
+    !health.stt ? "Speech-to-text is not set up, so Palisade cannot hear calls." : "";
+  if (wrong) return { glyph: "attention", tint: "orange", title: "Needs Attention", detail: wrong };
+  if (health?.actions === "dry_run") {
+    return { glyph: "attention", tint: "orange", title: "Practice Mode", detail: "Palisade shows what it would do, but does not end real calls." };
+  }
+  return { glyph: "protected", tint: "green", title: "Protected", detail: tally() };
+}
+
+/** "11 calls screened, 3 scams stopped". A count of zero is left out, and so are demo calls. */
+function tally() {
+  let screened = 0, stopped = 0, warned = 0;
+  for (const call of store.calls || []) {
+    if (call.simulated || call.outcome === "in_progress") continue;
+    screened += 1;
+    // A call the caregiver marked as not a scam is not counted as a scam stopped.
+    if (call.outcome === "ended_by_shield" && !call.marked_wrong) stopped += 1;
+    if (call.outcome === "warned") warned += 1;
+  }
+  if (!screened) return "Palisade is screening calls to this number.";
+  const parts = [counted(screened, "call", "calls") + " screened"];
+  if (stopped) parts.push(counted(stopped, "scam", "scams") + " stopped");
+  if (warned) parts.push(counted(warned, "warning", "warnings"));
+  return parts.join(", ");
+}
+
+/** One call in a list: who called, what came of it, and when. */
+function callRow(call) {
+  return el("a", { href: "#/calls/" + encodeURIComponent(call.call_sid) },
+    el("span", { class: "who" }, el("span", { class: "clip", text: describeCaller(call.caller, call.simulated) }), outcome(callLook(call))),
+    el("span", { class: "when", text: when(call.started_at) }),
+    icon("chevron", "chevron"));
+}
+
+function fillRecent(box) {
+  const shown = 5, calls = store.calls;
+  // The list is fetched as the page connects. Until then it is not known to be empty.
+  if (!calls) { put(box); return; }
+  if (!calls.length) {
+    put(box, section("Recent Calls"),
+      el("div", { class: "card" }, empty("calls", "No Calls Yet", "Calls to " + seniorName() + "’s phone show up here.")));
+    return;
+  }
+  put(box,
+    section("Recent Calls", calls.length > shown && el("a", { href: "#/calls", text: "Show All" })),
+    el("div", { class: "card rows" }, calls.slice(0, shown).map(callRow)));
+}
+
+/** The texts Palisade is holding for the caregiver's decision. Nothing while there are none. */
+function fillReview(box) {
+  const held = (store.texts || []).filter((text) => text.status === "held");
+  if (!held.length) { put(box); return; }
+  put(box,
+    section("Texts to Review", held.length > 3 && el("a", { href: "#/texts", text: "Show All" })),
+    el("div", { class: "card rows" }, held.slice(0, 3).map((text) =>
+      el("a", { href: "#/texts" },
+        el("span", { class: "who" }, el("span", { class: "clip", text: describeSender(text.sender) }), outcome(textLook(text))),
+        el("span", { class: "when", text: when(text.ts) }),
+        icon("chevron", "chevron")))));
+}
+
+function fillSystemCard(box) {
+  const facts = systemFacts().flatMap((group) => group.facts).filter((fact) => fact.brief);
+  if (!facts.length) { put(box); return; }
+  put(box, el("div", { class: "card" },
+    el("div", { class: "label-row" }, label("System"), el("a", { href: "#/system", text: "Show All" })),
+    el("div", { class: "rows" }, facts.map(factRow))));
+}
+
+// ---------- the call on Summary ----------
+
+function closeCall() {
+  const call = shownCall();
+  if (call) {
+    // Its words go with it. A call Palisade has just hung up on stays known, unseen, until its line drops.
+    call.putAway = true;
+    call.lines = [];
+    if (call.isOver) store.live.delete(call.sid);
+  }
+  store.shown = callInProgress()?.sid ?? null;
+  refresh("call", "status");
+  fillNav();
+}
+
+/** Puts the call that is shown on Summary, or takes away the one that no longer is. */
+function placeCall() {
+  if (!callBoxes) return;
+  const call = shownCall();
+  if (!call) {
+    panel = null;
+    for (const box of Object.values(callBoxes)) put(box);
+    return;
+  }
+  if (!panel || panel.call !== call) {
+    panel = new CallPanel(call);
+    callBoxes.head.replaceChildren(panel.head);
+    callBoxes.words.replaceChildren(panel.words);
+    callBoxes.side.replaceChildren(panel.dialCard, panel.notes, panel.chartCard);
+    syncCall();
+    panel.follow();
+  } else {
+    syncCall();
+  }
+}
+
+function syncCall() {
+  if (!panel || !callBoxes) return;
+  panel.sync();
+  // Before the first words there is nothing to say about how the call looks.
+  callBoxes.side.hidden = panel.dialCard.hidden && panel.chartCard.hidden && !panel.notes.childElementCount;
+}
+
+/** The slim three-quarter ring: its color and the word in it are the risk level, and the score sits in its opening. */
+class Dial {
+  constructor() {
+    this.around = 2 * Math.PI * 54;
+    this.arc = svg("circle", { class: "value", cx: 60, cy: 60, r: 54 });
+    this.ring = svg("svg", { viewBox: "0 0 120 120", "aria-hidden": "true" },
+      svg("circle", { class: "track", cx: 60, cy: 60, r: 54, "stroke-dasharray": 0.75 * this.around + " " + this.around }), this.arc);
+    this.level = el("div", { class: "level" });
+    this.score = el("div", { class: "score" });
+    this.root = el("div", { class: "dial", role: "img" }, this.ring, this.level, this.score);
+  }
+
+  set(risk) {
+    const level = riskLevel(risk), share = Math.min(Math.max(risk, 0), 100) / 100;
+    this.arc.style.strokeDasharray = 0.75 * this.around * share + " " + this.around;
+    this.arc.style.opacity = risk > 0 ? 1 : 0;
+    this.ring.setAttribute("class", level.tint);
+    this.level.textContent = level.title;
+    this.score.textContent = String(risk);
+    this.root.setAttribute("aria-label", "Scam risk: " + risk + " out of 100, " + level.title);
+  }
+}
+
+class CallPanel {
+  constructor(call) {
+    this.call = call;
+    this.bubbles = new Map();       // a line's id -> its bubble
+    this.title = el("h2");
+    this.status = el("div", { class: "status-line" });
+    this.clock = el("span", { class: "number" });
+    this.done = el("button", { class: "button", type: "button", text: "Done", onclick: closeCall });
+    this.head = el("div", { class: "call-head" }, el("div", {}, this.title, this.status), this.done);
+    this.dial = new Dial();
+    this.signs = el("div", { class: "signs" });
+    this.dialCard = el("div", { class: "card dial-card" }, this.dial.root, this.signs);
+    // Read out when it changes: the warning, and how the call ended.
+    this.notes = el("div", { class: "stack", "aria-live": "polite" });
+    this.chart = riskChart(() => this.call.timeline, () => this.tint());
+    this.chartCard = el("div", { class: "card pad" }, label("Risk During the Call"), this.chart);
+    // It changes many times a second, so it is there to be read, not read out as it changes.
+    this.lines = el("div", { class: "transcript", role: "log", "aria-live": "off", "aria-label": "Transcript", tabindex: "0" });
+    this.waiting = el("div", { class: "waiting" });
+    this.words = el("div", { class: "card transcript-card" },
+      el("div", { class: "label-row" }, label("Transcript"), el("span", { class: "detail" }, icon("lock"), "Shown live, never stored")),
+      this.waiting, this.lines);
+    for (const line of call.lines) this.say(line);
+  }
+
+  /** The color of the call: how it looks while it runs, and how it came out once Palisade ended it. */
+  tint() {
+    return this.call.ending ? "red" : riskLevel(this.call.risk).tint;
+  }
+
+  sync() {
+    const call = this.call, name = seniorName();
+    this.title.textContent = "Call to " + name;
+    // The line takes a few seconds to drop after Palisade hangs up. That is not "Live".
+    const phase = call.ending ? "ended" : call.phase;
+    const said = (text) => el("span", { text });
+    // While the feed is down the page cannot say the call is still going.
+    const live = store.connection === "connected" ? [el("span", { class: "live-dot" }), said("Live"), this.clock] : said("Reconnecting");
+    put(this.status,
+      phase === "ringing" ? said("Ringing") : phase === "talking" ? live : said("Call Ended"),
+      said("·"), said(describeCaller(call.caller, call.isDemo)));
+    this.tick();
+    this.done.hidden = !call.isDone;
+
+    // No dial until the first words are in: "Looks Normal" would be a claim made about silence.
+    this.dialCard.hidden = !call.hasSpeech || call.ending !== null;
+    this.dial.set(call.risk);
+    // Once Palisade has warned, its warning says why. Until then these lines do.
+    put(this.signs, ...(call.warning ? [] : ranked(call.flags).map((id) => el("div", { text: signTitle(id) }))));
+    this.signs.hidden = !this.signs.childElementCount;
+    const news = JSON.stringify([call.warning, call.ending, call.problem, call.isOver, name]);
+    if (news !== this.noted) {
+      this.noted = news;
+      put(this.notes, ...this.notesFor(call, name));
+    }
+    this.chartCard.hidden = call.timeline.length < 2;
+    if (this.drawn !== call.timeline.length || this.drawnTint !== this.tint()) {
+      this.drawn = call.timeline.length;
+      this.drawnTint = this.tint();
+      this.chart.redraw();
+    }
+
+    // A call that ended before anyone spoke has no words to show.
+    this.words.hidden = call.isDone && !call.hasSpeech;
+    this.lines.hidden = !call.hasSpeech;
+    this.waiting.hidden = call.hasSpeech;
+    this.lines.className = "transcript" + (call.risk >= endAt() ? " scam" : call.risk >= warnAt() ? " suspicious" : "");
+    if (!call.hasSpeech) {
+      put(this.waiting, ...(!call.monitored
+        ? ["This number is on the server’s trusted list, so Palisade is not listening."]
+        : call.phase === "ringing" ? [icon("calls"), "Waiting for " + name + " to pick up"] : [icon("wave"), "Listening"]));
+    }
+    for (const [id, bubble] of this.bubbles) bubble.classList.toggle("unfinished", !call.lines[id].final);
+  }
+
+  notesFor(call, name) {
+    const notes = [];
+    const said = (text) => el("p", { text });
+    if (call.ending) {
+      notes.push(el("div", { class: "card" },
+        el("div", { class: "pad" },
+          label("Scam Call Stopped", "hand", "red"),
+          el("div", { class: "headline", text: "Palisade Ended the Call" }),
+          el("div", { class: "detail", text: call.isDemo
+            ? "On a real call, " + name + " would hear a short safety message and the caller would be disconnected."
+            : name + " heard a short safety message, then the caller was disconnected." })),
+        // Measured a moment after the hang-up.
+        call.ending.seconds != null && el("div", { class: "pad" },
+          label("Response Time"),
+          el("div", { class: "figure" }, el("b", { text: call.ending.seconds.toFixed(1) }), el("span", { text: "sec" })),
+          el("div", { class: "detail", text: "From the caller’s request to the hang-up." })),
+        el("div", { class: "pad" }, label("Why"), said(call.ending.reason || "This call looked like a scam."))));
+      return notes;
+    }
+    if (call.warning) {
+      notes.push(el("div", { class: "card pad" }, label("Warning", "warning", "orange"), said(call.warning.reason || "This call looks suspicious.")));
+    }
+    if (call.problem) {
+      notes.push(el("div", { class: "card pad" }, label("Can’t Hear the Call", "attention", "orange"), said(sentence(capitalized(call.problem.charAt(0)) + call.problem.slice(1)))));
+    }
+    if (call.isOver) {
+      // A call that ended on its own says so, whether or not Palisade warned about it.
+      notes.push(call.warning
+        ? el("div", { class: "card pad" }, label("Call Ended", "hangup", "gray"), el("p", { class: "detail", text: "The call ended on its own. Palisade did not end it." }))
+        : !call.monitored || !call.hasSpeech
+        ? el("div", { class: "card pad" }, label("Call Ended", "hangup", "gray"), el("p", { class: "detail", text: call.monitored ? "The call ended before anyone spoke." : "Palisade did not listen to this call." }))
+        : el("div", { class: "card pad" }, label("Call Ended", "check", "green"), el("p", { class: "detail", text: "Nothing suspicious was detected." })));
+    }
+    return notes;
+  }
+
+  /** Puts one line of the transcript on screen, or brings it up to date. */
+  say(line) {
+    const atEnd = this.isAtEnd();
+    let bubble = this.bubbles.get(line.id);
+    if (!bubble) {
+      const own = line.speaker === "SENIOR" ? " own" : "";
+      if (line.startsTurn) this.lines.append(el("div", { class: "speaker" + own, text: own ? seniorName() : "Caller" }));
+      bubble = el("div", { class: "bubble" + own });
+      this.bubbles.set(line.id, bubble);
+      this.lines.append(bubble);
+    }
+    bubble.classList.toggle("unfinished", !line.final);
+    // Each flagged phrase is an exact slice of the line, in the order it was said.
+    let rest = line.text;
+    const parts = [];
+    for (const phrase of line.highlights) {
+      const at = phrase ? rest.indexOf(phrase) : -1;
+      if (at < 0) continue;
+      parts.push(rest.slice(0, at), el("mark", { text: phrase }));
+      rest = rest.slice(at + phrase.length);
+    }
+    put(bubble, ...parts, rest);
+    // Follow new lines only while the reader is at the bottom.
+    if (atEnd) this.follow();
+  }
+
+  isAtEnd() {
+    return this.lines.scrollHeight - this.lines.scrollTop - this.lines.clientHeight < 48;
+  }
+  follow() {
+    this.lines.scrollTop = this.lines.scrollHeight;
+  }
+
+  tick() {
+    const call = this.call;
+    this.clock.textContent = call.answeredAt && call.phase === "talking" && !call.ending ? stopwatch(Math.max(0, serverNow() - call.answeredAt)) : "";
+  }
+}
+
+// ---------- charts ----------
+
+/** A smooth line through the points that never overshoots them. */
+function curve(points) {
+  points = points.filter((point, i) => !i || point[0] > points[i - 1][0]);
+  const count = points.length;
+  if (count < 3) return "M" + points.map((point) => point.join(",")).join("L");
+  const run = [], rise = [];
+  for (let i = 0; i < count - 1; i++) {
+    run[i] = points[i + 1][0] - points[i][0];
+    rise[i] = (points[i + 1][1] - points[i][1]) / run[i];
+  }
+  const slope = [rise[0]];
+  for (let i = 1; i < count - 1; i++) slope[i] = rise[i - 1] * rise[i] <= 0 ? 0 : (2 * rise[i - 1] * rise[i]) / (rise[i - 1] + rise[i]);
+  slope[count - 1] = rise[count - 2];
+  const fixed = (value) => Math.round(value * 10) / 10;
+  let path = "M" + points[0].join(",");
+  for (let i = 0; i < count - 1; i++) {
+    const [x0, y0] = points[i], [x1, y1] = points[i + 1], third = run[i] / 3;
+    path += `C${fixed(x0 + third)},${fixed(y0 + slope[i] * third)} ${fixed(x1 - third)},${fixed(y1 - slope[i + 1] * third)} ${x1},${y1}`;
+  }
+  return path;
+}
+
+/** Scores at the same moment keep the later one, so the line never doubles back. */
+function inOrder(timeline) {
+  const points = [];
+  for (const [t, risk] of timeline || []) {
+    if (points.length && t <= points[points.length - 1][0]) points[points.length - 1][1] = risk; else points.push([t, risk]);
+  }
+  return points;
+}
+
+let chartCount = 0;
+
+/** Risk over the length of a call, against the two thresholds. Redrawn to fit whenever its box changes width. */
+function riskChart(timeline, tint) {
+  const box = el("div", { class: "chart" });
+  box.redraw = () => {
+    const width = box.clientWidth;
+    if (width) put(box, drawChart(inOrder(timeline()), tint(), width));
+  };
+  new ResizeObserver(box.redraw).observe(box);
+  return box;
+}
+
+function drawChart(points, tint, width) {
+  const height = 178, left = 4, right = 30, top = 18, bottom = 40;
+  const length = Math.max(20, points.length ? points[points.length - 1][0] : 0);
+  const x = (t) => Math.round((left + (t / length) * (width - left - right)) * 10) / 10;
+  const y = (risk) => Math.round((top + (1 - Math.min(Math.max(risk, 0), 100) / 100) * (height - top - bottom)) * 10) / 10;
+  const words = (text, at, baseline, anchor) => svg("text", { x: at, y: baseline, "text-anchor": anchor }, text);
+  const peak = points.reduce((most, point) => Math.max(most, point[1]), 0);
+  const chart = svg("svg", { class: tint, width, height, viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": `Risk during the call. Peaked at ${peak} out of 100.` });
+  // The two thresholds are the lines to read, so the grid keeps out of their way: only the top and bottom of the scale.
+  for (const value of [0, 100]) {
+    chart.append(svg("line", { class: "scale", x1: left, x2: width - right, y1: y(value), y2: y(value) }), words(String(value), width - right + 7, y(value) + 4));
+  }
+  // Reference lines, so they stay gray: the color is the call's.
+  for (const [value, name] of [[warnAt(), "Warns"], [endAt(), "Ends the Call"]]) {
+    chart.append(svg("line", { class: "threshold", x1: left, x2: width - right, y1: y(value), y2: y(value) }), words(name, left, y(value) - 5));
+  }
+  const step = [5, 10, 15, 30, 60, 120, 300, 600].find((size) => length / size <= 6) || 900;
+  for (let t = 0; t <= length; t += step) chart.append(words(String(t), x(t), height - bottom + 16, t ? "middle" : "start"));
+  chart.append(words("Seconds into the Call", left, height - 5));
+  if (points.length > 1) {
+    const plotted = points.map(([t, risk]) => [x(t), y(risk)]), line = curve(plotted), shade = "shade" + ++chartCount;
+    chart.append(
+      svg("defs", {}, svg("linearGradient", { id: shade, x1: 0, y1: 0, x2: 0, y2: 1 },
+        svg("stop", { offset: 0, "stop-color": "currentColor", "stop-opacity": 0.22 }),
+        svg("stop", { offset: 1, "stop-color": "currentColor", "stop-opacity": 0.02 }))),
+      svg("path", { d: `${line}L${plotted[plotted.length - 1][0]},${y(0)}L${plotted[0][0]},${y(0)}Z`, fill: `url(#${shade})` }),
+      svg("path", { class: "line", d: line }));
+  }
+  return chart;
+}
+
+/** The same risk line with nothing around it, for a row in a table. */
+function sparkline(timeline) {
+  const points = inOrder(timeline);
+  if (points.length < 2) return null;
+  const length = points[points.length - 1][0] || 1;
+  const plotted = points.map(([t, risk]) => (1 + (t / length) * 62).toFixed(1) + "," + (17 - (Math.min(Math.max(risk, 0), 100) / 100) * 16).toFixed(1));
+  return svg("svg", { class: "spark", viewBox: "0 0 64 18", "aria-hidden": "true" }, svg("polyline", { points: plotted.join(" ") }));
+}
+
+// ---------- Calls ----------
+
+function buildCalls(id) {
+  return id ? buildCall(id) : el("div", { class: "page" }, head("Calls", slot("filter", fillCallFilter)), slot("calls", fillCalls));
+}
+
+function fillCallFilter(box) {
+  if (!store.calls?.length) { put(box); return; }
+  const choice = (id, title) => el("button", {
+    type: "button", text: title, "aria-pressed": String(store.callFilter === id),
+    onclick: () => { store.callFilter = id; refresh("filter", "calls"); },
+  });
+  put(box, el("div", { class: "segmented", role: "group", "aria-label": "Show" }, choice("all", "All"), choice("flagged", "Flagged")));
+}
+
+function fillCalls(box) {
+  const closed = closedBecause("Calls");
+  if (closed) { put(box, closed); return; }
+  if (!store.calls) { put(box); return; }
+  const calls = store.callFilter === "flagged" ? store.calls.filter(steppedInto) : store.calls;
+  if (!calls.length) {
+    put(box, el("div", { class: "card" }, store.calls.length
+      ? empty("calls", "No Flagged Calls", "Calls Palisade warned about or ended show up here.")
+      : empty("calls", "No Calls Yet", "Calls to " + seniorName() + "’s phone show up here.")));
+    return;
+  }
+  const said = (name, text) => [el("span", { class: "spoken", text: name + " " }), text];
+  put(box, el("div", { class: "card table calls" },
+    el("div", { class: "thead", "aria-hidden": "true" },
+      el("span", { text: "Caller" }), el("span", { text: "Outcome" }), el("span", { text: "Peak Risk" }),
+      el("span", { text: "What Palisade Noticed" }), el("span", { text: "Length" }), el("span", { class: "end", text: "When" }), el("span")),
+    calls.map((call) => {
+      const signs = ranked(call.flags);
+      return el("a", { class: "tr", href: "#/calls/" + encodeURIComponent(call.call_sid) },
+        el("span", { class: "who", text: describeCaller(call.caller, call.simulated) }),
+        outcome(callLook(call)),
+        call.monitored === false
+          ? el("span", { class: "quiet", text: "Not Monitored" })
+          : el("span", { class: "risk number" }, sparkline(call.timeline) || el("span", { class: "spark" }), said("Peak risk", String(call.peak_risk ?? 0))),
+        el("span", {}, signs.length ? [signTitle(signs[0]), signs.length > 1 && el("span", { class: "quiet", text: " +" + (signs.length - 1) })] : ""),
+        el("span", { class: "number quiet", text: call.duration_s != null ? lasted(call.duration_s) : "" }),
+        el("span", { class: "when end", text: whenExactly(call.started_at) }),
+        icon("chevron", "chevron"));
+    })));
+}
+
+/** "What Happened" on one call: what Palisade noticed and what it did. Never what was said. */
+function buildCall(id) {
+  return el("div", { class: "page" },
+    el("a", { class: "back", href: "#/calls" }, icon("back"), "Calls"),
+    head("What Happened"),
+    slot("call-page", (box) => fillCallPage(box, id)));
+}
+
+function fillCallPage(box, id) {
+  const closed = closedBecause("Calls");
+  if (closed) { put(box, closed); return; }
+  const call = store.calls?.find((one) => one.call_sid === id);
+  if (!call) {
+    put(box, store.calls ? el("div", { class: "card" }, empty("calls", "Call Not Found", "The server no longer lists this call.")) : "");
+    return;
+  }
+  const look = callLook(call), signs = ranked(call.flags), points = inOrder(call.timeline);
+  const left = [], right = [];
+  if (points.length > 1) {
+    left.push(section("Risk During the Call"), el("div", { class: "card pad" }, riskChart(() => call.timeline, () => look.tint)));
+  }
+  if (signs.length) {
+    right.push(section("What Palisade Noticed"), el("div", { class: "card rows" },
+      signs.map((sign) => el("div", { class: "told" }, signTitle(sign), el("span", { class: "detail", text: signDetail(sign) })))));
+  }
+  if (call.actions?.length) {
+    right.push(section("What Palisade Did"), el("div", { class: "card rows" }, call.actions.map((action) =>
+      el("div", { class: "told" }, action.kind === "END" ? "Ended the Call" : "Warned the Caregiver",
+        action.seconds != null && el("span", { class: "detail", text: action.seconds.toFixed(1) + " seconds after the caller’s request" })))));
+  }
+  // Only a call that is over can be marked, and only on a server that keeps marks.
+  const mark = call.marked_wrong != null && call.outcome !== "in_progress" ? markCard(call) : null;
+  (left.length || !right.length ? left : right).push(mark);
+  put(box,
+    el("div", { class: "card pad" },
+      label(look.title, look.glyph, look.tint),
+      el("div", { class: "headline", text: describeCaller(call.caller, call.simulated) }),
+      el("div", { class: "detail" }, call.started_at && el("div", { text: fullDate(call.started_at) }), call.duration_s != null && el("div", { text: "Lasted " + lasted(call.duration_s) }))),
+    left.length && right.length ? el("div", { class: "columns even" }, el("div", { class: "column" }, left), el("div", { class: "column" }, right)) : [...left, ...right],
+    footnote("Palisade keeps what it detected, not what was said. No audio or transcript of this call was stored."));
+}
+
+/** The caregiver's say on a call: one switch that marks it as a call Palisade got wrong. A mark and no more. */
+function markCard(call) {
+  const problem = el("p", { class: "footnote", role: "status" });
+  const input = el("input", { type: "checkbox", class: "switch", role: "switch", id: "mark" });
+  input.checked = Boolean(call.marked_wrong);
+  input.addEventListener("change", async () => {
+    const wrong = input.checked;
+    input.disabled = true;
+    problem.textContent = "";
+    try {
+      const saved = await (await ask("/calls/" + encodeURIComponent(call.call_sid) + "/mark", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ wrong }),
+      })).json();
+      store.calls = store.calls.map((one) => (one.call_sid === saved.call_sid ? saved : one));
+      refresh("call-page");
+    } catch (refused) {
+      input.checked = !wrong;       // back to what the server has
+      input.disabled = false;
+      problem.textContent = "Couldn’t save your mark. " + (sentence(refused.detail) || "The Palisade server ran into a problem.");
+    }
+  });
+  return [
+    el("div", { class: "card rows after" }, el("label", { class: "fact", for: "mark" }, "Palisade Got This Wrong", input)),
+    el("p", { class: "footnote", text: "Turn this on if the call was " + (steppedInto(call) ? "not a scam" : "a scam") + ". Palisade saves your mark with the call." }),
+    problem,
+  ];
+}
+
+// ---------- Texts ----------
+
+function buildTexts() {
+  return el("div", { class: "page" }, head("Texts"), slot("texts", fillTexts));
+}
+
+/** Is text protection on, in the app's words. */
+function textStanding(gateway) {
+  const name = seniorName();
+  if (!gateway?.enabled) {
+    return gateway?.error
+      ? { glyph: "attention", tint: "orange", title: "Not Working", detail: "Text protection could not start on the server. " + sentence(gateway.error) }
+      : { glyph: "shield", tint: "gray", title: "Not Set Up", detail: "This server does not hold texts or forward them." };
+  }
+  if (!gateway.forwarding_enabled) {
+    return { glyph: "attention", tint: "orange", title: "Forwarding Paused", detail: "Texts are checked and kept. Forwarding them to " + name + " is turned off at the server." };
+  }
+  if (!(gateway.forwarding_ready ?? gateway.sms_ready)) {
+    const why = gateway.forward_via === "imessage" ? "its iMessage service is not connected" : "has no phone service set up";
+    return { glyph: "attention", tint: "orange", title: "Can’t Forward", detail: "Texts are checked and kept. The server cannot forward them: it is in practice mode, or " + why + "." };
+  }
+  return { glyph: "protected", tint: "green", title: "Protected", detail: "Texts are checked before they reach " + name + "." };
+}
+
+function fillTexts(box) {
+  const closed = closedBecause("Texts");
+  if (closed) { put(box, closed); return; }
+  const state = textStanding(store.health?.gateway), texts = store.texts || [];
+  const table = (rows) => el("div", { class: "card table texts" },
+    el("div", { class: "thead", "aria-hidden": "true" },
+      el("span", { text: "From" }), el("span", { text: "Status" }), el("span", { text: "Risk" }),
+      el("span", { text: "What Palisade Noticed" }), el("span", { class: "end", text: "Received" })),
+    rows.map((text) => {
+      const signs = ranked(text.flags);
+      return el("div", { class: "tr" },
+        el("span", { class: "who", text: describeSender(text.sender) }),
+        outcome(textLook(text)),
+        el("span", { class: "number" }, text.risk != null && [el("span", { class: "spoken", text: "Risk " }), String(text.risk)]),
+        el("span", {}, signs.length ? [signTitle(signs[0]), signs.length > 1 && el("span", { class: "quiet", text: " +" + (signs.length - 1) })] : ""),
+        el("span", { class: "when end", text: whenExactly(text.ts) }));
+    }));
+  const held = texts.filter((text) => text.status === "held"), recent = texts.filter((text) => text.status !== "held");
+  put(box,
+    el("div", { class: "card pad" },
+      label(seniorName() + "’s Texts", state.glyph, state.tint),
+      el("div", { class: "headline", text: state.title }),
+      el("div", { class: "detail", text: state.detail })),
+    held.length ? [section("Needs Review"), table(held)] : null,
+    recent.length ? [section("Recent"), table(recent)] : null,
+    !texts.length && store.texts ? el("div", { class: "card after" }, empty("texts", "No Texts Yet", "Texts Palisade checks show up here.")) : null,
+    store.health?.gateway?.enabled
+      ? footnote("A text is kept encrypted for up to 24 hours, so it can be reviewed, then deleted. Its words are shown only in the Palisade app, where a held text is released or discarded.")
+      : null);
+}
+
+// ---------- Event Log ----------
+
+function buildLog() {
+  return el("div", { class: "page" }, head("Event Log"), slot("log", fillLog));
+}
+
+/** One event as the server sent it, without the words of any call: those belong to the transcript alone. */
+function logRow(event) {
+  const leftOut = new Set(["type", "ts", "call_sid", "message_id", "text", "highlights", "evidence", "explanation"]);
+  const said = (key, value) => {
+    if (Array.isArray(value)) return value.join(",");
+    if (typeof value === "object") return Object.entries(value).map(([name, part]) => name + ":" + said(name, part)).join(",");
+    if (typeof value !== "number") return String(value);
+    if (key.endsWith("_at") && value > 1e9) {
+      // A moment, as the server counts them. On the event's own day the time says it, to the millisecond:
+      // the steps of an action are fractions of a second apart.
+      const moment = new Date(value * 1000);
+      const time = moment.toLocaleTimeString([], { hour12: false });
+      return moment.toDateString() === new Date(event.ts * 1000).toDateString()
+        ? time + "." + String(moment.getMilliseconds()).padStart(3, "0")
+        : moment.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + time;
+    }
+    return String(Math.round(value * 1000) / 1000);
+  };
+  const facts = Object.entries(event)
+    .filter(([key, value]) => !leftOut.has(key) && value != null && value !== "" && !(Array.isArray(value) && !value.length))
+    .map(([key, value]) => key + "=" + said(key, value));
+  const id = event.call_sid || event.message_id || "";
+  return el("div", { class: "tr" },
+    el("span", { class: "quiet", text: new Date(event.ts * 1000).toLocaleTimeString([], { hour12: false }) }),
+    el("span", { text: event.type }),
+    el("span", { class: "quiet", text: id.slice(-6) }),
+    el("span", { class: "quiet", text: facts.join("  ") }));
+}
+
+function fillLog(box) {
+  logRows = null;
+  const closed = closedBecause("Events");
+  if (closed) { put(box, closed); return; }
+  logRows = el("div", {}, store.log.slice(0, 300).map(logRow));
+  const nothing = el("div", {}, empty("log", "No Events Yet", "Everything the server reports shows up here as it happens."));
+  nothing.hidden = store.log.length > 0;
+  put(box,
+    el("div", { class: "card table events" },
+      el("div", { class: "thead", "aria-hidden": "true" },
+        el("span", { text: "Time" }), el("span", { text: "Event" }), el("span", { text: "ID" }), el("span", { text: "Details" })),
+      logRows, nothing),
+    footnote("Events carry what Palisade detected and did. The words of a call are never part of them."));
+  logRows.nothing = nothing;
+}
+
+function remember(event) {
+  store.log.unshift(event);
+  if (store.log.length > 500) store.log.length = 500;
+  if (!logRows) return;
+  logRows.prepend(logRow(event));
+  logRows.nothing.hidden = true;
+  while (logRows.childElementCount > 300) logRows.lastChild.remove();
+}
+
+// ---------- System ----------
+
+/** What the server says about itself, as rows. `brief` ones also show on Summary. */
+function systemFacts() {
+  const health = store.health;
+  if (!health) return [];
+  const gateway = health.gateway || {};
+  const calls = [
+    health.actions === "live"
+      ? { name: "Call Protection", value: "On", tint: "green", brief: true }
+      : { name: "Call Protection", value: "Practice Mode", tint: "orange", brief: true },
+    { name: "Scoring Model", value: modelName(health.scorer_model), tint: health.scorer_model === "rules" ? "gray" : "green", brief: true },
+    health.stt
+      ? { name: "Speech to Text", value: capitalized(health.stt), tint: "green", brief: true }
+      : { name: "Speech to Text", value: "Not Set Up", tint: "red", brief: true },
+    { name: "Phone Service", value: health.twilio_configured ? "Set Up" : "Not Set Up", tint: health.twilio_configured ? "green" : "red" },
+    { name: "Protected Phone", value: health.senior_phone_set ? "Set" : "Not Set", tint: health.senior_phone_set ? "green" : "red" },
+    { name: "Caregiver’s Phone", value: health.caregiver_phone_set ? "Set" : "Not Set", tint: health.caregiver_phone_set ? "green" : "gray" },
+    { name: "Request Signatures", value: health.signature_validation ? "Checked" : "Not Checked", tint: health.signature_validation ? "green" : "orange" },
+    { name: "Demo Calls", value: health.demo_mode ? "Available" : "Off", tint: "gray" },
+    { name: "Calls in Progress", value: String(health.active_calls ?? 0), tint: "gray" },
+  ];
+  const groups = [{ title: "Calls", facts: calls }];
+  if (gateway.enabled || gateway.error) {
+    const state = textStanding(gateway);
+    const texts = [{ name: "Text Protection", value: state.title === "Protected" ? "On" : state.title, tint: state.tint, brief: true }];
+    if (gateway.enabled) {
+      texts.push(
+        { name: "Forwarding", value: !gateway.forwarding_enabled ? "Paused" : gateway.forward_via === "imessage" ? "By iMessage" : "By SMS", tint: gateway.forwarding_enabled ? "green" : "orange" },
+        { name: "iMessage Service", value: gateway.connected ? "Connected" : "Not Connected", tint: gateway.connected ? "green" : "orange", brief: true },
+        { name: "Scoring Model", value: modelName(health.message_scorer_model), tint: health.message_scorer_model === "rules" ? "gray" : "green" });
+      if (gateway.last_successful_send) texts.push({ name: "Last Text Forwarded", value: whenExactly(gateway.last_successful_send), tint: "gray" });
+    }
+    groups.push({ title: "Texts", facts: texts });
+  }
+  return groups;
+}
+
+function factRow(fact) {
+  return el("div", { class: "fact" }, el("span", { class: "name" }, el("span", { class: "dot " + fact.tint }), fact.name), el("span", { class: "value", text: fact.value }));
+}
+
+function buildSystem() {
+  const name = el("input", { class: "field", id: "name", type: "text", maxlength: "40", placeholder: DEFAULT_NAME, autocomplete: "off", spellcheck: "false" });
+  try { name.value = localStorage.getItem(NAME_KEY) || ""; } catch (e) { /* no storage: the default name stands */ }
+  name.addEventListener("input", () => {
+    try { localStorage.setItem(NAME_KEY, name.value); } catch (e) { /* kept for this visit only */ }
+    refresh("responds");
+  });
+  return el("div", { class: "page" },
+    head("System"),
+    el("div", { class: "columns even" },
+      el("div", { class: "column" },
+        slot("responds", fillResponds),
+        slot("access", fillAccess),
+        section("Display"),
+        el("div", { class: "card rows" }, el("label", { class: "fact", for: "name" }, "Name", name)),
+        el("p", { class: "footnote", text: "How this page refers to the person Palisade protects. Kept in this browser." })),
+      el("div", { class: "column" }, slot("facts", fillFacts))));
+}
+
+/** What Palisade does about a risky call. The two numbers are the server's own. */
+function fillResponds(box) {
+  const name = seniorName();
+  const told = (title, detail) => el("div", { class: "told" }, title, el("span", { class: "detail", text: detail }));
+  put(box,
+    section("How Palisade Responds"),
+    el("div", { class: "card rows" },
+      told("Listens", "Palisade follows each call to " + name + "’s phone as it happens and scores how risky it looks, from 0 to 100."),
+      told("Warns the Caregiver", "At a risk of " + warnAt() + ". The Palisade app opens the call and says why."),
+      told("Ends the Call", "At a risk of " + endAt() + ". " + name + " hears a short safety message, then the caller is disconnected.")),
+    store.health?.actions === "dry_run"
+      ? el("p", { class: "footnote", text: "Practice mode is on for this server: Palisade shows what it would do, but does not end real calls." })
+      : null);
+}
+
+function fillFacts(box) {
+  put(box, ...systemFacts().flatMap((group) => [section(group.title), el("div", { class: "card rows" }, group.facts.map(factRow))]));
+}
+
+function fillAccess(box) {
+  const rows = [];
+  if (signIn) {
+    rows.push(el("div", { class: "fact" }, "Sign-In", el("span", { class: "value", text: "Required" })));
+    // Who is signed in is at the foot of the side bar. A phone has no side bar, so it is said here.
+    rows.push(store.email || store.connection === "refused"
+      ? el("div", { class: "fact phone-only" }, el("span", { class: "clip", text: store.email || "Signed In" }), el("button", { class: "text-button", type: "button", text: "Sign Out", onclick: signOut }))
+      : el("div", { class: "fact phone-only" }, "Not Signed In", el("button", { class: "text-button", type: "button", text: "Sign In", onclick: startSignIn })));
+  } else if (store.connection === "connected") {
+    rows.push(el("div", { class: "fact" }, "Sign-In", el("span", { class: "value", text: "Not Required" })));
+  }
+  put(box, ...(rows.length ? [section("Access"), el("div", { class: "card rows" }, rows)] : []));
+}
+
+// ---------- signing in ----------
+
+// The server says whether it wants a sign-in and which Auth0 tenant to use (GET /auth/config).
 // Where it does, an old ?token= link is ignored and the page offers the sign-in instead.
 const AUTH0_SDK = "https://cdn.auth0.com/js/auth0-spa-js/2.28/auth0-spa-js.production.js";
 const here = location.origin + location.pathname;
-let signIn = null;        // the Auth0 client, when this server asks for a sign-in
+const linkToken = new URLSearchParams(location.search).get("token") || "";
+let signIn = null;          // the Auth0 client, when this server asks for a sign-in
+let signInKnown = false;    // true once the server has said whether it wants one
 
-function feed(text, state) { $("p-feed").textContent = "feed: " + text; $("p-feed").className = "pill " + state; }
+/** Something that kept the page from connecting, in a sentence fit to show. */
+class Trouble extends Error {}
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    const tag = document.createElement("script");
-    tag.src = src; tag.onload = resolve; tag.onerror = () => reject(new Error("could not load " + src));
+    const tag = el("script", { src });
+    tag.onload = resolve;
+    tag.onerror = () => { tag.remove(); reject(new Trouble("The sign-in service could not be loaded.")); };
     document.head.append(tag);
   });
 }
@@ -218,7 +1555,7 @@ async function setUpSignIn() {
   const config = await (await fetch("/auth/config")).json();
   if (!config.enabled) return;       // no sign-in on this server: a ?token= link works as before
   await loadScript(AUTH0_SDK);
-  signIn = await auth0.createAuth0Client({
+  const client = await auth0.createAuth0Client({
     domain: config.domain,
     clientId: config.web_client_id,
     authorizationParams: { audience: config.audience, redirect_uri: here },
@@ -227,49 +1564,184 @@ async function setUpSignIn() {
   });
   const back = new URLSearchParams(location.search);
   if (back.has("state") && (back.has("code") || back.has("error"))) {     // returning from Auth0's page
-    try { await signIn.handleRedirectCallback(); }
-    catch (e) { feed(e.error_description || e.message || "sign-in failed", "off"); }
+    try { await client.handleRedirectCallback(); }
+    catch (e) { store.reason = "Couldn’t sign in. " + sentence(e.error_description || e.message || "The sign-in service did not say why"); }
     history.replaceState(null, "", location.pathname);
   }
-  $("sign-in").onclick = () => signIn.loginWithRedirect();
-  $("sign-out").onclick = () => signIn.logout({ logoutParams: { returnTo: here } });
+  signIn = client;
 }
 
-// The token for the feed, or null when someone has to sign in first.
-async function accessToken() {
+const startSignIn = () => signIn.loginWithRedirect();
+const signOut = () => signIn.logout({ logoutParams: { returnTo: here } });
+
+/** What to send with a request so the server knows who is asking, or null when someone has to sign in first. */
+async function credentials() {
+  // In the Authorization header, never the address: an address gets logged.
+  if (!signIn) return linkToken ? { Authorization: "Bearer " + linkToken } : {};
   try {
     if (!(await signIn.isAuthenticated())) throw new Error("not signed in");
     const accessToken = await signIn.getTokenSilently();
     const user = await signIn.getUser();
-    $("p-user").textContent = (user && user.email) || "signed in"; $("p-user").hidden = false;
-    $("sign-in").hidden = true; $("sign-out").hidden = false;
-    return accessToken;
+    store.email = (user && user.email) || "";
+    return { Authorization: "Bearer " + accessToken };
   } catch (e) {
-    $("p-user").hidden = true; $("sign-out").hidden = true; $("sign-in").hidden = false;
+    store.email = "";
     return null;
   }
 }
 
-// Reads the event feed with fetch, not EventSource: EventSource cannot send the Authorization
-// header a sign-in needs. Each event is one "data:" line of JSON.
-async function connect() {
-  const headers = {};
-  if (signIn) {
-    const accessTokenNow = await accessToken();
-    if (!accessTokenNow) { if ($("p-feed").className !== "pill off") feed("sign in to watch", ""); return; }
-    headers.Authorization = "Bearer " + accessTokenNow;
+/** The server's refusal of a request, with its own sentence about why. */
+class Refused extends Error {
+  constructor(status, detail) {
+    super(detail || "HTTP " + status);
+    this.status = status;
+    this.detail = detail;
   }
+}
+
+async function detailOf(response) {
   try {
-    const response = await fetch(signIn ? "/events" : "/events?" + q, { headers });
-    if (response.status === 401 || response.status === 403) {
-      // Not retried: signing in, or being added to the caregiver list, is what fixes it.
-      feed((await response.json()).detail, "off");
-      if (signIn && response.status === 401) { $("sign-in").hidden = false; }
-      return;
+    const detail = (await response.json()).detail;
+    return typeof detail === "string" ? detail : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+/** One request to the server as whoever is watching. Throws `Refused` unless it went well. */
+async function ask(path, options = {}) {
+  const who = await credentials();
+  if (!who) throw new Refused(401, "Sign in again");
+  const response = await fetch(path, { ...options, headers: { ...who, ...options.headers } });
+  if (!response.ok) throw new Refused(response.status, await detailOf(response));
+  return response;
+}
+
+// ---------- the server's lists ----------
+
+async function loadCalls() {
+  try {
+    store.calls = (await (await ask("/calls")).json()).calls;
+    refresh("status", "recent", "filter", "calls", "call-page");
+  } catch (e) { /* the list on screen stays; the feed's own reconnecting says what is wrong */ }
+}
+
+async function loadScripts() {
+  try {
+    const answer = await (await ask("/demo/scripts")).json();
+    store.scripts = answer.enabled ? answer.scripts : [];
+  } catch (e) {
+    store.scripts = [];
+  }
+  refresh("demo");
+}
+
+/** The texts the server holds or has sent on: who, when and how each stands. Never their words. */
+async function loadTexts() {
+  if (store.connection !== "connected" || !store.health?.gateway?.enabled) return;
+  try {
+    store.texts = (await (await ask("/gateway/messages")).json()).messages;
+  } catch (e) {
+    if (e.status === 503) store.texts = null;
+  }
+  fillNav();
+  refresh("review", "texts");
+}
+
+async function checkHealth() {
+  try {
+    const health = await (await fetch("/health")).json();
+    const changed = JSON.stringify(health) !== JSON.stringify(store.health);
+    const hadTexts = Boolean(store.health?.gateway?.enabled);
+    store.health = health;
+    if (!changed) return;
+    fillNav();
+    refresh("status", "system", "responds", "facts", "texts", "call");
+    if (!hadTexts) loadTexts();
+  } catch (e) { /* the connection line says so */ }
+}
+
+// Several events can ask for the same list at once, above all while the feed replays: fetch it once.
+const waiting = new Map();
+function soon(load) {
+  clearTimeout(waiting.get(load));
+  waiting.set(load, setTimeout(load, 250));
+}
+
+// ---------- the feed ----------
+
+/** Nobody may watch: forget everything that was read, and say why. */
+function lockOut(connection, reason) {
+  Object.assign(store, { connection, reason, calls: null, texts: null, scripts: [], shown: null, log: [] });
+  store.live.clear();
+  fillFoot();
+  render();
+}
+
+function setConnection(connection) {
+  store.connection = connection;
+  fillFoot();
+  refresh();
+}
+
+/** True when the server would not let this viewer in, which trying again does not fix. */
+async function turnedAway(response) {
+  if (response.status !== 401 && response.status !== 403) return false;
+  const detail = sentence(await detailOf(response));
+  if (signIn && response.status === 401) lockOut("signedOut", store.email ? detail : store.reason);
+  else if (signIn) lockOut("refused", detail);
+  else lockOut("refused", linkToken ? "The access token in this link was not accepted." : "Open this page with the link you were given. It carries an access token.");
+  return true;
+}
+
+/** A new connection: the server replays its recent events, so what the feed had told is told again. */
+function begin(calls) {
+  store.calls = calls;
+  store.reason = "";
+  store.log = [];
+  // A call that was over before this page looked belongs to the lists, not to the call on screen.
+  store.settled = new Set(calls.filter((call) => call.outcome !== "in_progress").map((call) => call.call_sid));
+  for (const call of [...store.live.values()]) {
+    if (call.isOver) continue;
+    const listed = calls.find((one) => one.call_sid === call.sid);
+    const over = listed && listed.outcome !== "in_progress";
+    if (!listed || (over && call.putAway)) store.live.delete(call.sid);   // the server no longer knows it, or nobody is looking
+    else if (over) call.phase = "ended";                                  // it ended while the feed was down
+    else call.stale = !call.putAway;                                      // the replay tells it again from the start
+  }
+  if (store.shown && !store.live.has(store.shown)) store.shown = null;
+  setConnection("connected");
+  fillNav();
+  loadScripts();
+  loadTexts();
+}
+
+let retry = 0;
+
+async function connect() {
+  clearTimeout(retry);
+  let reason = "";
+  try {
+    if (!signInKnown) {
+      await setUpSignIn();
+      signInKnown = true;
     }
+    const who = await credentials();
+    fillFoot();
+    if (!who) { lockOut("signedOut", store.reason); return; }
+    // The call list first: it shows who may watch, and which calls were over before this page looked.
+    const listed = await fetch("/calls", { headers: who });
+    if (await turnedAway(listed)) return;
+    if (!listed.ok) throw new Error("HTTP " + listed.status);
+    const sent = Date.parse(listed.headers.get("date") || "");
+    // The header counts whole seconds, so the middle of that second is the best guess.
+    if (sent) store.clockAhead = Date.now() / 1000 - (sent / 1000 + 0.5);
+    const calls = (await listed.json()).calls;
+    // Read with fetch, not EventSource, which cannot send the Authorization header a sign-in needs.
+    const response = await fetch("/events", { headers: who });
+    if (await turnedAway(response)) return;
     if (!response.ok) throw new Error("HTTP " + response.status);
-    feed("live", "on");
-    $("log").replaceChildren();        // the server replays recent events on every connection
+    begin(calls);
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
     let pending = "";
     for (;;) {
@@ -277,29 +1749,74 @@ async function connect() {
       if (done) break;
       const lines = (pending + value).split("\n");
       pending = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const ev = JSON.parse(line.slice(5));
-        if (ev.type === "media") onMedia(ev);
-        onEvent(ev);
-      }
+      // Each event is one "data:" line of JSON.
+      for (const line of lines) if (line.startsWith("data:")) onEvent(JSON.parse(line.slice(5)));
     }
-  } catch (e) { /* the connection dropped or never opened: try again below */ }
-  feed("reconnecting", "off");
-  setTimeout(connect, 2000);
+  } catch (e) {
+    // The connection dropped or never opened: try again below.
+    if (e instanceof Trouble) reason = e.message;
+  }
+  store.reason = reason;
+  setConnection("failed");
+  retry = setTimeout(connect, 2000);
 }
 
-async function health() {
-  try {
-    const h = await (await fetch("/health")).json();
-    $("p-actions").textContent = "actions: " + h.actions; $("p-actions").className = "pill " + (h.actions === "live" ? "on" : "dry");
-    $("p-model").textContent = "scorer: " + h.scorer_model;
-    $("p-stt").textContent = "stt: " + (h.stt || "none"); $("p-stt").className = "pill " + (h.stt ? "on" : "off");
-  } catch (e) { $("p-actions").textContent = "server unreachable"; $("p-actions").className = "pill off"; }
+function onEvent(event) {
+  // A line still being said changes many times a second, and belongs to the transcript alone.
+  if (event.type !== "transcript" || event.final) remember(event);
+  if (event.type === "call_started" || event.type === "call_ended" || event.type === "call_marked") soon(loadCalls);
+  if (event.type === "gateway_message_updated") soon(loadTexts);
+
+  const sid = event.call_sid;
+  if (!sid || event.type === "call_marked" || event.type === "media" || store.settled.has(sid)) return;
+  let call = store.live.get(sid);
+  if (call?.isOver) return;         // told again by a replay: the page already has all of it
+  if (call?.putAway) {              // closed by the viewer: nothing more of it is kept
+    if (event.type === "call_ended") store.live.delete(sid);
+    return;
+  }
+  if (!call || call.stale) {
+    call = new LiveCall(sid, store.calls?.find((one) => one.call_sid === sid));
+    store.live.set(sid, call);
+  }
+  const line = call.apply(event);
+
+  // One call on screen at a time: the first to come in, until it is over and put away.
+  const shown = shownCall();
+  if (!shown || (shown.isOver && shown !== call)) {
+    if (shown) store.live.delete(shown.sid);      // an ended call gives way to the next one
+    store.shown = sid;
+  } else if (call.isOver && shown !== call) {
+    store.live.delete(sid);         // it ended unseen: its words go with it
+  }
+  if (event.type === "call_started" || event.type === "call_ended" || event.type === "action") fillNav();
+  if (event.type === "action") refresh("recent", "calls");
+  if (store.shown !== sid) return;
+  // The call comes up by itself when it starts, and again when Palisade steps in.
+  if ((event.type === "call_started" || event.type === "action") && isNew(event)) go("summary");
+  if (event.type === "call_ended" && !call.warning && !call.ending) {
+    // An ordinary call that ended without incident does not need to stay on screen.
+    setTimeout(() => { if (store.shown === sid && shownCall()?.isOver) closeCall(); }, 6000);
+  }
+
+  if (!callBoxes) return;           // Summary is not up: it is put together from the call when it is
+  if (!panel || panel.call !== call) {
+    refresh("call", "status");
+  } else if (line) {
+    panel.say(line);
+    if (call.lines.length === 1) syncCall();      // the first words bring the dial with them
+  } else {
+    syncCall();
+  }
 }
 
-setUpSignIn().catch((e) => feed(e.message, "off")).then(connect);
-health(); setInterval(health, 10000);
+window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+setInterval(() => panel?.tick(), 1000);
+fillFoot();
+render();
+connect();
+checkHealth();
+setInterval(checkHealth, 10000);
 </script>
 </body>
 </html>

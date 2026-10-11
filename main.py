@@ -635,7 +635,7 @@ def create_app(
 
     @app.get("/dashboard", response_class=HTMLResponse)
     async def dashboard() -> HTMLResponse:
-        """Temporary single-page view of the event feed. The page holds no data; /events does (and needs ?token=)."""
+        """The web dashboard, one file. The page holds no data: the feed and the lists it reads ask who is watching."""
         return HTMLResponse((Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8"))
 
     # Two pages for anyone, with no token and no sign-in: the app's Settings links to them, and

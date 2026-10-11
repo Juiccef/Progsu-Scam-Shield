@@ -132,7 +132,21 @@ def test_dashboard_page_is_served_without_data(tmp_path):
     with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
         page = client.get("/dashboard")
     assert page.status_code == 200 and "text/html" in page.headers["content-type"]
-    assert "EventSource" in page.text and AUTH_TOKEN not in page.text and SENIOR not in page.text
+    assert 'fetch("/events"' in page.text and AUTH_TOKEN not in page.text and SENIOR not in page.text
+
+
+def test_dashboard_takes_a_callers_words_as_text_and_loads_nothing_from_elsewhere(tmp_path):
+    """A scammer chooses the words of a transcript, so the page never reads what the server sends as
+    HTML: its one `innerHTML` is given the page's own drawings. And it fetches nothing from anywhere
+    but this server, except Auth0's sign-in library where the server asks for a sign-in."""
+    with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
+        page = client.get("/dashboard").text
+    assert page.count("innerHTML") == 1 and "node.innerHTML = filled ? GLYPHS[name] : OUTLINES[name];" in page
+    assert not any(way in page for way in ("outerHTML", "insertAdjacentHTML", "document.write", "eval("))
+    assert set(re.findall(r"https?://[^\s\"'<>)]+", page)) == {
+        "http://www.w3.org/2000/svg",  # the name of the drawing format, not an address that is fetched
+        "https://cdn.auth0.com/js/auth0-spa-js/2.28/auth0-spa-js.production.js",
+    }
 
 
 # --- webhooks ----------------------------------------------------------------
