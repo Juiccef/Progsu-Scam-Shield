@@ -35,7 +35,8 @@ class SMSDelivery:
     @property
     def ready(self):
         s = self.settings
-        return s.text_forwarding_enabled and not s.dry_run_actions and bool(s.twilio_account_sid and s.twilio_auth_token)
+        return (s.text_forwarding_enabled and s.text_forward_via == "sms" and not s.dry_run_actions
+                and bool(s.twilio_account_sid and s.twilio_auth_token))
 
     async def drain(self):
         if not self.ready:

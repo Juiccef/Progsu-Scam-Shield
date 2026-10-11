@@ -279,6 +279,7 @@ def create_app(
             if address(form.get("From", "")) in {
                 address(settings.twilio_proxy_number), address(settings.senior_phone),
                 address(settings.caregiver_phone), address(settings.photon_caregiver_address),
+                address(settings.senior_imessage_address),
             }:
                 return Response("<Response></Response>", media_type="application/xml")
             if not re.fullmatch(r"(?:SM|MM)[0-9a-fA-F]{32}", message_id):

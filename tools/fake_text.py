@@ -35,7 +35,8 @@ from fake_call import signed_post  # noqa: E402
 def would_forward(health: dict) -> bool:
     """True when a text this server lets through would be sent on to the protected person's phone."""
     gateway = health.get("gateway") or {}
-    return bool(gateway.get("enabled") and gateway.get("forwarding_enabled") and gateway.get("sms_ready"))
+    ready = gateway.get("forwarding_ready", gateway.get("sms_ready"))  # an older server only says sms_ready
+    return bool(gateway.get("enabled") and gateway.get("forwarding_enabled") and ready)
 
 
 def send(client, settings: Settings, base_url: str, text: str, *, sender: str, attachment: bool = False) -> int:

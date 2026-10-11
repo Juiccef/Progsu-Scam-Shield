@@ -86,6 +86,10 @@ class Settings:
     photon_line: str = ""  # optional dedicated caregiver line; empty uses the shared pool
     photon_caregiver_address: str = ""
     gateway_encryption_key: str = ""
+    # How an approved text reaches the senior: "sms" (Twilio, from the proxy number) or "imessage"
+    # (through the same Photon agent that alerts the caregiver, so no carrier registration is needed).
+    text_forward_via: str = "sms"
+    senior_imessage_address: str = ""  # an iMessage phone or email for the senior; empty uses SENIOR_PHONE
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] = os.environ) -> "Settings":
@@ -142,6 +146,8 @@ class Settings:
             photon_line=get("PHOTON_LINE"),
             photon_caregiver_address=get("PHOTON_CAREGIVER_ADDRESS") or get("CAREGIVER_PHONE"),
             gateway_encryption_key=get("GATEWAY_ENCRYPTION_KEY"),
+            text_forward_via=get("TEXT_FORWARD_VIA", "sms").lower(),
+            senior_imessage_address=get("SENIOR_IMESSAGE_ADDRESS"),
         )
 
 

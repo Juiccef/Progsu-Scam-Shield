@@ -27,6 +27,11 @@ TTL = 24 * 60 * 60
 SEND_LEASE = 90
 MAX_SMS_LENGTH = 1600
 NONRELEASABLE_REASONS = {"unsupported_content", "message_too_long", "transport_changed"}
+# What the iMessage agent may take from the outbox, and no more. A text for the senior goes out as
+# "relay" (Twilio SMS) or "senior_imessage" (Photon), depending on TEXT_FORWARD_VIA, never both.
+PHOTON_JOB_KINDS = ("caregiver_alert", "senior_imessage")
+RELAY_KINDS = ("relay", "senior_imessage")
+FORWARD_VIA = ("sms", "imessage")
 FLAG_TITLES = {
     "AUTHORITY_IMPERSONATION": "claimed authority",
     "URGENCY_PRESSURE": "pressure to act quickly", "THREAT": "threats",
@@ -76,6 +81,10 @@ class SendResult(BaseModel):
     outcome: Literal["sent", "delivery_unknown", "delivery_failed"]
 
 
+class ClaimRequest(BaseModel):
+    kind: Literal["caregiver_alert", "senior_imessage"] = "caregiver_alert"
+
+
 class Heartbeat(BaseModel):
     connected: bool
 
@@ -91,6 +100,13 @@ class GatewayStore:
                              "the Twilio number, destinations and an encryption key")
         if settings.photon_bridge_token == settings.events_token:
             raise ValueError("Photon bridge and caregiver tokens must be different")
+        if settings.text_forward_via not in FORWARD_VIA:
+            raise ValueError("TEXT_FORWARD_VIA must be sms or imessage")
+        self.senior_address = settings.senior_imessage_address or settings.senior_phone
+        if settings.text_forward_via == "imessage" and address(self.senior_address) in {
+            address(settings.twilio_proxy_number), address(settings.photon_caregiver_address),
+        }:
+            raise ValueError("The senior's iMessage address must differ from the Twilio number and the caregiver")
         if not settings.validate_signature:
             raise ValueError("Text gateway requires Twilio signature validation")
         if len({address(settings.twilio_proxy_number), address(settings.senior_phone),
@@ -146,15 +162,24 @@ class GatewayStore:
         self.last_heartbeat = 0.0
         self.connected = False
         self.recover_sends()
+        # TEXT_FORWARD_VIA may have been changed since a text was queued: it goes out the way it is set now.
+        with self.transaction():
+            self.db.execute("UPDATE outbox SET kind=? WHERE status='queued' AND kind IN ('relay','senior_imessage') AND kind!=?",
+                            (self.relay_kind, self.relay_kind))
         with self.transaction():
             for row in self.db.execute("SELECT message_id FROM messages WHERE source!='twilio' "
                                        "AND status IN ('pending','held','queued')").fetchall():
                 self.db.execute("UPDATE messages SET status='held',hold_reason='transport_changed' WHERE message_id=?",
                                 (row["message_id"],))
-                self.db.execute("UPDATE outbox SET status='cancelled' WHERE message_id=? AND kind='relay' AND status='queued'",
+                self.db.execute("UPDATE outbox SET status='cancelled' WHERE message_id=? AND kind IN ('relay','senior_imessage') AND status='queued'",
                                 (row["message_id"],))
                 self._enqueue(row["message_id"], "caregiver_alert")
         self.cleanup()
+
+    @property
+    def relay_kind(self):
+        """The outbox kind that carries an approved text to the senior."""
+        return "senior_imessage" if self.settings.text_forward_via == "imessage" else "relay"
 
     def close(self):
         self.db.close()
@@ -239,7 +264,7 @@ class GatewayStore:
             self.db.execute("UPDATE messages SET status=?,risk=?,label=?,flags=?,hold_reason=? WHERE message_id=?",
                             ("held" if held else "queued", result["risk"], result["label"],
                              json.dumps(result["flags"]), reason, message_id))
-            self._enqueue(message_id, "caregiver_alert" if held else "relay")
+            self._enqueue(message_id, "caregiver_alert" if held else self.relay_kind)
         return self.publish(message_id)
 
     def _enqueue(self, message_id, kind):
@@ -278,7 +303,7 @@ class GatewayStore:
                 if row["content_type"] != "text" or row["payload"] is None or row["source"] != "twilio" or row["hold_reason"] in NONRELEASABLE_REASONS:
                     raise HTTPException(409, "Unsupported content cannot be released")
                 self.db.execute("UPDATE messages SET status='queued',decision='release' WHERE message_id=?", (message_id,))
-                self._enqueue(message_id, "relay")
+                self._enqueue(message_id, self.relay_kind)
             else:
                 self.db.execute("UPDATE messages SET status='discarded',decision='discard',payload=NULL WHERE message_id=?",
                                 (message_id,))
@@ -308,7 +333,7 @@ class GatewayStore:
     def _unknown(self, job):
         self.db.execute("UPDATE outbox SET status='delivery_unknown',completed_at=? WHERE job_id=?",
                         (self.clock(), job["job_id"]))
-        if job["kind"] == "relay":
+        if job["kind"] in RELAY_KINDS:
             self.db.execute("UPDATE messages SET status='delivery_unknown' WHERE message_id=?", (job["message_id"],))
 
     def recover_sends(self):
@@ -318,10 +343,14 @@ class GatewayStore:
 
     def claim(self, kind="caregiver_alert"):
         self.cleanup()
-        if kind not in {"relay", "caregiver_alert"}:
+        if kind not in {"relay", "caregiver_alert", "senior_imessage"}:
             raise ValueError("Unsupported outbox kind")
-        if kind == "relay" and not self.settings.text_forwarding_enabled:
-            return None
+        if kind in RELAY_KINDS:
+            # Only the transport the server is set to use may take a text for the senior, and only
+            # while forwarding is on and the server is not in practice mode.
+            if (not self.settings.text_forwarding_enabled or kind != self.relay_kind
+                    or (kind == "senior_imessage" and self.settings.dry_run_actions)):
+                return None
         with self.transaction():
             job = self.db.execute("SELECT * FROM outbox WHERE status='queued' AND kind=? ORDER BY rowid LIMIT 1",
                                   (kind,)).fetchone()
@@ -335,7 +364,7 @@ class GatewayStore:
                 self.db.execute("UPDATE outbox SET status='cancelled' WHERE message_id=? AND status='queued'",
                                 (row["message_id"],))
                 return None
-            if job["kind"] == "relay":
+            if job["kind"] in RELAY_KINDS:
                 if row["status"] != "queued" or row["payload"] is None or row["source"] != "twilio":
                     self.db.execute("UPDATE outbox SET status='cancelled' WHERE job_id=?", (job["job_id"],))
                     return None
@@ -343,7 +372,7 @@ class GatewayStore:
                 text = forwarded_sms(private["text"], private["sender"], released=row["decision"] == "release")
                 if len(text) > MAX_SMS_LENGTH:
                     raise ValueError("Approved message exceeds SMS size limit")
-                recipient = self.settings.senior_phone
+                recipient = self.senior_address if job["kind"] == "senior_imessage" else self.settings.senior_phone
                 self.db.execute("UPDATE messages SET status='sending' WHERE message_id=?", (row["message_id"],))
             else:
                 flags = json.loads(row["flags"])
@@ -365,11 +394,13 @@ class GatewayStore:
                 "line": self.settings.twilio_proxy_number if kind == "relay" else self.settings.photon_line, "text": text}
 
     def complete(self, job_id, result: SendResult, *, kind="caregiver_alert", provider_sid=None):
+        """`kind` is the transport reporting, or the several kinds it is allowed to report on."""
+        allowed = (kind,) if isinstance(kind, str) else tuple(kind)
         with self.transaction():
             job = self.db.execute("SELECT * FROM outbox WHERE job_id=?", (job_id,)).fetchone()
             if job is None:
                 raise HTTPException(404, "Job not found")
-            if job["kind"] != kind:
+            if job["kind"] not in allowed:
                 raise HTTPException(403, "Wrong delivery transport")
             if not hmac.compare_digest(job["attempt_id"] or "", result.attempt_id):
                 raise HTTPException(409, "Stale send attempt")
@@ -386,7 +417,7 @@ class GatewayStore:
                 raise HTTPException(409, "Job is no longer sending")
             self.db.execute("UPDATE outbox SET status=?,completed_at=?,provider_sid=coalesce(provider_sid,?) WHERE job_id=?",
                             (result.outcome, self.clock(), provider_sid, job_id))
-            if job["kind"] == "relay":
+            if job["kind"] in RELAY_KINDS:
                 self.db.execute("UPDATE messages SET status=?,payload=CASE WHEN ?='sent' THEN NULL ELSE payload END "
                                 "WHERE message_id=?", (result.outcome, result.outcome, job["message_id"]))
         return self.publish(job["message_id"])
@@ -423,10 +454,16 @@ class GatewayStore:
     def health(self):
         counts = {row["status"]: row["n"] for row in self.db.execute("SELECT status,count(*) n FROM outbox GROUP BY status")}
         sent = self.db.execute("SELECT max(completed_at) FROM outbox WHERE status IN ('sent','delivered')").fetchone()[0]
+        connected = self.connected and self.clock() - self.last_heartbeat < 45
+        sms_ready = not self.settings.dry_run_actions and bool(self.settings.twilio_account_sid and self.settings.twilio_auth_token)
+        via = self.settings.text_forward_via
         return {"enabled": True, "forwarding_enabled": self.settings.text_forwarding_enabled,
-                "sms_ready": not self.settings.dry_run_actions and bool(self.settings.twilio_account_sid and self.settings.twilio_auth_token),
-                "ingress": "twilio", "delivery_provider": "twilio",
-                "connected": self.connected and self.clock() - self.last_heartbeat < 45,
+                "forward_via": via,
+                "sms_ready": sms_ready,
+                # Whether an approved text could be sent on right now, by whichever way the server is set to.
+                "forwarding_ready": sms_ready if via == "sms" else (not self.settings.dry_run_actions and connected),
+                "ingress": "twilio", "delivery_provider": "photon" if via == "imessage" else "twilio",
+                "connected": connected,
                 "queue_counts": counts, "last_successful_send": sent}
 
 
@@ -543,14 +580,14 @@ def gateway_router(service, settings, authorize):
         return service.store.decide(message_id, item.action)
 
     @router.post("/integrations/photon/outbox/claim")
-    async def claim(request: Request):
+    async def claim(request: Request, item: ClaimRequest = ClaimRequest()):
         auth(request, settings.photon_bridge_token)
-        return {"job": service.store.claim()}
+        return {"job": service.store.claim(item.kind)}
 
     @router.post("/integrations/photon/outbox/{job_id}/result")
     async def result(request: Request, job_id: str, item: SendResult):
         auth(request, settings.photon_bridge_token)
-        return service.store.complete(job_id, item)
+        return service.store.complete(job_id, item, kind=PHOTON_JOB_KINDS)
 
     @router.post("/integrations/photon/heartbeat")
     async def heartbeat(request: Request, item: Heartbeat):
