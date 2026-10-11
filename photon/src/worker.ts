@@ -4,17 +4,24 @@ import { setTimeout as sleep } from "node:timers/promises";
 export interface Config {
   projectID: string; projectSecret: string; line: string;
   caregiver: string; backendURL: string; bridgeToken: string;
+  /** The one address texts for the senior may be sent to. Only set when the server forwards by iMessage. */
+  senior?: string;
 }
 export interface Incoming {
   platform: string; direction: string; id: string; spaceID: string;
   spaceType: string; line: string; sender?: string;
   content: { type: string; text?: string };
 }
+/** The two kinds of job this service may take: a warning for the caregiver, or an approved text for the senior. */
+export type JobKind = "caregiver_alert" | "senior_imessage";
 export interface Job {
-  job_id: string; attempt_id: string; message_id: string; kind: "caregiver_alert";
+  job_id: string; attempt_id: string; message_id: string; kind: JobKind;
   recipient: string; line: string; text: string;
 }
-interface Status { held_count: number; why: string; forwarding_enabled: boolean; sms_ready: boolean; shield_number: string }
+interface Status {
+  held_count: number; why: string; forwarding_enabled: boolean; sms_ready: boolean; shield_number: string;
+  forward_via?: string; forwarding_ready?: boolean;
+}
 export interface Transport {
   send(recipient: string, line: string, text: string): Promise<void>;
 }
@@ -38,6 +45,9 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     line: (env.PHOTON_LINE || "").trim(),
     caregiver: required("PHOTON_CAREGIVER_ADDRESS", env.CAREGIVER_PHONE),
     backendURL: env.SHIELD_BACKEND_URL || "http://127.0.0.1:8000", bridgeToken: required("PHOTON_BRIDGE_TOKEN"),
+    // Texts for the senior are carried only when the server says so, here as well as there: two locks.
+    senior: (env.TEXT_FORWARD_VIA || "").trim().toLowerCase() === "imessage"
+      ? required("SENIOR_IMESSAGE_ADDRESS", env.SENIOR_PHONE) : undefined,
   };
   const url = new URL(result.backendURL);
   if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
@@ -48,6 +58,13 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
       (result.line && normalizeAddress(result.line) === normalizeAddress(result.caregiver)) ||
       (env.TWILIO_PROXY_NUMBER && normalizeAddress(env.TWILIO_PROXY_NUMBER) === normalizeAddress(result.caregiver))) {
     throw new Error("Caregiver must be a personal address, distinct from the service numbers");
+  }
+  if (result.senior !== undefined) {
+    const senior = normalizeAddress(result.senior);
+    const others = [result.caregiver, result.line, env.TWILIO_PROXY_NUMBER || ""].map(normalizeAddress).filter(Boolean);
+    if (!senior || others.includes(senior)) {
+      throw new Error("The senior's address must be a personal address, distinct from the caregiver and the service numbers");
+    }
   }
   return result;
 }
@@ -97,13 +114,16 @@ export class Worker {
       let response: string;
       if (command === "HELP" || command === "START" || command === "HELLO") {
         const status = await this.backend.request<Status>("/integrations/photon/status");
-        response = `Palisade screens SMS sent to ${status.shield_number}, then forwards approved texts from that number with a screening footer. ` +
+        const how = status.forward_via === "imessage"
+          ? "forwards approved texts to the protected person by iMessage with a screening note"
+          : "forwards approved texts from that number with a screening footer";
+        response = `Palisade screens SMS sent to ${status.shield_number}, then ${how}. ` +
           "Suspicious texts are held in the Palisade app for caregiver review for 24 hours. " +
-          "I send review alerts here. Send STATUS or WHY. Replies to forwarded SMS are not relayed.";
+          "I send review alerts here. Send STATUS or WHY. Replies to forwarded texts are not relayed.";
       } else if (command === "STATUS" || command === "WHY") {
         const status = await this.backend.request<Status>("/integrations/photon/status");
         response = command === "WHY" ? status.why :
-          `Palisade has ${status.held_count} message(s) awaiting review. SMS forwarding is ${status.forwarding_enabled && status.sms_ready ? "enabled" : "paused or unavailable"}. Open the Palisade app's Texts tab to review.`;
+          `Palisade has ${status.held_count} message(s) awaiting review. ${status.forward_via === "imessage" ? "iMessage" : "SMS"} forwarding is ${status.forwarding_enabled && (status.forwarding_ready ?? status.sms_ready) ? "enabled" : "paused or unavailable"}. Open the Palisade app's Texts tab to review.`;
       } else {
         response = "Send HELP, STATUS or WHY. Review, release and discard happen in the authenticated Palisade app.";
       }
@@ -129,14 +149,20 @@ export class Worker {
     } finally { if (timeout) clearTimeout(timeout); }
   }
 
+  /**
+   * Takes one job of `kind` from the server and sends it. A caregiver alert goes to the caregiver, and a
+   * senior text to the senior, and to nobody else, whatever the job says: the destination is this
+   * service's own configuration, and a job that names another is not sent.
+   */
   async drain(report: (path: string, body: unknown) => Promise<unknown> =
-      (path, body) => this.backend.request(path, body)): Promise<boolean> {
-    const { job } = await this.backend.request<{ job: Job | null }>("/integrations/photon/outbox/claim", {});
+      (path, body) => this.backend.request(path, body), kind: JobKind = "caregiver_alert"): Promise<boolean> {
+    const recipient = kind === "senior_imessage" ? this.config.senior : this.config.caregiver;
+    if (!recipient) return false; // not set up to carry texts for the senior: do not even ask for them
+    const { job } = await this.backend.request<{ job: Job | null }>("/integrations/photon/outbox/claim", { kind });
     if (!job) return false;
     let outcome: "sent" | "delivery_unknown" = "delivery_unknown";
-    const recipient = this.config.caregiver;
     try {
-      if (job.kind !== "caregiver_alert" ||
+      if (job.kind !== kind ||
           normalizeAddress(job.recipient) !== normalizeAddress(recipient) ||
           normalizeAddress(job.line) !== normalizeAddress(this.config.line)) {
         throw new Error("Unexpected outbox destination");

@@ -142,3 +142,92 @@ test("configuration supports shared lines and requires a personal caregiver and 
   assert.throws(() => readConfig({ ...env, CAREGIVER_PHONE: env.TWILIO_PROXY_NUMBER }));
   assert.throws(() => readConfig({ ...env, PHOTON_LINE: config.caregiver }));
 });
+
+// --- texts for the senior, when the server forwards by iMessage ------------------------------------
+
+const senior = "+15555550101";
+const seniorConfig = { ...config, senior };
+const forward = { job_id: "s", attempt_id: "b", message_id: "t", kind: "senior_imessage",
+  recipient: senior, line: "", text: "Your appointment is tomorrow.\n\n— Palisade screening —" };
+
+test("an approved text is sent to the senior and nobody else, and the claim names its kind", async () => {
+  const { worker, sends, requests } = setup({ job: forward, workerConfig: seniorConfig });
+  assert.equal(await worker.drain(undefined, "senior_imessage"), true);
+  assert.deepEqual(requests[0], { path: "/integrations/photon/outbox/claim", body: { kind: "senior_imessage" } });
+  assert.deepEqual(sends, [{ recipient: senior, line: "", text: forward.text }]);
+  assert.equal(requests.at(-1).body.outcome, "sent");
+  assert.equal(requests.at(-1).path, "/integrations/photon/outbox/s/result");
+});
+
+test("without a senior address the service never asks for a text for the senior", async () => {
+  const { worker, sends, requests } = setup({ job: forward });
+  assert.equal(await worker.drain(undefined, "senior_imessage"), false);
+  assert.equal(requests.length, 0);
+  assert.equal(sends.length, 0);
+});
+
+test("a job that names another destination, or another kind, is not sent to the senior", async () => {
+  for (const job of [{ ...forward, recipient: "+15555550777" }, { ...forward, recipient: config.caregiver },
+    { ...forward, line: "+15555550777" }, { ...forward, kind: "relay" }, { ...forward, kind: "caregiver_alert" }]) {
+    const { worker, sends, requests } = setup({ job, workerConfig: seniorConfig });
+    await worker.drain(undefined, "senior_imessage");
+    assert.equal(sends.length, 0, JSON.stringify(job));
+    assert.equal(requests.at(-1).body.outcome, "delivery_unknown");
+  }
+});
+
+test("a caregiver alert is still only for the caregiver, and a senior job cannot be taken as an alert", async () => {
+  for (const job of [{ ...alert, recipient: senior }, { ...forward, recipient: config.caregiver }, forward]) {
+    const { worker, sends } = setup({ job, workerConfig: seniorConfig });
+    await worker.drain();
+    assert.equal(sends.length, 0, JSON.stringify(job));
+  }
+});
+
+test("a text for the senior that cannot be confirmed is not sent again", async () => {
+  const { worker, sends, requests } = setup({ job: forward, workerConfig: seniorConfig, sendFails: true });
+  await worker.drain(undefined, "senior_imessage");
+  assert.equal(sends.length, 1);
+  assert.equal(requests.at(-1).body.outcome, "delivery_unknown");
+  const { worker: second, sends: again } = setup({ job: forward, workerConfig: seniorConfig });
+  await assert.rejects(second.drain(async () => { throw new Error("backend unavailable"); }, "senior_imessage"));
+  assert.equal(again.length, 1);
+});
+
+test("the senior's own replies are not commands and are ignored", async () => {
+  const { worker, requests, sends } = setup({ workerConfig: seniorConfig });
+  await worker.receive({ ...input, sender: senior });
+  assert.equal(requests.length, 0);
+  assert.equal(sends.length, 0);
+});
+
+test("HELP and STATUS say how texts reach the senior", async () => {
+  const requests = [];
+  const status = { held_count: 0, why: "", forwarding_enabled: true, sms_ready: false, forwarding_ready: true,
+    shield_number: "+15555550100", forward_via: "imessage" };
+  const backend = { async request(path, body) { requests.push(path); return status; } };
+  const sends = [];
+  const worker = new Worker(seniorConfig, backend, { async send(r, l, text) { sends.push(text); } });
+  await worker.receive({ ...input, id: "help", content: { type: "text", text: "HELP" } });
+  await worker.receive({ ...input, id: "status", content: { type: "text", text: "STATUS" } });
+  assert.match(sends[0], /by iMessage with a screening note/);
+  assert.doesNotMatch(sends[0], /from that number/);
+  assert.match(sends[1], /iMessage forwarding is enabled/);
+  status.forwarding_ready = false;
+  await worker.receive({ ...input, id: "status2", content: { type: "text", text: "STATUS" } });
+  assert.match(sends[2], /iMessage forwarding is paused or unavailable/);
+});
+
+test("configuration for the senior: only when the server forwards by iMessage, and a distinct personal address", () => {
+  const env = { SPECTRUM_PROJECT_ID: "project", SPECTRUM_PROJECT_SECRET: "secret", CAREGIVER_PHONE: config.caregiver,
+    PHOTON_BRIDGE_TOKEN: "bridge", TWILIO_PROXY_NUMBER: "+15555550100", SENIOR_PHONE: senior };
+  assert.equal(readConfig(env).senior, undefined); // SMS is the default: the service has no senior at all
+  assert.equal(readConfig({ ...env, TEXT_FORWARD_VIA: "sms" }).senior, undefined);
+  const via = { ...env, TEXT_FORWARD_VIA: "imessage" };
+  assert.equal(readConfig(via).senior, senior); // falls back to SENIOR_PHONE
+  assert.equal(readConfig({ ...via, SENIOR_IMESSAGE_ADDRESS: "Senior@Example.com" }).senior, "Senior@Example.com");
+  assert.throws(() => readConfig({ ...via, SENIOR_PHONE: "" }), /SENIOR_IMESSAGE_ADDRESS/);
+  assert.throws(() => readConfig({ ...via, SENIOR_PHONE: config.caregiver }), /distinct/);
+  assert.throws(() => readConfig({ ...via, SENIOR_PHONE: env.TWILIO_PROXY_NUMBER }), /distinct/);
+  assert.throws(() => readConfig({ ...via, SENIOR_IMESSAGE_ADDRESS: "+1 (555) 555-0102" }), /distinct/); // the caregiver, written differently
+});

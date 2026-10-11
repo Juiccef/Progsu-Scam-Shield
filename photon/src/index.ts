@@ -55,7 +55,9 @@ async function main() {
   const outbox = async () => {
     while (!stop.signal.aborted) {
       try {
-        await worker.drain((path, body) => retry(() => bridge.request(path, body), stop.signal));
+        const report = (path: string, body: unknown) => retry(() => bridge.request(path, body), stop.signal);
+        await worker.drain(report);
+        await worker.drain(report, "senior_imessage"); // does nothing unless the server forwards by iMessage
       } catch {
         if (!stop.signal.aborted) console.warn("Outbox operation unavailable; claimed sends will not be repeated.");
       }
