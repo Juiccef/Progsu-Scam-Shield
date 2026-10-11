@@ -290,6 +290,14 @@ extension GatewayHealth {
     /// Checking and holding, with forwarding switched off and no alert service running: a server being set up.
     static let paused = GatewayHealth(enabled: true, forwardingEnabled: false, connected: false, smsReady: false)
     static let off = GatewayHealth(enabled: false, forwardingEnabled: nil, connected: nil, smsReady: nil)
+    /// Forwarding by iMessage, with the agent checking in. SMS is not set up at all, as on a server that never needed it.
+    static let iMessage = GatewayHealth(
+        enabled: true, forwardingEnabled: true, connected: true, smsReady: false, forwardVia: "imessage", forwardingReady: true
+    )
+    /// Forwarding by iMessage, with no agent checking in.
+    static let iMessageDown = GatewayHealth(
+        enabled: true, forwardingEnabled: true, connected: false, smsReady: false, forwardVia: "imessage", forwardingReady: false
+    )
 }
 
 extension ShieldStore {
@@ -332,16 +340,23 @@ extension ShieldStore {
             store.tab = .calls
             store.callsPath = [.blocked]
             return store
-        case "texts", "texts-paused", "text-held", "text-released", "text-delivered", "alerts", "home-texts":
+        case "texts", "texts-paused", "texts-imessage", "texts-imessage-down", "text-held", "text-released", "text-delivered",
+             "text-sent-imessage", "alerts", "home-texts":
             // "text-released" is the first sample text after the caregiver let it through.
             let whole = name == "text-released"
                 ? [GatewayMessage.heldFee.sampleDecided("release")] + GatewayMessage.wholeSamples.dropFirst()
                 : GatewayMessage.wholeSamples
+            let protection: GatewayHealth = switch name {
+            case "texts-paused": .paused
+            case "texts-imessage", "text-sent-imessage": .iMessage
+            case "texts-imessage-down": .iMessageDown
+            default: .on
+            }
             let store = preview(history: CallSummary.samples).withTexts(
                 whole.map(\.listed),
                 whole: whole,
                 checks: MessageSummary.pasted,
-                protection: name == "texts-paused" ? .paused : .on,
+                protection: protection,
                 number: sampleNumber
             )
             switch name {
@@ -351,6 +366,7 @@ extension ShieldStore {
             }
             if name == "text-held" || name == "text-released" { store.textsPath = [.text(GatewayMessage.heldFee.id)] }
             if name == "text-delivered" { store.textsPath = [.text(GatewayMessage.delivered.id)] }
+            if name == "text-sent-imessage" { store.textsPath = [.text("twilio_SMpharmacy")] }
             return store
         case "texts-empty":
             let store = preview(history: CallSummary.samples).withTexts(protection: .on, number: sampleNumber)

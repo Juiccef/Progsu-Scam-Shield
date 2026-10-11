@@ -189,7 +189,7 @@ private struct TextProtection: View {
         if let error = health.error, !health.enabled { return .broken(error) }
         guard health.enabled else { return .off }
         guard health.forwardingEnabled == true else { return .paused }
-        return health.smsReady == true ? .protected : .cannotSend
+        return (health.forwardingReady ?? health.smsReady) == true ? .protected : .cannotSend
     }
 
     var body: some View {
@@ -239,7 +239,10 @@ private struct TextProtection: View {
         case .paused:
             return "Texts sent to \(theNumber) are checked and kept here. Forwarding them to \(seniorName) is turned off at the server."
         case .cannotSend:
-            return "Texts sent to \(theNumber) are checked and kept here. The server cannot forward them: it is in practice mode, or has no Twilio account."
+            let why = health.forwardsByIMessage
+                ? "it is in practice mode, or the iMessage agent is not checking in"
+                : "it is in practice mode, or has no Twilio account"
+            return "Texts sent to \(theNumber) are checked and kept here. The server cannot forward them: \(why)."
         case .off:
             return "This server does not hold texts or forward them. You can still check a text yourself."
         case .broken(let reason):

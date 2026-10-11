@@ -82,14 +82,24 @@ struct GatewayHealth: Decodable, Equatable, Sendable {
     let forwardingEnabled: Bool?
     /// True while the service that sends the caregiver's iMessage alerts is checking in.
     let connected: Bool?
-    /// False when the server could not send a text if asked: practice mode, or no Twilio account.
+    /// False when the server could not send a text by SMS if asked: practice mode, or no Twilio account.
     let smsReady: Bool?
+    /// How an approved text reaches the protected person: "sms", or "imessage" through the same
+    /// agent that alerts the caregiver. A server from before iMessage says nothing, and means SMS.
+    var forwardVia: String?
+    /// Whether an approved text could be sent on right now, whichever way the server sends them.
+    var forwardingReady: Bool?
     /// Why text protection is off, when the server was asked for it and could not start it.
     var error: String?
+
+    /// True when texts go to the protected person by iMessage rather than SMS.
+    var forwardsByIMessage: Bool { forwardVia == "imessage" }
 
     enum CodingKeys: String, CodingKey {
         case enabled, connected, error
         case forwardingEnabled = "forwarding_enabled"
         case smsReady = "sms_ready"
+        case forwardVia = "forward_via"
+        case forwardingReady = "forwarding_ready"
     }
 }

@@ -77,7 +77,8 @@ struct TextDetailView: View {
                 text: text,
                 isExpired: isExpired,
                 seniorName: seniorName,
-                isForwarding: store.gatewayHealth?.forwardingEnabled == true
+                isForwarding: store.gatewayHealth?.forwardingEnabled == true,
+                byIMessage: store.gatewayHealth?.forwardsByIMessage == true
             )
             .safeAreaInset(edge: .bottom) {
                 if text.needsReview, !isExpired {
@@ -157,6 +158,8 @@ private struct TextDetail: View {
     let seniorName: String
     /// False while the server keeps checked texts instead of sending them on.
     let isForwarding: Bool
+    /// True when the server sends them on by iMessage, which says less about what became of one than SMS does.
+    let byIMessage: Bool
 
     var body: some View {
         List {
@@ -234,7 +237,9 @@ private struct TextDetail: View {
         case .sending:
             return "It is being forwarded to \(seniorName)."
         case .sent:
-            return "The phone company has accepted it. That is not yet proof that it arrived."
+            return byIMessage
+                ? "It was sent to \(seniorName) by iMessage. iMessage does not say whether it was read."
+                : "The phone company has accepted it. That is not yet proof that it arrived."
         case .delivered:
             return "The phone company reports it delivered. That does not mean \(seniorName) has read it."
         case .deliveryFailed:
