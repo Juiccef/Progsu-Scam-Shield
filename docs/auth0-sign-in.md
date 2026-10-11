@@ -661,6 +661,9 @@ def test_clients_learn_from_the_server_where_to_sign_in(tmp_path):
 This also fixes a bug that has been there since the first version: the page connected but
 never showed a call, because it listened for the wrong kind of event.
 
+The page was redesigned on 2026-10-11, so the diff below no longer matches the file line for
+line. The sign-in code is the same and is still in `dashboard.html`, under "signing in".
+
 ```diff
 --- a/dashboard.html
 +++ b/dashboard.html
@@ -869,19 +872,21 @@ log it shows says why: fix that and push again, because the server is down until
    Expect `401`.
 
 3. **Signing in works.** Open `https://64-177-53-243.sslip.io/dashboard` in a browser. It should say
-   "feed: sign in to watch" and show a **Sign In** button. Click it, choose "Continue with
+   **Not Signed In** and show a **Sign In** button. Click it, choose "Continue with
    Google", and use an email that is in `CAREGIVER_EMAILS`. You should land back on the
-   dashboard with "feed: live", your email, and a **Sign Out** button.
+   dashboard with **Protected** on Summary and, at the foot of the side bar, "Connected",
+   your email and **Sign Out**.
 
-4. **A call shows up.** Start a demo call from the iPhone app. The dashboard should show
-   the transcript, the risk number rising, and "Palisade ended this call".
+4. **A call shows up.** Start a demo call from the iPhone app, or from the Demo Call menu
+   on the dashboard's Summary. The dashboard should show the transcript, the risk dial
+   rising, and "Palisade Ended the Call".
 
 5. **Someone who is not on the list is refused.** Sign out, then sign in with a Google
-   account that is not in `CAREGIVER_EMAILS`. Expect "feed: This account is not on the
-   caregiver list".
+   account that is not in `CAREGIVER_EMAILS`. Expect **No Access** and "This account is
+   not on the caregiver list."
 
 6. **You stay signed in.** Sign in again with your own account and reload the page. It
-   should go straight to "feed: live". Try the same on an iPhone in Safari.
+   should go straight to **Protected**, with "Connected" at the foot of the side bar. Try the same on an iPhone in Safari.
 
 ---
 
@@ -1058,8 +1063,8 @@ list of allowed people lives in `CAREGIVER_EMAILS` on your server.
 
 ## If something goes wrong
 
-The dashboard shows the server's reasons after "feed:". The iPhone app shows the same
-sentences on Summary, under **No Access**.
+The dashboard shows the server's reasons on Summary, under **No Access** or **Not Signed
+In**. The iPhone app shows the same sentences in the same place.
 
 | What you see | Likely cause | What to do |
 |---|---|---|
@@ -1069,9 +1074,9 @@ sentences on Summary, under **No Access**.
 | The app says **No Access** and "The server did not accept this sign-in." | `AUTH0_DOMAIN` or `AUTH0_AUDIENCE` on the server does not match Auth0 | Compare with the list at the top, fix `.env.vultr`, push |
 | The app still asks for an Access Token | The server it is connected to does not ask for a sign-in, or has no `AUTH0_IOS_CLIENT_ID` | Step 15, check 1 |
 | Auth0 says the client is not authorized for the API | The API only allows applications it lists | On the API, open **Application Access** and authorize both applications |
-| "feed: This account has no verified email address" | The Action in step 5 is not deployed, or not in the post-login flow | Redo step 5, sign out and sign in again |
+| "This account has no verified email address." | The Action in step 5 is not deployed, or not in the post-login flow | Redo step 5, sign out and sign in again |
 | The same message, for a password account | The person has not clicked the link in Auth0's verification email | Click it, sign out and sign in again |
-| "feed: This account is not on the caregiver list" | The email is not in `CAREGIVER_EMAILS` | Add it in `.env.vultr` and push |
-| "feed: Sign in again" straight after signing in | `AUTH0_DOMAIN` or `AUTH0_AUDIENCE` on the server does not match Auth0 | Compare with the list at the top, fix `.env.vultr`, push |
+| "This account is not on the caregiver list." | The email is not in `CAREGIVER_EMAILS` | Add it in `.env.vultr` and push |
+| "Sign in again." straight after signing in | `AUTH0_DOMAIN` or `AUTH0_AUDIENCE` on the server does not match Auth0 | Compare with the list at the top, fix `.env.vultr`, push |
 | Asked to sign in again every day | Staying signed in is switched off | Step 2 item 5 and step 3 item 5 |
 | The push prints "Palisade did not start" | Usually a new file that git does not track | Step 13, then push again |

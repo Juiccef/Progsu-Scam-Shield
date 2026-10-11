@@ -12,8 +12,9 @@ Palisade; the code keeps the old name where nobody sees it: the Xcode project
 (`ios/Shield.xcodeproj`), folder and type names, logger names, and the `shield` user and
 service on the Vultr server.
 
-This repo is the backend plus a temporary, plain dashboard (`/dashboard`) for watching calls.
-It is not the final UI. `tools/watch.py` prints the same live feed in a terminal.
+This repo is the backend, the caregiver's iPhone app (`ios/`) and a web dashboard
+(`/dashboard`) that shows the same calls in a browser. `tools/watch.py` prints the live feed
+in a terminal.
 
 ## Setup
 
@@ -93,21 +94,38 @@ about $5 a month).
   Caddy without buffering. Not tried: real Twilio calls through it, and a reboot of the server.
   If a step fails, `up` stops there and prints that step's output.
 
-## Dashboard (temporary)
+## Dashboard
 
 With the server running, open `http://localhost:8000/dashboard` (or
-`https://YOUR-NGROK-HOST/dashboard` to show it on another device). It shows, live: the call
-status, the risk score and its history, the red flags, the transcript (caller and senior),
-whether Palisade warned or ended the call, the call-control and SMS results, and the raw event log.
+`https://YOUR-SERVER/dashboard` on another device). It is the iPhone app's look and words,
+laid out for a wide screen, with the pages down the side:
+
+| Page | What it shows |
+|---|---|
+| Summary | Whether the phone is protected, the newest calls, the texts waiting for a decision, and the server's state in a few lines. A call in progress takes over the page: its transcript, the risk dial and chart, Palisade's warning, and "Palisade Ended the Call" with the response time. |
+| Calls | Every call the server lists, with its outcome, peak risk and signs, and an All / Flagged choice. A row opens What Happened: the risk chart, what Palisade noticed and did, and the switch that marks a call Palisade got wrong. |
+| Texts | On a server with text protection: whether it is on, and each text's sender, state, risk and signs. Never a text's words, and no Release or Discard: those are in the app. |
+| Event Log | Every event the server sends, newest first, without the words of any call. |
+| System | The two thresholds, and what `/health` says: practice mode, the scoring model, speech to text, text forwarding, the iMessage agent. Also the name the page uses for the protected person, kept in the browser ("Grandma" until changed, as in the app). |
 
 - If `EVENTS_TOKEN` is set in `.env`, open `/dashboard?token=YOUR_TOKEN`. The page itself
-  holds no data; the token unlocks the event feed it reads.
+  holds no data; it sends the token with each request it makes, in the `Authorization` header.
 - With sign-in set up (`AUTH0_DOMAIN`; [docs/auth0-sign-in.md](docs/auth0-sign-in.md) is the
   step-by-step guide), open `/dashboard` with no token. The page offers Sign In, and shows
   calls to a signed-in person whose verified email is in `CAREGIVER_EMAILS`. It ignores a
   `?token=` in the link then.
-- It is one file, `dashboard.html`, with no build step. It reads `/events` and `/health`.
-- Reconnecting or reloading replays the most recent events, so you can open it after a call.
+- A call comes up on Summary by itself when it starts. An ordinary call goes away a few
+  seconds after it ends; one Palisade warned about or ended stays until Done.
+- With `DEMO_MODE=true`, Summary has a Demo Call menu, the same scripts the app offers.
+- It is one file, `dashboard.html`, with no build step and nothing fetched from elsewhere
+  (Auth0's sign-in library excepted, where the server asks for a sign-in). It reads
+  `/health`, `/calls`, `/events`, `/demo/scripts` and, with text protection, `/gateway/messages`.
+- Everything that came from a caller or a texter is put on the page as text, never as HTML:
+  a scammer chooses those words. A test holds the page to that.
+- Reloading mid-call rebuilds the call from the server's recent events. The transcript of a
+  call that is over is gone from the server, so it is gone from the page too.
+- It follows the browser's light or dark setting, and on a phone its pages move to a bar
+  along the bottom.
 
 ## Test without a phone
 
