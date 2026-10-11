@@ -2,6 +2,7 @@ import Foundation
 
 /// Keys for the values the caregiver sets once in Settings. A launch argument such as
 /// `-serverURL http://localhost:8000` overrides the stored value, which is handy in the simulator.
+/// The Access Token is the exception: it is kept in the Keychain (see `AccessToken`).
 enum SettingsKey {
     static let serverURL = "serverURL"
     static let accessToken = "accessToken"
@@ -58,10 +59,9 @@ struct ShieldAPI: Equatable, Sendable {
     }
 
     static var fromSettings: ShieldAPI? {
-        let defaults = UserDefaults.standard
-        return ShieldAPI(
-            address: defaults.string(forKey: SettingsKey.serverURL) ?? SettingsKey.defaultServerURL,
-            token: defaults.string(forKey: SettingsKey.accessToken) ?? ""
+        ShieldAPI(
+            address: UserDefaults.standard.string(forKey: SettingsKey.serverURL) ?? SettingsKey.defaultServerURL,
+            token: AccessToken.current
         )
     }
 

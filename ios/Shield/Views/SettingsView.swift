@@ -4,7 +4,8 @@ struct SettingsView: View {
     @Environment(ShieldStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsKey.serverURL) private var serverURL = SettingsKey.defaultServerURL
-    @AppStorage(SettingsKey.accessToken) private var accessToken = ""
+    /// Not `@AppStorage`: the token is kept in the Keychain, and written there as it is typed.
+    @State private var accessToken = AccessToken.current
     @AppStorage(SettingsKey.seniorName) private var seniorName = SettingsKey.defaultSeniorName
     @AppStorage(SettingsKey.seniorPhone) private var seniorPhone = ""
     @AppStorage(SettingsKey.appearance) private var appearance = Appearance.automatic
@@ -94,6 +95,9 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+        .onChange(of: accessToken) { _, token in
+            AccessToken.stored = token
         }
         .onChange(of: store.presentedCall?.id) {
             // A call just started: get out of its way.
