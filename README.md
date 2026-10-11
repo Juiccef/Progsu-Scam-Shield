@@ -501,8 +501,9 @@ pinned: `SCORER_MODEL=typesafe:jev-1.13.0` and `SCORER_BACKUP_MODEL=claude-haiku
 ### The public pages
 
 `/privacy` and `/support` are two pages anyone can open: the privacy policy and a support
-page. The iPhone app links to them from its Settings, and an App Store listing needs both
-addresses. Their words are in `privacy.html` and `support.html`; read them before you give
+page. The iPhone app links to them from its Settings once it has found them on the server
+it is connected to (it asks for `/privacy` when it connects, so a server running older code
+gets no links), and an App Store listing needs both addresses. Their words are in `privacy.html` and `support.html`; read them before you give
 the addresses to anyone, because they make promises in your name (what is deleted when
 someone asks, that the protected person agreed).
 

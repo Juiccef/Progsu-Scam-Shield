@@ -155,8 +155,10 @@ Access Token field. Someone who signs in and is not on the server's list sees "N
 with the server's reason, and no calls. Signing out empties the list of calls at once.
 
 Settings ends with two links, Privacy Policy and Support. They open the server's own
-pages in the browser (`/privacy` and `/support`, at the address in Settings), which need
-no sign-in. The Access Token, on a server that takes one, is kept in the Keychain.
+pages in the browser (`/privacy` and `/support`), which need no sign-in. The links are
+there only while the server has those pages: the app asks for `/privacy` when it connects,
+and a server running code from before them gets no links, where it would otherwise open
+an empty page. The Access Token, on a server that takes one, is kept in the Keychain.
 
 The call screen can be put away with the arrow in its header. The call then stays one
 tap off on every page, in a bar above the tab bar that says how it is going (iOS 26.1

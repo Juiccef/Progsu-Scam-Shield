@@ -92,6 +92,17 @@ struct ShieldAPI: Equatable, Sendable {
         }
     }
 
+    /// Whether this server has the two pages anyone may read: its privacy policy and its
+    /// support page. A server from before they were added answers "Not Found", which a
+    /// browser shows as an all but empty page.
+    func hasPublicPages() async -> Bool {
+        // The pages need no token, so none is sent.
+        guard let (_, response) = try? await URLSession.shared.data(for: with(token: "").request("privacy")),
+              let answer = response as? HTTPURLResponse
+        else { return false }
+        return answer.statusCode == 200 && (answer.value(forHTTPHeaderField: "Content-Type") ?? "").hasPrefix("text/html")
+    }
+
     func calls() async throws -> [CallSummary] {
         let list: CallList = try await get("calls")
         return list.calls

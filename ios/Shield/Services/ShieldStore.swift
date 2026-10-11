@@ -45,6 +45,10 @@ final class ShieldStore {
     private(set) var account: String?
     /// True while a sign-in or a sign-out is under way, so that neither is started twice.
     private(set) var isSigningInOrOut = false
+    /// The server's address, once it has said it has a privacy policy and a support page to
+    /// show. Nil for a server from before those pages, so that Settings offers no link to a
+    /// page that is not there.
+    private(set) var publicPages: URL?
     /// The call in progress, or the one that just ended.
     private(set) var call: LiveCall?
     /// The call shown full screen. Set when a call starts; cleared when the caregiver closes it.
@@ -118,11 +122,16 @@ final class ShieldStore {
         guard let api = ShieldAPI.fromSettings else {
             self.api = nil
             forgetSignIn()
+            publicPages = nil
             connection = .notConfigured
             return
         }
-        // Another server: what the last one said about signing in no longer holds.
-        if api.baseURL != self.api?.baseURL { forgetSignIn() }
+        // Another server: what the last one said about signing in, and about its pages, no
+        // longer holds.
+        if api.baseURL != self.api?.baseURL {
+            forgetSignIn()
+            publicPages = nil
+        }
         self.api = api
         seenGatewayIDs = UserDefaults.standard.stringArray(forKey: gatewaySeenKey) ?? []
         connection = .connecting
@@ -265,6 +274,8 @@ final class ShieldStore {
                 // Asked on every attempt: the server may have had sign-in switched on or off
                 // since the last one.
                 try await askAboutSignIn(server)
+                // Before the sign-in is looked at: the pages are for someone signed out too.
+                await askAboutPages(server)
                 guard let api = try await authorized(server) else {
                     // Signing in connects again, so there is nothing to keep trying here.
                     lockOut(.signedOut)
@@ -313,6 +324,14 @@ final class ShieldStore {
         if session?.config != config { session = SignIn(config) }
         offersSignIn = session != nil
         account = session?.account
+    }
+
+    /// Asks the server whether it has its privacy policy and its support page. Asked on every
+    /// attempt, as the sign-in is: a server gains them when it is brought up to date.
+    private func askAboutPages(_ server: ShieldAPI) async {
+        let hasThem = await server.hasPublicPages()
+        guard !Task.isCancelled, api?.baseURL == server.baseURL else { return }
+        publicPages = hasThem ? server.baseURL : nil
     }
 
     /// The server, asked as someone it lets in: the signed-in caregiver where it wants a
@@ -532,6 +551,8 @@ extension ShieldStore {
         store.presentedCall = isShowingCall ? call : nil
         store.history = history
         store.demoScripts = demoScripts
+        // Sample data has no server. A made-up address, so that Settings shows its two links.
+        store.publicPages = URL(string: "https://palisade.example")
         return store
     }
 

@@ -28,6 +28,8 @@ final class SignIn: Sendable {
 final class Fixture {
     static let shared = Fixture()
     var messages: [GatewayMessage] = []
+    /// Whether the stand-in server has a privacy policy and a support page to show.
+    var hasPages = false
     var continuation: AsyncThrowingStream<ShieldAPI.FeedItem, Error>.Continuation?
 }
 
@@ -37,6 +39,7 @@ struct ShieldAPI: Equatable, Sendable {
     @MainActor static var fromSettings: ShieldAPI? { ShieldAPI() }
     func with(token: String) -> ShieldAPI { self }
     @MainActor func signInConfig() async throws -> SignInConfig { .off }
+    @MainActor func hasPublicPages() async -> Bool { Fixture.shared.hasPages }
     @MainActor func health() async throws -> ServerHealth { ServerHealth(ok: true, gateway: GatewayHealth(enabled: true, forwardingEnabled: false, connected: false, smsReady: false)) }
     @MainActor func calls() async throws -> [CallSummary] { [] }
     @MainActor func messages() async throws -> [MessageSummary] { [] }
@@ -122,7 +125,21 @@ struct StoreGatewayTests {
         assert(store.unreadGatewayIDs.contains(oldID), "Old held texts should still be available for review")
         print("PASS: historical events refresh review state without an alert")
 
+        assert(store.publicPages == nil, "A server without the public pages must leave Settings with no link to them")
+        Fixture.shared.hasPages = true
+        store.connect()
+        await pause()
+        assert(store.publicPages == ShieldAPI().baseURL, "A server with the public pages must give Settings their address")
+        Fixture.shared.hasPages = false
+        store.connect()
+        await pause()
+        guard store.publicPages == nil else {
+            print("FAIL: links to the server's pages stayed after the server stopped having them")
+            exit(1)
+        }
+        print("PASS: links to the server's pages are offered only while it has them")
+
         UserDefaults.standard.removeObject(forKey: "gatewaySeen.http://shield-store-test.invalid")
-        print("5 Swift gateway state-store checks passed")
+        print("6 Swift gateway state-store checks passed")
     }
 }

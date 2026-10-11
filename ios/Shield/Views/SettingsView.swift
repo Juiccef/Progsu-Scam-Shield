@@ -83,7 +83,8 @@ struct SettingsView: View {
 
                 Section {
                     // The server's own pages, which need no sign-in. They open in the browser.
-                    if let pages {
+                    // A server from before those pages gets no links, not two that lead nowhere.
+                    if let pages = store.publicPages {
                         Link("Privacy Policy", destination: pages.appending(path: "privacy"))
                         Link("Support", destination: pages.appending(path: "support"))
                     }
@@ -111,12 +112,6 @@ struct SettingsView: View {
         .onDisappear {
             store.connectIfSettingsChanged()
         }
-    }
-
-    /// Where the server keeps its privacy policy and its support page: at the address typed
-    /// above. Nil while that is not an address.
-    private var pages: URL? {
-        ShieldAPI(address: serverURL, token: "")?.baseURL
     }
 }
 
