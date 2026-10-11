@@ -27,6 +27,7 @@ from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
 
 import demo
+import policy
 from actions import Actions
 from auth import Auth0, SignInError
 from config import ROOT, Settings, get_settings
@@ -612,11 +613,25 @@ def create_app(
         """Temporary single-page view of the event feed. The page holds no data; /events does (and needs ?token=)."""
         return HTMLResponse((Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8"))
 
+    # Two pages for anyone, with no token and no sign-in: the app's Settings links to them, and
+    # an App Store listing has to. They are written from the settings (policy.py) and hold
+    # nothing about any call, text or person.
+    @app.get("/privacy", response_class=HTMLResponse)
+    async def privacy() -> HTMLResponse:
+        return HTMLResponse(policy.privacy_page(settings, texts_on=gateway is not None))
+
+    @app.get("/support", response_class=HTMLResponse)
+    async def support() -> HTMLResponse:
+        return HTMLResponse(policy.support_page(settings, texts_on=gateway is not None))
+
     @app.get("/")
     async def root() -> dict:
         return {
             "service": "Palisade",
-            "endpoints": ["/dashboard", "/health", "/events", "/calls", "/messages", "/messages/analyze", "/metrics/last"],
+            "endpoints": [
+                "/dashboard", "/health", "/events", "/calls", "/messages", "/messages/analyze", "/metrics/last",
+                "/privacy", "/support",
+            ],
         }
 
     return app

@@ -82,6 +82,11 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    // The server's own pages, which need no sign-in. They open in the browser.
+                    if let pages {
+                        Link("Privacy Policy", destination: pages.appending(path: "privacy"))
+                        Link("Support", destination: pages.appending(path: "support"))
+                    }
                     LabeledContent("Version", value: Bundle.main.versionText)
                 } footer: {
                     Label("No audio or transcript of a call is stored. A text sent to the protected number is kept encrypted for up to 24 hours, so it can be reviewed and delivered, then deleted.", systemImage: "lock.fill")
@@ -106,6 +111,12 @@ struct SettingsView: View {
         .onDisappear {
             store.connectIfSettingsChanged()
         }
+    }
+
+    /// Where the server keeps its privacy policy and its support page: at the address typed
+    /// above. Nil while that is not an address.
+    private var pages: URL? {
+        ShieldAPI(address: serverURL, token: "")?.baseURL
     }
 }
 

@@ -151,6 +151,10 @@ sheet. Settings gets an Account section, with the email and "Sign Out", in place
 Access Token field. Someone who signs in and is not on the server's list sees "No Access"
 with the server's reason, and no calls. Signing out empties the list of calls at once.
 
+Settings ends with two links, Privacy Policy and Support. They open the server's own
+pages in the browser (`/privacy` and `/support`, at the address in Settings), which need
+no sign-in. The Access Token, on a server that takes one, is kept in the Keychain.
+
 The call screen can be put away with the arrow in its header. The call then stays one
 tap off on every page, in a bar above the tab bar that says how it is going (iOS 26.1
 and later; before that, an "Open the Call" button on Summary). When Palisade warns or
@@ -241,13 +245,18 @@ Shield/
   Services/ShieldAPI.swift   HTTP + the event feed
   Services/ShieldStore.swift app state: connection, sign-in, current call, history, texts
   Services/SignIn.swift      the caregiver's sign-in with Auth0, kept in the Keychain
+  Services/AccessToken.swift the Access Token from Settings, kept in the Keychain
   Views/                     RootView (pages under the call screen), MainTabs (tab bar),
                              HomeView (Summary), AlertsView, CallsView, TextsView,
                              TextDetailView, CheckTextView, SignsView, CallDetailView,
                              LiveCallView, SettingsView, SignInButton, RiskDial, FlagViews,
                              TranscriptView
   Support/                   Theme, Platform (iOS/macOS differences), SampleData, Previews
-Shield-Info.plist            allows plain http to a local server
+  PrivacyInfo.xcprivacy      the app's privacy manifest, which App Store Connect asks for:
+                             why it uses UserDefaults, and what it collects (the sign-in's
+                             email and account ID, a text pasted into Check a Text)
+Shield-Info.plist            allows plain http to a local server, and answers the export
+                             question an upload asks (no encryption but the system's)
 ```
 
 The project, the folder and the types keep the app's first name, Shield. The name

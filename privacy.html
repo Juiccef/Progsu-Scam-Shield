@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palisade Privacy Policy</title>
+<!--
+  Served at /privacy by policy.py, which fills {{slots}} and keeps an element marked
+  data-when="fact" only where that fact holds for the server (policy.py lists the facts).
+  A marked element (p, li, div or span) must not hold another of its own kind.
+-->
+<style>
+  :root { --bg: #f4f5f7; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6eb; --accent: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1218; --ink: #e7eaf0; --muted: #98a1b3; --line: #2a303c; --accent: #7aa7ff; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 -apple-system, system-ui, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 28px 20px 56px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 34px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 22px 0 4px; }
+  p, ul { margin: 8px 0; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); font-size: 15px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Palisade Privacy Policy</h1>
+<p class="muted">Last updated October 10, 2026</p>
+
+<p>Palisade protects an older adult from phone scams. Calls and texts to that person’s Palisade number are checked for signs of a scam, and a family member or other caregiver follows what happens in the Palisade app. This page says what information that takes, who handles it, and how long it is kept.</p>
+
+<p data-when="operator">This Palisade service is run by {{operator}}.</p>
+<p data-when="no-operator">This Palisade service is run by whoever gave you its address. They have not put their name on this page.</p>
+
+<h2>In Short</h2>
+<ul>
+  <li>Palisade follows a call while it happens. It keeps no recording of the call and no written copy of what was said.</li>
+  <li data-when="texts">A text sent to a Palisade number is kept, encrypted, for up to 24 hours so it can be checked and delivered. Then it is deleted.</li>
+  <li>What Palisade keeps is what it noticed: a risk score, the kinds of warning sign, the time, and the last four digits of the other person’s number.</li>
+  <li>Nothing is sold and nothing is used for advertising. The app has no advertising or tracking software in it.</li>
+</ul>
+
+<h2>What Palisade Handles</h2>
+
+<h3>Calls</h3>
+<p>When someone calls a Palisade number, Palisade connects the call to the protected person’s phone and follows it. The sound of both sides is turned into written words as the call happens, and those words are checked for signs of a scam by a set of rules<span data-when="models"> and by an automated model</span>. A caller the family has marked as trusted is connected without being followed.</p>
+<p>The sound is passed along as it arrives and is never saved. The written words are held in the server’s memory during the call, shown live to a caregiver who is watching, and dropped when the call ends.</p>
+<p data-when="logs-transcripts"><strong>This server is set up differently:</strong> it also writes the words of each call into its own log. That setting is meant for testing.</p>
+<p>After a call, Palisade keeps a summary: when it happened, how long it lasted, the risk scores, the kinds of warning sign, what Palisade did, and the last four digits of the caller’s number.</p>
+
+<div data-when="texts">
+<h3>Texts</h3>
+<p>A text sent to a Palisade number is checked the same way. A text that looks ordinary is sent on to the protected person. One that looks risky is held, and a caregiver decides in the app whether to release it or discard it.</p>
+<p>While a text waits, its words and its sender’s full number are stored on the server, encrypted. A caregiver can read them in the app. They are deleted when the text is delivered or discarded, and after 24 hours at the latest. What remains is a summary like a call’s.</p>
+</div>
+<div data-when="no-texts">
+<h3>Texts</h3>
+<p>This server does not keep texts. If it is set up to check them, a text is scored when it arrives and only the result is kept.</p>
+</div>
+
+<h3>A Text You Check Yourself</h3>
+<p>A caregiver can paste any text into the app to have it checked. The text goes to the server<span data-when="models"> and to the model that scores it</span>, and only the result is kept.</p>
+
+<h3>The Caregiver’s Account</h3>
+<p data-when="sign-in">A caregiver signs in. Palisade learns the email address of the account and checks it against the list of people allowed to follow this person’s calls.</p>
+<p data-when="token">This server asks for an access token in place of a sign-in. The app keeps the token in the phone’s Keychain.</p>
+<p>The app keeps a few things on the phone and nowhere else: the server’s address, the name you gave the protected person, their phone number if you added it for the Call button, your choice of light or dark appearance, and which held texts you have already opened.</p>
+
+<h3>If You Call or Text a Palisade Number</h3>
+<p>Your call is put into writing while it happens, and your text is read, by automated systems looking for signs of a scam. A caregiver may see the words of your call as you speak, and a text of yours that is held. Palisade keeps the last four digits of your number with the summary<span data-when="texts">, and your full number only while a text of yours is waiting</span>.</p>
+
+<h2>Who Else Handles It</h2>
+<p data-when="services">Palisade is built on other companies’ services. It gives each one only what that service needs to do its part. Each handles it under its own terms, which also set how long it is kept.</p>
+<ul data-services>
+{{services}}
+</ul>
+<p data-when="no-services">This server is not set up to use any outside service.</p>
+<p>Palisade does not sell information, share it for advertising, or use it to build a profile of anyone.</p>
+
+<h2>How Long It Is Kept</h2>
+<ul>
+  <li><strong>What was said on a call:</strong> not kept.</li>
+  <li data-when="texts"><strong>A text’s words and its sender’s full number:</strong> up to 24 hours.</li>
+  <li><strong>Summaries of calls and texts:</strong> until they are deleted from the server. Ask, and they will be.</li>
+  <li data-when="sign-in"><strong>A caregiver’s account:</strong> until it is deleted. Ask, and it will be.</li>
+</ul>
+
+<h2>Agreement</h2>
+<p>Palisade is set up for a person only with that person’s agreement.</p>
+
+<h2>Your Choices</h2>
+<ul>
+  <li data-when="sign-in">Sign out in the app’s Settings. The phone forgets the sign-in and stops showing calls at once.</li>
+  <li>Ask for your account, or the summaries of your calls and texts, to be deleted.</li>
+  <li>Stop using Palisade at any time. Calls and texts sent straight to a person’s own number never pass through Palisade.</li>
+</ul>
+
+<h2>Keeping It Safe</h2>
+<p>The app reaches a server on the internet only over an encrypted connection. Phone numbers are cut to their last four digits in everything Palisade keeps after a call.<span data-when="guarded"> Only a caregiver the server lets in can see a call or a text.</span></p>
+<p data-when="no-guarded"><strong>This server is set up differently:</strong> it asks for no sign-in and no access token, so anyone who can reach it can follow its calls. That setup is meant for testing.</p>
+
+<h2>Children</h2>
+<p>Palisade is not meant for children, and it does not knowingly collect information from anyone under 13.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the new one is posted on this page with a new date.</p>
+
+<h2>Contact</h2>
+<p data-when="contact">Questions, or a request to see or delete information: {{contact}}.</p>
+<p data-when="no-contact">For questions, or to have information deleted, ask whoever gave you this server’s address. They have not published a contact here.</p>
+<p><a href="support">Palisade Support</a></p>
+</main>
+</body>
+</html>

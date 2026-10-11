@@ -91,6 +91,11 @@ class Settings:
     # (through the same Photon agent that alerts the caregiver, so no carrier registration is needed).
     text_forward_via: str = "sms"
     senior_imessage_address: str = ""  # an iMessage phone or email for the senior; empty uses SENIOR_PHONE
+    # The public pages, /privacy and /support (policy.py): who runs this server and how to reach
+    # them. They are settings so that nobody's name or address has to be written into the repo.
+    operator_name: str = ""
+    support_email: str = ""
+    hosted_by: str = ""  # the company whose machine the server runs on, for the policy's list
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] = os.environ) -> "Settings":
@@ -150,6 +155,9 @@ class Settings:
             gateway_encryption_key=get("GATEWAY_ENCRYPTION_KEY"),
             text_forward_via=get("TEXT_FORWARD_VIA", "sms").lower(),
             senior_imessage_address=get("SENIOR_IMESSAGE_ADDRESS"),
+            operator_name=get("OPERATOR_NAME"),
+            support_email=get("SUPPORT_EMAIL"),
+            hosted_by=get("HOSTED_BY"),
         )
 
 

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palisade Support</title>
+<!--
+  Served at /support by policy.py, which fills {{slots}} and keeps an element marked
+  data-when="fact" only where that fact holds for the server (policy.py lists the facts).
+  A marked element (p, li, div or span) must not hold another of its own kind.
+-->
+<style>
+  :root { --bg: #f4f5f7; --ink: #1b1f27; --muted: #6b7280; --line: #e3e6eb; --accent: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1218; --ink: #e7eaf0; --muted: #98a1b3; --line: #2a303c; --accent: #7aa7ff; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 -apple-system, system-ui, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 28px 20px 56px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 21px; margin: 34px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 22px 0 4px; }
+  p, ul { margin: 8px 0; }
+  ul { padding-left: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>Palisade Support</h1>
+
+<p>Palisade protects an older adult from phone scams. Calls and texts to that person’s Palisade number are checked for signs of a scam, and a family member or other caregiver follows what happens in the Palisade app.</p>
+
+<p><strong>Palisade is not an emergency service.</strong> If someone is in danger, call 911 or your local emergency number. If money or account details have already been given to a caller, contact the bank or card company straight away.</p>
+
+<h2>Get in Touch</h2>
+<p data-when="contact">Write to {{contact}}<span data-when="operator"> ({{operator}})</span>. Say what happened and roughly when. There is no need to repeat what was said on a call.</p>
+<p data-when="no-contact">This Palisade service is run by whoever gave you its address, and they have not published a contact here. Ask them directly.</p>
+
+<h2>Common Questions</h2>
+
+<h3>The App Says “Not Connected”</h3>
+<p>The app cannot reach its Palisade server. Check that the phone is online, then open Settings in the app and check the server’s address. If both are right, the server may be down: get in touch.</p>
+
+<div data-when="sign-in">
+<h3>The App Says “No Access”</h3>
+<p>You are signed in, but your email address is not on this server’s list of caregivers. Ask whoever runs it to add the address you sign in with.</p>
+
+<h3>I Can’t Sign In</h3>
+<p>Use the email address that was added for you. If you sign in with a password and have forgotten it, the sign-in page can reset it. If “Couldn’t Sign In” keeps coming up, get in touch and include the sentence under it.</p>
+</div>
+
+<h3>Palisade Ended a Call. What Now?</h3>
+<p>The caller was disconnected and the person you look after heard a short safety message. Ring them: the Call button does it, once their number is in the app’s Settings. “What Happened” lists the warning signs Palisade heard.</p>
+
+<div data-when="texts">
+<h3>A Text Is Waiting for Me</h3>
+<p>Open it under Texts. Release sends it on to the person you look after, with a note that you let it through. Discard deletes it. A text nobody decides on is deleted after 24 hours without being delivered. Links in a held text are switched off on purpose.</p>
+</div>
+
+<h3>Palisade Got One Wrong</h3>
+<p>If it stopped an ordinary call, or let a scam through, tell us the day and the time. That is enough to find the call’s summary.</p>
+
+<h3>Stopping, and Deleting Information</h3>
+<p>You can stop using Palisade at any time: calls and texts sent straight to a person’s own number never pass through it. To have an account or the summaries of calls and texts deleted, get in touch. The <a href="privacy">privacy policy</a> says what is kept and for how long.</p>
+</main>
+</body>
+</html>

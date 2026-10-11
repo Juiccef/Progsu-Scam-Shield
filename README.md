@@ -193,6 +193,7 @@ Palisade carries on: the `action` event is the alert.
 | `GET /demo/scripts`, `POST /demo/call?script=scam_01` | Demo calls, only with `DEMO_MODE=true`. See below. |
 | `GET /auth/config` | Whether this server asks for a sign-in, and the Auth0 domain and client IDs an app or the dashboard needs for it. None of it is secret. |
 | `GET /health` | Configuration summary without secrets. |
+| `GET /privacy`, `GET /support` | The privacy policy and the support page, for anyone, with no token. The app's Settings links to them. See "The public pages". |
 
 Every webhook validates `X-Twilio-Signature`. A media stream is accepted only
 if it carries the one-time token that `/voice/incoming` put in the TwiML. Set
@@ -497,6 +498,36 @@ pinned: `SCORER_MODEL=typesafe:jev-1.13.0` and `SCORER_BACKUP_MODEL=claude-haiku
   text protection off, a text is scored and not stored at all. Events and
   `logs/events.jsonl` never carry a text's words in either case.
 
+### The public pages
+
+`/privacy` and `/support` are two pages anyone can open: the privacy policy and a support
+page. The iPhone app links to them from its Settings, and an App Store listing needs both
+addresses. Their words are in `privacy.html` and `support.html`; read them before you give
+the addresses to anyone, because they make promises in your name (what is deleted when
+someone asks, that the protected person agreed).
+
+The policy is written from the server's settings (`policy.py`), so it names the companies
+this server really hands information to and no others: Twilio, the speech-to-text
+provider, whoever serves `SCORER_MODEL` and `SCORER_BACKUP_MODEL`, Auth0 when sign-in is on,
+Photon when text protection runs with the iMessage agent. It also says so when texts are
+kept, when `LOG_TRANSCRIPTS` is on, and when the server asks for neither a sign-in nor a
+token. Change a setting and the page follows; there is nothing to edit by hand.
+
+Three settings fill in what the server cannot know. Without the first two the pages say
+that whoever gave out the server's address runs it:
+
+```bash
+OPERATOR_NAME=        # who runs this server: a person, a team or a company
+SUPPORT_EMAIL=        # where questions and requests to delete go
+HOSTED_BY=            # the company whose machine it runs on, for example Vultr
+```
+
+In either file, `{{operator}}`, `{{contact}}` and `{{services}}` are filled in, and an
+element marked `data-when="texts"` (or another fact listed in `policy.facts`) is kept only
+where that holds. One sentence is tied to the code: the policy says Deepgram may keep audio
+to improve its models, because `stt/deepgram.py` does not send Deepgram's
+`mip_opt_out=true`. If that is ever sent, take the sentence out of `policy.services`.
+
 ## Layout
 
 ```
@@ -514,6 +545,8 @@ eval/              eval scripts, run_eval.py, results/
 history.py         recent-call summaries for GET /calls
 demo.py            demo calls (DEMO_MODE)
 auth.py            sign-in: checks a caregiver's Auth0 token
+policy.py          the public pages, written from the settings: /privacy and /support
+                   (their words are in privacy.html and support.html)
 messages.py        results of texts that were only checked, for GET /messages
 gateway.py         text protection: the encrypted queue, holding, release, the routes
 gateway_sms.py     forwards an approved text by SMS
