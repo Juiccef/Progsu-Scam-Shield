@@ -68,7 +68,10 @@ server's `GET /events` feed, its `GET /calls` list and, for texts, `GET /message
 
 ## Screens
 
-From the iPhone 17e simulator, with sample data.
+From the iPhone 17 Pro Max simulator, with sample data. They are 1320 × 2868 pixels with
+no transparency, which is a size the App Store takes for its screenshots: `-sample <name>`
+on that simulator (see "Run it in the simulator") gives a picture that can be uploaded as
+it is.
 
 | Summary | Calls | Scam Signs |
 |---|---|---|
