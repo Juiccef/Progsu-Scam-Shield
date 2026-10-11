@@ -18,6 +18,9 @@ enum ShieldAPIError: LocalizedError {
     case unauthorized
     /// The server knows who is signed in and does not let them watch calls. Its own sentence says why.
     case refused(String)
+    /// The server would not do this just now, and says why in a sentence of its own: a demo
+    /// call asked for while one is running.
+    case turnedDown(String)
     case server(Int)
     case notAShieldServer
     /// A held text was released, discarded or ran out before this decision reached the server.
@@ -28,8 +31,9 @@ enum ShieldAPIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unauthorized: "The access token was not accepted."
-        case .refused(let reason): reason
-        case .server(let status): "The server answered with error \(status)."
+        case .refused(let reason), .turnedDown(let reason): reason
+        // The status number says nothing to a caregiver. The server's log has it.
+        case .server: "The Palisade server ran into a problem."
         case .notAShieldServer: "That address did not answer like a Palisade server."
         case .reviewConflict: "This text is no longer waiting for a decision."
         case .gatewayUnavailable: "Text protection is switched off on this server."
@@ -205,17 +209,27 @@ struct ShieldAPI: Equatable, Sendable {
         guard let status = (response as? HTTPURLResponse)?.statusCode else { return }
         if status == 401 { throw ShieldAPIError.unauthorized }
         if status == 403, let body, let refusal = try? JSONDecoder().decode(Refusal.self, from: body) {
-            throw ShieldAPIError.refused(refusal.detail.hasSuffix(".") ? refusal.detail : refusal.detail + ".")
+            throw ShieldAPIError.refused(refusal.sentence)
         }
         // Only on a request about a held text do these two mean what they say here. A demo
         // call the server turns down is a 409 as well, and a server that is down a 503.
         if isText, status == 409 { throw ShieldAPIError.reviewConflict }
         if isText, status == 503 { throw ShieldAPIError.gatewayUnavailable }
+        // Any other 409 is the server saying "not now", in a sentence that says more than
+        // the number would: "A demo call is already running".
+        if status == 409, let body, let refusal = try? JSONDecoder().decode(Refusal.self, from: body) {
+            throw ShieldAPIError.turnedDown(refusal.sentence)
+        }
         guard (200..<300).contains(status) else { throw ShieldAPIError.server(status) }
     }
 
     /// How the server words a refusal: `{"detail": "This account is not on the caregiver list"}`.
     private struct Refusal: Decodable {
         let detail: String
+
+        /// The server's words as a sentence: it leaves the full stop off.
+        var sentence: String {
+            detail.hasSuffix(".") ? detail : detail + "."
+        }
     }
 }

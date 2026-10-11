@@ -28,7 +28,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Palisade Server")
                 } footer: {
-                    Text("The address of your Palisade server, for example the ngrok address it is running behind.")
+                    Text("The web address of your Palisade server.")
                 }
 
                 if store.offersSignIn {

@@ -79,9 +79,9 @@ final class SignIn: Sendable {
         } catch {
             // Auth0's own sentence, where it gave one: it names what is set up wrong.
             if let refusal = (error as? WebAuthError)?.cause as? AuthenticationError, !refusal.isNetworkError {
-                throw SignInProblem(errorDescription: "Auth0 answered: \(refusal.localizedDescription)")
+                throw SignInProblem(errorDescription: "The sign-in service answered: \(refusal.localizedDescription)")
             }
-            throw SignInProblem(errorDescription: "Auth0’s sign-in page could not be reached. Try again.")
+            throw SignInProblem(errorDescription: "The sign-in page could not be reached. Try again.")
         }
     }
 

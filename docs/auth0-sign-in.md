@@ -990,7 +990,7 @@ sentences on Summary, under **No Access**.
 |---|---|---|
 | Auth0 shows "Callback URL mismatch" | The address in step 3 is not exactly the dashboard's | Check for `https`, the exact server address, `/dashboard`, and no slash at the end |
 | Auth0 shows an error about "Service not found" | The API's Identifier and `AUTH0_AUDIENCE` differ | Make them identical, then push |
-| The app says "Couldn’t Sign In" and "Auth0 answered: Service not found: ..." | The API of step 2 does not exist yet, or its Identifier is not exactly `AUTH0_AUDIENCE` | Create it (step 2), or make the two identical and push |
+| The app says "Couldn’t Sign In" and "The sign-in service answered: Service not found: ..." | The API of step 2 does not exist yet, or its Identifier is not exactly `AUTH0_AUDIENCE` | Create it (step 2), or make the two identical and push |
 | The app says **No Access** and "The server did not accept this sign-in." | `AUTH0_DOMAIN` or `AUTH0_AUDIENCE` on the server does not match Auth0 | Compare with the list at the top, fix `.env.vultr`, push |
 | The app still asks for an Access Token | The server it is connected to does not ask for a sign-in, or has no `AUTH0_IOS_CLIENT_ID` | Step 15, check 1 |
 | Auth0 says the client is not authorized for the API | The API only allows applications it lists | On the API, open **Application Access** and authorize both applications |

@@ -240,8 +240,8 @@ private struct TextProtection: View {
             return "Texts sent to \(theNumber) are checked and kept here. Forwarding them to \(seniorName) is turned off at the server."
         case .cannotSend:
             let why = health.forwardsByIMessage
-                ? "it is in practice mode, or the iMessage agent is not checking in"
-                : "it is in practice mode, or has no Twilio account"
+                ? "it is in practice mode, or its iMessage service is not connected"
+                : "it is in practice mode, or has no phone service set up"
             return "Texts sent to \(theNumber) are checked and kept here. The server cannot forward them: \(why)."
         case .off:
             return "This server does not hold texts or forward them. You can still check a text yourself."
