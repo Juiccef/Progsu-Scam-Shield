@@ -177,8 +177,9 @@ def test_allowed_text_stays_queued_during_staging_and_survives_restart(tmp_path)
     app = create_app(replace(conf, text_forwarding_enabled=True), stt_factory=None)
     with TestClient(app) as client:
         job = relay(client, app)
-        assert "Passed automated screening: low scam risk detected." in job["text"]
-        assert "Sender identity has not been verified." in job["text"]
+        # An ordinary text goes through as it is: no note, no sender, nothing added.
+        assert "screening" not in job["text"] and "Original sender" not in job["text"]
+        assert job["text"] == job["text"].strip()
 
 
 @pytest.mark.parametrize("failure", ["timeout", "exception", "missing_model"])
@@ -211,17 +212,24 @@ def test_media_is_held_without_forwarding_even_with_benign_caption(tmp_path, cap
         assert decide(client, "discard").status_code == 200 and claim(client) is None
 
 
-def test_message_plus_footer_must_fit_sms_without_truncation(tmp_path):
+def test_a_text_that_passed_goes_as_it_is_and_a_released_one_must_fit_with_its_note(tmp_path):
     from scorer.messages import MessageScorer
     from gateway import GatewayService
     service = GatewayService(settings(tmp_path), EventBus(), MessageScorer())
-    capacity = MAX_SMS_LENGTH - len(forwarded_sms("", SENDER))
-    assert asyncio.run(service.ingest(incoming("x" * capacity)))["status"] == "queued"
-    result = asyncio.run(service.ingest(incoming("x" * (capacity + 1), message_id="too_long")))
+    # A text that passed carries nothing added, so it may be as long as the limit allows.
+    assert asyncio.run(service.ingest(incoming("x" * MAX_SMS_LENGTH)))["status"] == "queued"
+    result = asyncio.run(service.ingest(incoming("x" * (MAX_SMS_LENGTH + 1), message_id="too_long")))
     assert result["hold_reason"] == "message_too_long" and not result["review_eligible"]
     with pytest.raises(HTTPException):
         service.store.decide("too_long", "release")
-    assert len(service.store.claim("relay")["text"]) == MAX_SMS_LENGTH
+    assert service.store.claim("relay")["text"] == "x" * MAX_SMS_LENGTH
+    # A scam may be released, and then gets the note: one that would not fit with it can only be discarded.
+    room = MAX_SMS_LENGTH - len(forwarded_sms("", SENDER, released=True))
+    padding = "x" * (room - len(SCAM) - 1)
+    fits = asyncio.run(service.ingest(incoming(SCAM + " " + padding, message_id="fits")))
+    assert fits["hold_reason"] == "scam_signals" and fits["review_eligible"]
+    over = asyncio.run(service.ingest(incoming(SCAM + " " + padding + "xx", message_id="over")))
+    assert over["hold_reason"] == "message_too_long" and not over["review_eligible"]
     service.store.close()
 
 

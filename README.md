@@ -250,20 +250,22 @@ it under Texts. The caregiver can also paste any text into the app to have it ch
   within 24 hours. After that it is deleted without being sent.
 
 Nothing is forwarded until `TEXT_FORWARDING_ENABLED=true` as well; until then the approved
-texts wait. A forwarded text keeps its words and gets a fixed note under it:
+texts wait. **A text that passed goes through exactly as it was written**, with nothing added.
+A text the caregiver released after it was held gets a fixed note under it, so a risky text
+is never passed off as an ordinary one:
 
 ```text
-Your appointment is tomorrow at 2 PM.
+Your account is locked. Verify it now at https://example.test/login
 
 — Palisade screening —
 Original sender: +15555550999
-Passed automated screening: low scam risk detected.
+Released after caregiver review.
 Sender identity has not been verified.
 Replies are not forwarded.
 ```
 
-A text the caregiver released says "Released after caregiver review." in place of the
-third line, so a risky text is never passed off as having passed.
+Because a passed text carries no note, the senior does not see who sent it unless the text
+says so. The caregiver sees it in the app.
 
 How a text is scored: the rules always run, and the model can raise a text's risk but
 never lower it. When a model is set and does not answer, the text is held as "could not

@@ -115,8 +115,8 @@ export class Worker {
       if (command === "HELP" || command === "START" || command === "HELLO") {
         const status = await this.backend.request<Status>("/integrations/photon/status");
         const how = status.forward_via === "imessage"
-          ? "forwards approved texts to the protected person by iMessage with a screening note"
-          : "forwards approved texts from that number with a screening footer";
+          ? "forwards approved texts to the protected person by iMessage, as they are, with a note on any you released"
+          : "forwards approved texts from that number, as they are, with a note on any you released";
         response = `Palisade screens SMS sent to ${status.shield_number}, then ${how}. ` +
           "Suspicious texts are held in the Palisade app for caregiver review for 24 hours. " +
           "I send review alerts here. Send STATUS or WHY. Replies to forwarded texts are not relayed.";

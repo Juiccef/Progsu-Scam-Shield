@@ -42,7 +42,7 @@ test("HELP explains the Twilio number and STATUS reports SMS forwarding", async 
   await worker.receive({ ...input, id: "help", content: { type: "text", text: "HELP" } });
   await worker.receive({ ...input, id: "status", content: { type: "text", text: "STATUS" } });
   assert.match(sends[0].text, /\+15555550100/);
-  assert.match(sends[0].text, /from that number with a screening footer/);
+  assert.match(sends[0].text, /from that number, as they are, with a note on any you released/);
   assert.match(sends[1].text, /1 message\(s\) awaiting review/);
   assert.match(sends[1].text, /SMS forwarding is enabled/);
 });
@@ -210,7 +210,7 @@ test("HELP and STATUS say how texts reach the senior", async () => {
   const worker = new Worker(seniorConfig, backend, { async send(r, l, text) { sends.push(text); } });
   await worker.receive({ ...input, id: "help", content: { type: "text", text: "HELP" } });
   await worker.receive({ ...input, id: "status", content: { type: "text", text: "STATUS" } });
-  assert.match(sends[0], /by iMessage with a screening note/);
+  assert.match(sends[0], /by iMessage, as they are, with a note on any you released/);
   assert.doesNotMatch(sends[0], /from that number/);
   assert.match(sends[1], /iMessage forwarding is enabled/);
   status.forwarding_ready = false;

@@ -51,8 +51,11 @@ def address(value: str) -> str:
 
 
 def forwarded_sms(text: str, sender: str, *, released=False) -> str:
-    verdict = "Released after caregiver review." if released else "Passed automated screening: low scam risk detected."
-    return (f"{text}\n\n— Palisade screening —\nOriginal sender: {sender}\n{verdict}\n"
+    """What the senior receives. A text that passed screening goes through as it is, with nothing added.
+    One the caregiver released after it was held carries a note saying so, and who it came from."""
+    if not released:
+        return text
+    return (f"{text}\n\n— Palisade screening —\nOriginal sender: {sender}\nReleased after caregiver review.\n"
             "Sender identity has not been verified.\nReplies are not forwarded.")
 
 
@@ -205,7 +208,7 @@ class GatewayStore:
         advice = {
             "unsupported_content": "This version checks text only. Attachments have not been analyzed.",
             "analysis_incomplete": "Palisade could not complete analysis and withheld delivery. Review the text before releasing it.",
-            "message_too_long": "This text plus the screening footer exceeds the SMS size limit. It cannot be released in this version.",
+            "message_too_long": "This text plus the screening note exceeds the size limit. It cannot be released in this version.",
             "transport_changed": "This record came from the previous Photon gateway. It will not be forwarded over SMS; discard it or ask the sender to text the Twilio number.",
         }.get(row["hold_reason"], message_reason(flags, row["risk"] or 0))
         return {
@@ -489,7 +492,7 @@ class GatewayService:
             private = self.store.payload(row)
         except Exception:
             return self.store.finish_screening(message_id, empty, "analysis_incomplete")
-        if max(len(forwarded_sms(private["text"], private["sender"], released=r)) for r in (False, True)) > MAX_SMS_LENGTH:
+        if len(forwarded_sms(private["text"], private["sender"])) > MAX_SMS_LENGTH:
             return self.store.finish_screening(message_id, empty, "message_too_long")
         if self.requires_llm and self.scorer.llm is None:
             return self.store.finish_screening(message_id, empty, "analysis_incomplete")
@@ -499,6 +502,10 @@ class GatewayService:
         except Exception:
             # No exception string: SDK/model exceptions may contain submitted text.
             result, reason = empty, "analysis_incomplete"
+        # A held text may be released, and a released one carries the note: if that does not fit, it can only be discarded.
+        held = reason is not None or (result["risk"] or 0) >= 30
+        if held and len(forwarded_sms(private["text"], private["sender"], released=True)) > MAX_SMS_LENGTH:
+            reason = "message_too_long"
         return self.store.finish_screening(message_id, result, reason)
 
     async def ingest(self, item):
@@ -605,7 +612,7 @@ def gateway_router(service, settings, authorize):
             reason = latest["hold_reason"]
             why = {"analysis_incomplete": "Analysis could not finish, so Palisade withheld delivery.",
                    "unsupported_content": "This version checks text only; the content could not be analyzed.",
-                   "message_too_long": "The original text and screening footer exceed the SMS size limit.",
+                   "message_too_long": "The original text and screening note exceed the size limit.",
                    "transport_changed": "This record belongs to the previous Photon gateway and will not be forwarded over SMS."}.get(reason)
             if not why:
                 categories = ", ".join(FLAG_TITLES[f] for f in latest["flags"] if f in FLAG_TITLES)

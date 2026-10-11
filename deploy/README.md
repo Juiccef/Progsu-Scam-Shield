@@ -142,7 +142,7 @@ texts pass through Photon: the text and the sender's number go through Photon's 
 4. `tools/vultr_deploy.py status` says `texts: on`, and the app's Texts page says Protected.
    It says Can't Forward when the agent is not checking in.
 5. Text the Twilio number an ordinary text. It should arrive in the senior's Messages
-   from the Photon number, with "— Palisade screening —" under it. In the app it goes from
+   from the Photon number, exactly as written, with nothing added. In the app it goes from
    "Waiting to Be Forwarded" to "Forwarded". It never becomes "Delivered": iMessage does not
    report that to Palisade.
 6. A scam must stay held until released in the app, and then say "Released after caregiver
@@ -160,8 +160,8 @@ DRY_RUN_ACTIONS=false
 
 Push again. **Every text already waiting is sent the moment forwarding comes on.**
 
-- The ordinary text should reach the protected person from the Twilio number, with
-  "— Palisade screening —", the sender's number and "Passed automated screening" under it.
+- The ordinary text should reach the protected person from the Twilio number, exactly as
+  written, with nothing added.
 - A scam must not arrive until it is released in the app. Released, it says "Released
   after caregiver review."
 - In the app the text goes from "Waiting to Be Forwarded" to "Forwarded", then

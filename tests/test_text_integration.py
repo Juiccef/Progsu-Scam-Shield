@@ -17,7 +17,7 @@ def signed_in(**claims) -> dict:
 
 def test_what_people_read_says_palisade(tmp_path):
     """The forwarded text's footer, the caregiver's alert and the answer to WHY carry the product's name."""
-    footer = forwarded_sms("Hello", SENDER)
+    footer = forwarded_sms("Hello", SENDER, released=True)
     assert "— Palisade screening —" in footer
     with TestClient(create_app(settings(tmp_path), stt_factory=None)) as client:
         assert submit(client)["status"] == "held"

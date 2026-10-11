@@ -73,14 +73,13 @@ def test_an_approved_text_goes_to_the_agent_and_not_to_the_sms_worker(tmp_path):
         assert take(client) is None
 
 
-def test_the_job_names_the_senior_and_carries_the_fixed_note(tmp_path):
+def test_the_job_names_the_senior_and_carries_the_text_as_it_is(tmp_path):
     with TestClient(create_app(imessage(tmp_path), stt_factory=None)) as client:
         submit(client, ORDINARY, MessageSid=ORDINARY_SID)
         job = take(client)
         assert job["kind"] == "senior_imessage" and job["message_id"] == ORDINARY_ID
         assert job["recipient"] == SENIOR and job["line"] == ""  # a shared Photon line, as for the caregiver
-        assert job["text"] == forwarded_sms(ORDINARY, SENDER, released=False)
-        assert "Passed automated screening" in job["text"]
+        assert job["text"] == ORDINARY  # a text that passed goes as it is, with nothing added
         assert take(client) is None  # claimed once
         # While it is being sent the app is told, and the text is still kept in case the send is not confirmed.
         assert detail(client, ORDINARY_ID)["status"] == "sending"
@@ -163,7 +162,7 @@ def test_a_scam_is_not_sent_until_the_caregiver_releases_it(tmp_path):
         assert decide(client, "release").json()["status"] == "queued"
         job = take(client)
         assert job["recipient"] == SENIOR and "Released after caregiver review." in job["text"]
-        assert "Passed automated screening" not in job["text"]
+        assert job["text"].startswith(SCAM) and "Original sender" in job["text"]
         assert finish(client, job).json()["status"] == "sent"
 
 
