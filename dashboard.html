@@ -133,8 +133,9 @@
   .when { color: var(--secondary); font-size: 14px; white-space: nowrap; }
   .chevron { width: 16px; height: 16px; color: var(--tertiary); }
   .fact { justify-content: space-between; }
-  .fact .name { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .fact .value { color: var(--secondary); text-align: right; }
+  /* A name stays on one line. A long value, such as two models' names, takes two and splits them evenly. */
+  .fact .name { flex: none; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .fact .value { min-width: 0; color: var(--secondary); text-align: right; text-wrap: balance; }
   .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .told { display: block; }
   .rows > .phone-only { display: none; }
