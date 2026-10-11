@@ -19,37 +19,51 @@ from ..flags import FLAG_IDS, label_for
 from . import VULTR_INFERENCE, ProviderError
 from .openai_compat import _error_message
 
-# The risk at the middle of each of the scorer prompt's calibration bands, lowest first.
-# Keep them in step with the "Calibration" line in prompts/scam-scorer-prompt.md.
-RISK_ANCHORS = (5, 38, 62, 88, 100)
-# What each band looks like. The model judges each level on its own, without its number or
-# its neighbours, so a level describes a situation, never a degree (TypeSafe's advice).
+# The risk each level stands for, lowest first: the middle of the band Palisade treats that level as.
+# For a call those bands are its actions: nothing under WARN (60), a warning from there, the end
+# of the call from END (85). A level the model is sure of then lands well inside its band, and
+# the thresholds fall between two levels. (The first anchors were the middles of the prompt's
+# calibration bands, 62 and 88, which put a level held at nine tenths just under its threshold.)
+CALL_ANCHORS = (5, 38, 72, 92, 100)
+# For a text the bands are its labels: safe under 30, suspicious, likely scam from 70.
+TEXT_ANCHORS = (5, 38, 62, 88, 100)
+# What each level looks like. The model judges each level on its own, without its number or
+# its neighbours, so a level describes a situation, never a degree (TypeSafe's advice), and no
+# request or threat is named in two levels: where two levels fit, the model splits its answer.
+# The middle levels follow the scorer prompt: pressure warns, a strong request ends the call.
 CALL_LEVELS = (
     "An ordinary call. The caller asks for no money, codes, passwords or account details, and uses no pressure, "
     "threats or demands for secrecy.",
-    "Something is unusual but nothing is demanded yet: an unexpected caller says they are from a bank, an agency or "
-    "a company, or brings up an account, a payment or a problem, without pressure and without asking for money or "
-    "secrets.",
-    "The caller pushes: urgency, a threat of arrest, a fine or a shutoff, insisting the senior stay on the line or "
-    "tell no one, or one strong request such as a code, a password or an unusual payment, while the call could "
-    "still be genuine.",
-    "Several strong scam signals together, such as a caller posing as an authority who demands payment by gift "
-    "card, wire, cryptocurrency or courier, asks for a one-time code or a password, tells the senior to move money "
-    "to a safe account or to install remote-access software, or demands secrecy.",
+    "An unexpected caller says they are from a bank, an agency or a company, or brings up an account, a bill, a "
+    "debt, a deadline or a problem. The senior is free to hang up, to call back on a number they already have, or "
+    "to pay in their usual way, and is asked for no code, password, unusual payment or secrecy.",
+    "The caller pressures the senior in a way a genuine caller would not: demands action within minutes or hours, "
+    "threatens arrest, legal action or an immediate shutoff, insists the senior stay on the line or not hang up, "
+    "or will not let the senior check with anyone or call back.",
+    "The caller asks for something a scammer asks for: payment by gift card, prepaid card, wire, cryptocurrency "
+    "or cash handed to a courier; moving or sending money to keep it safe or to reverse a charge; a fee to "
+    "receive a prize, a refund or other money; installing software so the caller can see or control a device; "
+    "reading out a code sent to the senior's phone; a full card number, Social Security number, PIN or password; "
+    "or keeping the call secret from family or the bank.",
     "The senior is already being walked through the scam: buying gift cards, reading out codes or card numbers, "
     "moving money or installing software at the caller's direction.",
 )
 TEXT_LEVELS = (
-    "An ordinary message: an appointment, a delivery update, a fraud alert, a one-time code sent to the reader, or "
-    "a note from someone they know, asking for no money, codes, passwords or personal details. A link, a company "
-    "name or a reminder on its own belongs here.",
+    "An ordinary message: an appointment, a delivery update, a fraud alert that asks only for a yes or a no, a "
+    "one-time code sent to the reader, a bill or payment reminder that points to the company's own website, app, "
+    "office or mailing address, a notice to sign in to an account or a patient portal the reader already has, or "
+    "a note or an everyday request from someone the reader knows, even one for a small amount of money. A link, "
+    "a company name, an amount due, a due date or a reminder on its own belongs here.",
     "Something is unusual but nothing risky is asked: a stranger who is vague about who they are, a message that "
     "does not fit the sender it claims, or an unexpected mention of an account or a payment, with no pressure.",
-    "The message pushes or asks for one risky thing: a deadline, a threat to suspend an account or add a fine, or "
-    "a request to pay a fee, send money or sign in through a link, while it could still be genuine.",
+    "The message pushes in a way an ordinary sender would not, or asks for one risky thing: a threat to close, "
+    "suspend or lock an account unless the reader acts at once, an unexpected fee or payment to a sender the "
+    "reader has no dealings with, or a number to call about a purchase or a security problem the reader did not "
+    "expect, while it could still be genuine.",
     "Several strong scam signals together, such as an unpaid toll or a parcel fee with a payment link, an account "
-    "suspension with a sign-in link, a prize that needs a fee, a request for a password or a verification code, "
-    "or someone claiming to be family on a new number asking for money.",
+    "suspension or a declined payment with a link to sign in or to enter card details, a prize that needs a fee "
+    "or a card number, a request for a password or a verification code, or someone claiming to be family on a "
+    "new or borrowed phone asking for money.",
     "Plainly a scam: it demands gift cards, cryptocurrency, a wire transfer, a password or a verification code "
     "outright, or money for a relative in trouble, and presses for it at once.",
 )
@@ -72,10 +86,15 @@ TEXT_FLAGS = {
     "OTP_REQUEST": 'asks the reader to send or read out a verification code. A code sent to the reader with "do '
     'not share it" is not this.',
     "FAMILY_EMERGENCY": "claims to be a relative or friend in trouble or on a new number, and asks for money or help.",
-    "PRIZE_OR_REFUND": "offers a prize or a refund, or asks for a fee to release a parcel, a toll balance or money.",
+    "PRIZE_OR_REFUND": "offers a prize, winnings or a refund, or asks for a fee before a parcel, a prize, a refund or "
+    "a toll balance is released.",
     "VERIFICATION_AVOIDANCE": "discourages checking with the organization or the person through a known number.",
 }
 FLAG_THRESHOLD = 0.5  # a flag is reported when the model puts "yes" at this probability or higher
+# The model answers each flag literally: a genuine bank does "claim to be" a bank. A flag is a
+# warning sign only where the model also sees some risk, so under this risk none is reported,
+# which is what the chat models do.
+SIGNS_FROM = 30
 
 _FLAG_LINE = re.compile(r"^- ([A-Z_]+): (.+)$", re.M)
 _TRANSCRIPT = re.compile(r"<transcript>\s*(.*?)\s*</transcript>", re.S)
@@ -118,7 +137,7 @@ class VultrDecisionProvider:
         if response.status_code >= 400:
             raise ProviderError(f"HTTP {response.status_code}: {_error_message(response)[:200]}")
         try:
-            return json.dumps(reply(response.json()["answers"]))
+            return json.dumps(reply(response.json()["answers"], CALL_ANCHORS if _is_call(system) else TEXT_ANCHORS))
         except (AttributeError, KeyError, IndexError, TypeError, ValueError) as exc:
             # The answers hold our own question IDs and numbers, never transcript text.
             raise ProviderError(f"unexpected answers: {response.text[:200]}") from exc
@@ -127,12 +146,17 @@ class VultrDecisionProvider:
         await self._client.aclose()
 
 
+def _is_call(system: str) -> bool:
+    """The prompt for calls names the CALLER; the one for texts does not."""
+    return "CALLER" in system
+
+
 def questions(system: str) -> dict:
     """One yes/no question per flag, in the scorer prompt's own words, and one graded question for the risk.
 
-    The prompt for calls names the CALLER; the one for texts does not, and is asked about the message.
+    A call is asked about what the CALLER says, a text about the message.
     """
-    call = "CALLER" in system
+    call = _is_call(system)
     described = dict(_FLAG_LINE.findall(system)) or TEXT_FLAGS
     ask = "Is this clearly present in what the CALLER says? " if call else "Is this clearly present in the message? "
     asked: dict = {
@@ -157,9 +181,8 @@ def _guide(system: str) -> str:
     return f"{head.strip()}\n\n{marker}{guide}"
 
 
-def reply(answers: dict) -> dict:
+def reply(answers: dict, anchors: tuple[int, ...] = CALL_ANCHORS) -> dict:
     """The fields of a scorer reply, from the model's answers."""
-    anchors = RISK_ANCHORS
     graded = answers["risk"]
     probabilities = graded.get("probabilities")
     if probabilities:
@@ -172,6 +195,8 @@ def reply(answers: dict) -> dict:
         risk = anchors[low] + (level - low) * (anchors[low + 1] - anchors[low])
     yes = {flag: float((answers.get(flag) or {}).get("noul", 0.0)) for flag in FLAG_IDS}
     flags = sorted((flag for flag in FLAG_IDS if yes[flag] >= FLAG_THRESHOLD), key=lambda flag: -yes[flag])
+    if round(risk) < SIGNS_FROM:
+        flags = []
     confidence = graded.get("confidence")
     return {
         "risk": round(risk),

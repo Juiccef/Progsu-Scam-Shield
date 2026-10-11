@@ -9,7 +9,13 @@ from scorer.flags import FLAG_IDS
 from scorer.llm import LLMScorer, ScorerPrompt, has_decision_fields, parse_reply, parse_result
 from scorer.providers import TYPESAFE, VULTR_INFERENCE, ProviderError, make_provider, resolve
 from scorer.providers.openai_compat import OpenAICompatProvider
-from scorer.providers.vultr_decision import RISK_ANCHORS, VultrDecisionProvider, questions
+from scorer.providers.vultr_decision import (
+    CALL_ANCHORS,
+    CALL_LEVELS,
+    TEXT_ANCHORS,
+    VultrDecisionProvider,
+    questions,
+)
 
 PROMPT = ScorerPrompt.load(ROOT / "prompts" / "scam-scorer-prompt.md")
 GOOD_REPLY = json.dumps(
@@ -333,7 +339,7 @@ def test_decision_answers_become_a_scorer_reply():
     scorer = LLMScorer("vultr-decision:clef-flash", PROMPT, provider=provider)
     outcome = asyncio.run(scorer.score("CALLER: Buy gift cards and tell no one."))
     assert outcome.error is None
-    assert outcome.result.risk == 87  # 0.1 * 62 + 0.8 * 88 + 0.1 * 100
+    assert outcome.result.risk == 91  # 0.1 * 72 + 0.8 * 92 + 0.1 * 100
     assert outcome.result.label == "likely_scam"
     assert outcome.result.flags == ("UNUSUAL_PAYMENT", "SECRECY")  # likeliest first; THREAT is under one half
 
@@ -343,7 +349,7 @@ def test_decision_reply_without_probabilities_reads_the_weighted_level():
     reply["answers"]["risk"] = {"type": "score", "score": 2.5}
     provider = vultr_decision(lambda request: httpx.Response(200, json=reply))
     text = asyncio.run(provider.complete(PROMPT.system, PROMPT.messages("CALLER: Hi.", 0), {}, 2.5))
-    assert json.loads(text)["risk"] == 75  # halfway between the 62 and 88 bands
+    assert json.loads(text)["risk"] == 82  # halfway between the 72 and 92 anchors
 
 
 def test_decision_failures_fall_back_to_the_rules():
@@ -367,8 +373,43 @@ def test_risk_levels_describe_situations_not_numbers():
     # A decision model judges each level alone, without its number, so a level must say what it looks like.
     for prompt in (PROMPT, ScorerPrompt.load(ROOT / "prompts" / "message-scorer-prompt.md")):
         criteria = questions(prompt.system)["risk"]["criteria"]
-        assert len(criteria) == len(RISK_ANCHORS)
+        assert len(criteria) == len(CALL_ANCHORS) == len(TEXT_ANCHORS)
         assert not any(char.isdigit() for level in criteria for char in level)
+
+
+
+def test_a_level_the_model_is_sure_of_lands_inside_its_band():
+    # WARN is 60 and END is 85: sure of "pressure" must warn and not end, sure of "a scam request" must end.
+    _, _, pressure, request, _ = CALL_ANCHORS
+    assert 60 < pressure < 85 < request
+    # Nine tenths on a level, the rest one level down, still crosses that level's threshold.
+    assert 0.9 * pressure + 0.1 * CALL_ANCHORS[1] >= 60 and 0.9 * request + 0.1 * pressure >= 85
+
+
+def test_no_request_is_named_in_the_pressure_level():
+    # Where two levels fit, the model splits its answer between them and neither threshold is crossed.
+    _, _, pressure, request, _ = CALL_LEVELS
+    for asked in ("code", "password", "gift card", "secret", "software"):
+        assert asked not in pressure and asked in request
+    assert "stay on the line" in pressure and "stay on the line" not in request
+
+
+def test_a_text_is_placed_by_its_labels_and_a_call_by_its_actions():
+    texts = ScorerPrompt.load(ROOT / "prompts" / "message-scorer-prompt.md")
+    provider = vultr_decision(lambda request: httpx.Response(200, json=decision_reply({"2": 1.0})))
+    call = asyncio.run(provider.complete(PROMPT.system, PROMPT.messages("CALLER: Hi.", 0), {}, 2.5))
+    text = asyncio.run(provider.complete(texts.system, texts.messages("Hi.", 0), {}, 2.5))
+    assert json.loads(call)["risk"] == 72 and json.loads(text)["risk"] == 62 and json.loads(text)["label"] == "suspicious"
+
+
+def test_a_sign_is_reported_only_where_there_is_risk():
+    # A genuine bank does "claim to be" a bank. That is a warning sign only if the call is not judged ordinary.
+    def flags(levels):
+        provider = vultr_decision(lambda request: httpx.Response(200, json=decision_reply(levels, AUTHORITY_IMPERSONATION=0.95)))
+        return json.loads(asyncio.run(provider.complete(PROMPT.system, PROMPT.messages("CALLER: Hi.", 0), {}, 2.5)))["flags"]
+
+    assert flags({"0": 1.0}) == [] and flags({"0": 0.4, "1": 0.6}) == []  # risk 5 and 25
+    assert flags({"1": 1.0}) == ["AUTHORITY_IMPERSONATION"]  # risk 38
 
 
 # --- Jev, TypeSafe's decision model ---------------------------------------------
@@ -397,7 +438,7 @@ def test_jev_is_asked_at_typesafe():
     outcome = asyncio.run(LLMScorer("jev-latest", PROMPT, provider=provider).score("CALLER: Buy gift cards."))
     assert seen["url"] == "https://api.typesafe.ai/v1/systemone" and seen["auth"] == "Bearer ts-test"
     assert seen["model"] == "jev-latest" and seen["state"] == "CALLER: Buy gift cards."
-    assert outcome.result.risk == 89 and outcome.result.flags == ("UNUSUAL_PAYMENT",)  # 0.9 * 88 + 0.1 * 100
+    assert outcome.result.risk == 93 and outcome.result.flags == ("UNUSUAL_PAYMENT",)  # 0.9 * 92 + 0.1 * 100
 
 
 def test_a_text_is_asked_about_the_message_not_a_caller():

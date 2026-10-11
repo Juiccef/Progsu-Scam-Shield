@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "description": "Held-out texts: written on 2026-10-10 before the reworded Jev levels were tried on anything, and never used to choose wording. All names, numbers and links are fictional."
+  },
+  "texts": [
+    {
+      "id": "hold_scam_01_streaming_billing",
+      "label": "scam",
+      "text": "Netflix: Your payment was declined and your membership will be cancelled today. Update your card details now: netflix-billing-help.com/update"
+    },
+    {
+      "id": "hold_scam_02_grandson_cash_app",
+      "label": "scam",
+      "text": "Grandpa it's Tyler. I lost my wallet on my trip and need $300 for a bus ticket home. Can you send it to my friend's Cash App, $jay-pays-22? Please don't tell Mom."
+    },
+    {
+      "id": "hold_scam_03_customs_duty",
+      "label": "scam",
+      "text": "DHL: Your parcel is being held at customs. Pay the $2.40 duty within 12 hours or it will be returned to sender: dhl-customs-release.info"
+    },
+    {
+      "id": "hold_scam_04_apple_id_callback",
+      "label": "scam",
+      "text": "Apple Security: Your Apple ID was used to sign in on a new device in Miami. If this was not you, call Apple Support right away at (555) 019-2231.",
+      "hard": true
+    },
+    {
+      "id": "hold_scam_05_voucher_card_number",
+      "label": "scam",
+      "text": "Congratulations! You are today's winner of a $500 Costco voucher. Enter your card number to cover the $1 verification charge: costco-winners.co"
+    },
+    {
+      "id": "hold_scam_06_reply_with_code",
+      "label": "scam",
+      "text": "Hi, this is Dan from the Chase fraud team. We just sent you a 6-digit code to confirm it's really you. Reply with the code so we can secure your account."
+    },
+    {
+      "id": "hold_scam_07_ssn_suspended",
+      "label": "scam",
+      "text": "SSA NOTICE: Your Social Security number has been suspended because of suspicious activity. Call (555) 017-9920 immediately to avoid legal action."
+    },
+    {
+      "id": "hold_scam_08_gold_tokens",
+      "label": "scam",
+      "text": "Hello, I'm Mr. Li from the Golden Harbor investment group. Our members made 40% last week on gold tokens. Only a few places left, send 0.05 BTC today to join."
+    },
+    {
+      "id": "hold_scam_09_dad_rent_new_phone",
+      "label": "scam",
+      "text": "Hi Dad, I dropped my phone in the sink so I'm using a friend's phone. I need to pay my rent today and my banking app is locked. Can you transfer $1,150? I'll send you the account details.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_01_water_bill",
+      "label": "legit",
+      "text": "City Water: Your bill of $63.20 is due Nov 3. Pay at citywater.example.gov/pay, by phone, or by mail. Thank you.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_02_telehealth_sign_in",
+      "label": "legit",
+      "text": "Your telehealth visit with Dr. Kim starts in 15 minutes. Sign in at myhealth.example.org to join.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_03_pizza_party",
+      "label": "legit",
+      "text": "Mom can you send me $25 for the class pizza party tomorrow? Love you",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_04_payment_posted",
+      "label": "legit",
+      "text": "Harbor Federal: A payment of $210.00 to Georgia Power posted to your account ending 8841. No action is needed."
+    },
+    {
+      "id": "hold_legit_05_library_books",
+      "label": "legit",
+      "text": "Reminder: your library books are due Friday. Renew at mylibrary.example.org or reply RENEW."
+    },
+    {
+      "id": "hold_legit_06_church_chairs",
+      "label": "legit",
+      "text": "Hi, it's Linda from church. Could you bring the folding chairs on Sunday? Thanks so much!"
+    },
+    {
+      "id": "hold_legit_07_flu_shot",
+      "label": "legit",
+      "text": "Greenway Pharmacy: your flu shot is booked for Sat at 10:30 AM. Reply C to cancel."
+    },
+    {
+      "id": "hold_legit_08_code_do_not_share",
+      "label": "legit",
+      "text": "Your Harbor Federal security code is 771204. It expires in 10 minutes. Do not share it with anyone.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_09_fraud_alert_reply",
+      "label": "legit",
+      "text": "Fraud alert from Capital City Bank: Did you spend $940.00 at an online store today? Reply 1 for YES or 2 for NO.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_10_past_due_electric",
+      "label": "legit",
+      "text": "Peach State Electric: Your payment is 5 days past due. To avoid a late fee, pay $142.17 by Friday at peachstateelectric.com, in our app, or at any payment center.",
+      "hard": true
+    },
+    {
+      "id": "hold_legit_11_out_for_delivery",
+      "label": "legit",
+      "text": "FedEx: Your package is out for delivery today between 2 and 6 PM. No signature required."
+    }
+  ]
+}
