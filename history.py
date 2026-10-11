@@ -1,7 +1,8 @@
 """Summaries of recent calls, for an app's home screen and its "what happened" view.
 
 A summary is built only from events that are allowed on disk, so it never holds
-transcript text: it records what was detected, not what was said.
+transcript text: it records what was detected, not what was said. A caregiver's mark
+on a call ("Palisade got this wrong") is kept the same way, and is no more than that.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ class CallHistory:
                     "flags": [],
                     "actions": [],
                     "timeline": [],
+                    "marked_wrong": False,
                 }
                 while len(self._calls) > self._limit:
                     self._calls.popitem(last=False)
@@ -76,6 +78,11 @@ class CallHistory:
             call["outcome"] = event.get("outcome", "completed")
             call["duration_s"] = event.get("duration_s")
             call["ended_at"] = event.get("ts")
+        elif kind == "call_marked":
+            call["marked_wrong"] = bool(event.get("wrong"))
+
+    def get(self, call_sid: str) -> dict | None:
+        return self._calls.get(call_sid)
 
     def list(self) -> list[dict]:
         """Newest call first."""

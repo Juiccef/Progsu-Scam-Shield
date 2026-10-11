@@ -185,6 +185,7 @@ Palisade carries on: the `action` event is the alert.
 | `WS /media` | Twilio Media Stream (base64 mu-law, 8 kHz, one track per speaker). |
 | `GET /events` | Server-sent events: everything a dashboard or app needs. `?replay=false` skips recent history. |
 | `GET /calls` | Recent calls, newest first: outcome, flags, actions and the risk timeline. Never transcript text. Survives restarts. |
+| `POST /calls/{call_sid}/mark` | A caregiver's word that Palisade got a finished call wrong: `{"wrong": true}`, or `false` to take it back. Answers with the call as `/calls` gives it, `marked_wrong` included. It only marks: nothing is retrained and no number is trusted or blocked. |
 | `GET /metrics/last` | Seconds from the triggering utterance to the most recent real action, with a per-stage breakdown. |
 | `GET /messages`, `POST /messages/analyze` | The last 50 results of texts that were only checked, and checking one now (`{"text": "..."}`). Never a text's words. |
 | `GET /gateway/messages` | Texts sent to the proxy number, with text protection on: held ones, and the 50 newest. Never a text's words. |
@@ -226,6 +227,7 @@ Each event is JSON with `type`, `ts` (epoch seconds) and usually `call_sid`.
 | `sms_status` | `status`, `error_code` |
 | `stt_error` | `error` |
 | `call_ended` | `outcome` (`completed`, `warned`, `ended_by_shield`), `duration_s`, `evaluations` |
+| `call_marked` | A caregiver marked a finished call, or took the mark back: `wrong`, and the call's `outcome` and `simulated`. On a call Palisade warned about or ended, `wrong` says it was not a scam; on one it left alone, that it was. |
 | `message_scored` | A text that was only checked: `message_id`, `sender` (masked), `source` (`manual` for one pasted into the app, `twilio`), `risk`, `rule_risk`, `llm_risk`, `label`, `flags`, `explanation`. No `call_sid`. |
 | `gateway_message_updated` | A text under text protection changed: `message_id`, `sender` (masked), `status` (`pending`, `held`, `queued`, `sending`, `sent`, `delivered`, `delivery_failed`, `delivery_unknown`, `discarded`, `expired`), `risk`, `label`, `flags`, `hold_reason`, `expires_at`. No `call_sid`. |
 

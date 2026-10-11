@@ -124,6 +124,143 @@ def test_history_settles_calls_cut_off_by_a_crash(tmp_path):
     assert CallHistory.from_log(tmp_path / "missing.jsonl").list() == []
 
 
+# --- a caregiver's mark: "Palisade got this wrong" -----------------------------
+
+
+def mark_call(client, call_sid, wrong, token=""):
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    return client.post(f"/calls/{call_sid}/mark", json={"wrong": wrong}, headers=headers)
+
+
+def test_a_finished_call_can_be_marked_wrong_and_the_mark_taken_back(tmp_path, scripted_stt):  # noqa: F811
+    app = create_app(make_settings(tmp_path), stt_factory=scripted_stt)
+    with TestClient(app) as client:
+        run_scam_call(client, app)
+        assert client.get("/calls").json()["calls"][0]["marked_wrong"] is False
+
+        answer = mark_call(client, "CAparent", True)
+        assert answer.status_code == 200
+        # The answer is the call as it now stands, the same summary /calls gives.
+        assert answer.json() == client.get("/calls").json()["calls"][0]
+        assert answer.json()["marked_wrong"] is True and answer.json()["outcome"] == "ended_by_shield"
+        (said,) = events_of(app, "call_marked")
+        assert said["call_sid"] == "CAparent" and said["wrong"] is True
+        assert said["outcome"] == "ended_by_shield" and said["simulated"] is False
+
+        assert mark_call(client, "CAparent", False).json()["marked_wrong"] is False
+        assert client.get("/calls").json()["calls"][0]["marked_wrong"] is False
+        assert [event["wrong"] for event in events_of(app, "call_marked")] == [True, False]
+
+
+def test_marking_a_call_the_same_way_twice_says_it_once(tmp_path, scripted_stt):  # noqa: F811
+    app = create_app(make_settings(tmp_path), stt_factory=scripted_stt)
+    with TestClient(app) as client:
+        run_scam_call(client, app)
+        assert mark_call(client, "CAparent", False).json()["marked_wrong"] is False  # it was not marked to begin with
+        assert events_of(app, "call_marked") == []
+        mark_call(client, "CAparent", True)
+        assert mark_call(client, "CAparent", True).json()["marked_wrong"] is True
+        assert len(events_of(app, "call_marked")) == 1
+
+
+def test_a_mark_changes_nothing_else_about_the_call(tmp_path, scripted_stt):  # noqa: F811
+    app = create_app(make_settings(tmp_path), stt_factory=scripted_stt)
+    with TestClient(app) as client:
+        run_scam_call(client, app)
+        before = client.get("/calls").json()["calls"][0]
+        after = mark_call(client, "CAparent", True).json()
+    assert {key: value for key, value in after.items() if key != "marked_wrong"} == {
+        key: value for key, value in before.items() if key != "marked_wrong"
+    }
+
+
+def test_a_mark_survives_a_restart_and_keeps_none_of_the_call_s_words(tmp_path, scripted_stt):  # noqa: F811
+    app = create_app(make_settings(tmp_path), stt_factory=scripted_stt)
+    with TestClient(app) as client:
+        run_scam_call(client, app)
+        mark_call(client, "CAparent", True)
+    with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
+        (call,) = client.get("/calls").json()["calls"]
+        assert call["marked_wrong"] is True and call["outcome"] == "ended_by_shield"
+        # Taken back after the restart, it stays taken back after the next one.
+        mark_call(client, "CAparent", False)
+    with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
+        assert client.get("/calls").json()["calls"][0]["marked_wrong"] is False
+
+    lines = [json.loads(line) for line in (tmp_path / "logs" / "events.jsonl").read_text().splitlines()]
+    marks = [line for line in lines if line["type"] == "call_marked"]
+    assert [set(line) for line in marks] == [{"type", "ts", "call_sid", "wrong", "outcome", "simulated"}] * 2
+    assert "gift cards" not in json.dumps(marks) and "warrant" not in json.dumps(marks)
+
+
+def test_marking_a_call_needs_the_same_access_as_reading_the_calls(tmp_path):
+    app = create_app(make_settings(tmp_path, EVENTS_TOKEN="s3cret"), stt_factory=None)
+    with TestClient(app) as client:
+        app.state.bus.publish("call_started", call_sid="CA1", caller="***0001", monitored=True, simulated=False)
+        app.state.bus.publish("call_ended", call_sid="CA1", outcome="completed", duration_s=20)
+        assert mark_call(client, "CA1", True).status_code == 401
+        assert mark_call(client, "CA1", True, token="wrong").status_code == 401
+        assert events_of(app, "call_marked") == [] and app.state.history.get("CA1")["marked_wrong"] is False
+        assert mark_call(client, "CA1", True, token="s3cret").json()["marked_wrong"] is True
+
+
+def test_only_a_finished_call_the_server_knows_can_be_marked(tmp_path):
+    app = create_app(make_settings(tmp_path), stt_factory=None)
+    with TestClient(app) as client:
+        assert mark_call(client, "CAnobody", True).status_code == 404
+
+        app.state.bus.publish("call_started", call_sid="CA1", caller="***0001", monitored=True, simulated=False)
+        going = mark_call(client, "CA1", True)
+        assert going.status_code == 409 and going.json() == {"detail": "This call is still going"}
+        assert app.state.history.get("CA1")["marked_wrong"] is False
+
+        app.state.bus.publish("call_ended", call_sid="CA1", outcome="completed", duration_s=20)
+        # A call Palisade left alone can be marked too: that says it was a scam after all.
+        assert mark_call(client, "CA1", True).json()["marked_wrong"] is True
+        assert events_of(app, "call_marked")[-1]["outcome"] == "completed"
+
+
+@pytest.mark.parametrize("body", [{}, {"wrong": "yes"}, {"wrong": 1}, {"wrong": None}, {"right": True}, []])
+def test_a_mark_is_true_or_false_and_nothing_else(tmp_path, body):
+    app = create_app(make_settings(tmp_path), stt_factory=None)
+    with TestClient(app) as client:
+        app.state.bus.publish("call_started", call_sid="CA1", caller="***0001", monitored=True, simulated=False)
+        app.state.bus.publish("call_ended", call_sid="CA1", outcome="warned", duration_s=20)
+        assert client.post("/calls/CA1/mark", json=body).status_code == 422
+        assert app.state.history.get("CA1")["marked_wrong"] is False and events_of(app, "call_marked") == []
+
+
+def test_a_demo_call_can_be_marked_and_the_mark_says_it_was_a_demo(tmp_path, fast_demo):
+    app = create_app(make_settings(tmp_path, DEMO_MODE="true"), stt_factory=None)
+    with TestClient(app) as client:
+        call_sid = client.post("/demo/call?script=tiny&speed=3").json()["call_sid"]
+        assert wait_for(lambda: events_of(app, "call_ended"), timeout=8)
+        assert mark_call(client, call_sid, True).json()["marked_wrong"] is True
+        (said,) = events_of(app, "call_marked")
+        assert said["simulated"] is True
+
+
+def test_history_takes_a_mark_only_for_a_call_it_has():
+    history = CallHistory()
+    history.record({"type": "call_marked", "ts": 5.0, "call_sid": "CAgone", "wrong": True})
+    assert history.list() == [] and history.get("CAgone") is None
+    history.record({"type": "call_started", "ts": 1.0, "call_sid": "CA1", "caller": "***0001"})
+    assert history.get("CA1")["marked_wrong"] is False
+    history.record({"type": "call_marked", "ts": 5.0, "call_sid": "CA1", "wrong": True})
+    assert history.get("CA1")["marked_wrong"] is True
+
+
+def test_a_log_from_before_marks_reads_as_no_mark(tmp_path):
+    log = tmp_path / "events.jsonl"
+    events = [
+        {"type": "call_started", "ts": 1.0, "call_sid": "CA1", "caller": "***0001", "monitored": True},
+        {"type": "call_ended", "ts": 9.0, "call_sid": "CA1", "outcome": "completed", "duration_s": 8},
+    ]
+    log.write_text("\n".join(json.dumps(event) for event in events) + "\n")
+    (call,) = CallHistory.from_log(log).list()
+    assert call["marked_wrong"] is False
+
+
 # --- demo calls --------------------------------------------------------------
 
 

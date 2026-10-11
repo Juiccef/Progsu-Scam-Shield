@@ -157,6 +157,7 @@ function logLine(ev) {
 
 function onEvent(ev) {
   if (ev.type === "media") return;                       // noisy, shown in the call card instead
+  if (ev.type === "call_marked") { logLine(ev); return; } // a mark on an earlier call: the call card is not about it
   if (ev.type === "call_started") resetCall(ev.call_sid);
   else if (ev.call_sid && ev.call_sid !== call) resetCall(ev.call_sid);
   if (ev.type !== "transcript" || ev.final) logLine(ev);

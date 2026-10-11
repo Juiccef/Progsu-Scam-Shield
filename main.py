@@ -22,7 +22,7 @@ from urllib.parse import parse_qsl
 
 from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, StrictBool, ValidationError, field_validator
 from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
 
@@ -50,6 +50,12 @@ FINISHED = {"completed", "busy", "no-answer", "failed", "canceled"}
 MEDIA_REPORT_EVERY_S = 5.0
 DEMO_SCRIPTS = ROOT / "eval" / "eval-scripts.json"
 _DEFAULT = object()
+
+
+class CallMark(BaseModel):
+    """A caregiver's word on a finished call: Palisade got it wrong, or, taking that back, it did not."""
+
+    wrong: StrictBool
 
 
 class MessageInput(BaseModel):
@@ -536,6 +542,25 @@ def create_app(
         """Recent calls, newest first: outcome, flags, actions and the risk timeline. Never transcript text."""
         await authorize(request)
         return {"calls": history.list()}
+
+    @app.post("/calls/{call_sid}/mark")
+    async def mark_call(request: Request, call_sid: str, mark: CallMark) -> dict:
+        """A caregiver says Palisade got a finished call wrong, or takes that back.
+
+        The mark is kept with the call and is all there is to it: nothing is retrained, no number is
+        trusted or blocked, and none of the call's words are kept with it (there are none to keep).
+        """
+        await authorize(request)
+        call = history.get(call_sid)
+        if call is None:
+            raise HTTPException(404, "No such call")
+        if call["outcome"] == "in_progress":
+            raise HTTPException(409, "This call is still going")
+        if call["marked_wrong"] != mark.wrong:
+            bus.publish(
+                "call_marked", call_sid=call_sid, wrong=mark.wrong, outcome=call["outcome"], simulated=call["simulated"]
+            )
+        return call
 
     # --- demo calls (DEMO_MODE=true) ---------------------------------------------
 
