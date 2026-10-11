@@ -1,11 +1,10 @@
 # Testing Jev against Haiku
 
-> **Experimental feature, not how Palisade works.** Jev can be switched on as the scorer, or
-> as a backup behind it. It was measured on 2026-10-10. The first round did not pass (Results);
-> after the fix in "Second round" it passes every test here, and does as well on calls and texts
-> it was not tuned against. It has never scored a real call, so Palisade keeps scoring with
-> Claude Haiku. Nothing on the Vultr server or in the demo uses Jev, and nobody should describe
-> it as part of Palisade.
+> **Experimental, and since the evening of 2026-10-10 the first scorer on the Vultr server**,
+> with Claude Haiku behind it as a backup. The first round below did not pass. After the fix in
+> "Second round" Jev passes every test here, and does as well on calls and texts it was not
+> tuned against. It was then tried on three real calls ("Real calls"), and the user made the
+> switch. In the code the default is still Haiku.
 
 The branch `Omar` adds Jev, TypeSafe AI's decision model, as a scorer for calls and texts.
 Jev answers fixed questions with calibrated probabilities instead of writing text. This guide
@@ -373,6 +372,27 @@ each playing `scam_08`, `scam_01` and the pushy utility call:
 
 In the first row Haiku was asked once every half minute and Jev answered every pass. In the
 third Jev was never asked.
+
+## Real calls, and the switch
+
+Later the same evening, with Jev as the only model (`SCORER_MODEL=jev-latest`, no backup), on
+the laptop behind ngrok, actions live. From the event log; a call's words are not kept.
+
+| Call | What Palisade did | Jev's risk | The rules |
+|---|---|---|---|
+| Card-code scam | Warned 22 s in; ended at the request for the code, the hang-up 1.4 s after it | 64 at the warning, 93 at the end | 0 for the first 34 s, 72 at the end |
+| A call that was left alone | Nothing | rose to 57 | 30 at most |
+| A scam asking for an SSN or PIN | Warned at 80, ended at 89, 25 s in | as given | 72 at most |
+
+No model error in any of them, and about 0.18 s an answer. The first warning carried no sign:
+no flag reached one half until the code was asked for, so the caregiver's text was the general
+one. The user made more calls and reported that it worked well; these three are the ones in
+the log.
+
+The user then chose Jev first with Haiku behind it. On the Vultr server since 21:33 that
+evening: `SCORER_MODEL=typesafe:jev-1.13.0`, `SCORER_BACKUP_MODEL=claude-haiku-4-5`. A demo
+call of the card-code scam there was ended 21 s in, Jev answering all ten passes in about
+0.14 s and nothing handed over. No real call or text has gone through the server since.
 
 ## When to merge
 

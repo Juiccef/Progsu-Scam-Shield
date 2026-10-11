@@ -418,11 +418,11 @@ python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --sc
 
 ### Scoring with Jev (experimental)
 
-**An experimental feature, not how Palisade works.** Palisade scores with Haiku, and nothing on
-the server or in the demo uses Jev. It was measured on 2026-10-10: after one round of fixes it
-matches Haiku on the eval sets and on a held-out set, and answers in a quarter of the time. It
-has never scored a real call. [docs/jev-testing.md](docs/jev-testing.md) has the test plan and
-the results.
+**Experimental, and since 2026-10-10 the first scorer on the Vultr server**, with Haiku behind
+it as a backup (below). In the code the default is unchanged: with no `SCORER_MODEL`, Palisade
+scores with Haiku. Jev was measured that day. After one round of fixes it matches Haiku on the
+eval sets and on a held-out set, answers in a quarter of the time, and did what it should on
+three real calls. [docs/jev-testing.md](docs/jev-testing.md) has the test plan and the results.
 
 Jev is TypeSafe AI's decision model, trained with RLCD (reinforcement learning for calibrated
 decisions): its answers are probabilities meant to match how often they turn out right.
@@ -469,6 +469,9 @@ handover is logged as `LLM scorer handed over to jev-latest (...)`. While the ba
 answering, the words of the call go to its provider, as they would have gone to the first.
 `python tools/vultr_deploy.py push` sends the backup's key to the server along with the
 scorer's.
+
+The Vultr server runs the other way round, Jev first and Haiku behind it, with Jev's version
+pinned: `SCORER_MODEL=typesafe:jev-1.13.0` and `SCORER_BACKUP_MODEL=claude-haiku-4-5`.
 
 ## Privacy and safety
 
