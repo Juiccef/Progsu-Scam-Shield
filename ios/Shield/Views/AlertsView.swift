@@ -91,7 +91,7 @@ struct Notice: Identifiable {
             notices.append(Notice(
                 id: "call \(call.id)",
                 who: callerDescription(call.caller, isDemo: call.isDemo),
-                look: OutcomeLook(call.outcome),
+                look: OutcomeLook(call),
                 date: call.startedAt ?? .distantPast,
                 page: .call(call)
             ))

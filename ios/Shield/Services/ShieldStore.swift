@@ -255,6 +255,22 @@ final class ShieldStore {
         }
     }
 
+    /// Says that Palisade got a finished call wrong, or takes that back. It is a mark on the
+    /// call and no more than that.
+    func markCall(_ id: String, wrong: Bool) async throws {
+        #if DEBUG
+        if !followsSettings {
+            markSample(id, wrong: wrong)
+            return
+        }
+        #endif
+        guard let api = await currentAPI() else { throw ShieldAPIError.notAShieldServer }
+        let marked = try await api.markCall(id, wrong: wrong)
+        if wants(api), let index = history.firstIndex(where: { $0.id == id }) {
+            history[index] = marked
+        }
+    }
+
     func startDemoCall(_ script: DemoScript) async {
         guard let api = await currentAPI() else { return }
         do {
@@ -398,6 +414,12 @@ final class ShieldStore {
             if isFresh { Task { await self.reloadMessages() } }
             return
         }
+        if event.type == "call_marked" {
+            // A mark is on a call that is over, so the list of calls is what changed. This also
+            // brings in a mark made on another phone.
+            if isFresh { Task { await self.reloadHistory() } }
+            return
+        }
         guard let callID = event.callSID else { return }
         if event.type == "call_started" {
             let started = LiveCall(
@@ -508,7 +530,8 @@ final class ShieldStore {
         var stats = CallStats()
         for call in calls where !call.isDemo && call.outcome != .inProgress {
             stats.screened += 1
-            if call.outcome == .endedByShield { stats.blocked += 1 }
+            // A call the caregiver marked as not a scam is not counted as a scam stopped.
+            if call.outcome == .endedByShield, call.markedWrong != true { stats.blocked += 1 }
             if call.outcome == .warned { stats.warned += 1 }
         }
         return stats
@@ -572,6 +595,12 @@ extension ShieldStore {
         shieldNumber = number
         unreadGatewayIDs = Set(texts.filter(\.needsReview).map(\.id))
         return self
+    }
+
+    /// What a mark does to a sample call, so the page can be tried with no server.
+    private func markSample(_ id: String, wrong: Bool) {
+        guard let index = history.firstIndex(where: { $0.id == id }) else { return }
+        history[index].markedWrong = wrong
     }
 
     /// What a decision does to a sample text, so the pages can be tried with no server.

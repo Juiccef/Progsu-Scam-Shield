@@ -108,6 +108,12 @@ struct ShieldAPI: Equatable, Sendable {
         return list.calls
     }
 
+    /// Says that Palisade got a finished call wrong, or takes that back. The answer is the
+    /// call as the server now has it.
+    func markCall(_ id: String, wrong: Bool) async throws -> CallSummary {
+        try await post("calls/\(id)/mark", json: ["wrong": wrong])
+    }
+
     func messages() async throws -> [MessageSummary] {
         let list: MessageList = try await get("messages")
         return list.messages
@@ -177,7 +183,7 @@ struct ShieldAPI: Equatable, Sendable {
         try await answer(to: request(path), isText: Self.isText(path))
     }
 
-    private func post<Value: Decodable>(_ path: String, json: [String: String]) async throws -> Value {
+    private func post<Value: Decodable>(_ path: String, json: some Encodable) async throws -> Value {
         var request = request(path)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

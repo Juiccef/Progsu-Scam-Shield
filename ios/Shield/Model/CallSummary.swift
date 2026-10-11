@@ -29,6 +29,9 @@ struct CallSummary: Decodable, Identifiable, Hashable, Sendable {
     let actions: [Action]
     /// `[seconds into the call, risk]` pairs.
     let timeline: [[Double]]
+    /// The caregiver's word that Palisade got this call wrong. Nil from a server that keeps no
+    /// such mark, which is how the app knows not to offer one.
+    var markedWrong: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case id = "call_sid"
@@ -40,6 +43,7 @@ struct CallSummary: Decodable, Identifiable, Hashable, Sendable {
         case peakRisk = "peak_risk"
         case flagIDs = "flags"
         case actions, timeline
+        case markedWrong = "marked_wrong"
     }
 
     var startedAt: Date? { startedAtSeconds.map(Date.init(timeIntervalSince1970:)) }
@@ -52,6 +56,11 @@ struct CallSummary: Decodable, Identifiable, Hashable, Sendable {
     }
     var endAction: Action? { actions.last { $0.kind == ShieldAction.Kind.end.rawValue } }
     var warnAction: Action? { actions.last { $0.kind == ShieldAction.Kind.warn.rawValue } }
+    /// True when Palisade warned about the call or ended it. A mark on such a call says it was
+    /// not a scam; on a call Palisade left alone, that it was one.
+    var wasSteppedInto: Bool { outcome == .warned || outcome == .endedByShield }
+    /// Only a call that is over can be marked, and only on a server that keeps marks.
+    var canBeMarked: Bool { markedWrong != nil && outcome != .inProgress }
 }
 
 struct CallList: Decodable, Sendable {

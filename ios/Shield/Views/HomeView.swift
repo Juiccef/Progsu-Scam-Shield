@@ -309,7 +309,7 @@ struct CallRow: View {
     var body: some View {
         ActivityRow(
             who: callerDescription(call.caller, isDemo: call.isDemo),
-            look: OutcomeLook(call.outcome),
+            look: OutcomeLook(call),
             date: call.startedAt
         )
     }
@@ -410,6 +410,24 @@ extension OutcomeLook {
             self.init(title: "Ordinary Call", symbol: "checkmark.circle.fill", tint: Theme.watchful, isNotable: false)
         case .inProgress:
             self.init(title: "Call in Progress", symbol: "phone.fill", tint: Theme.safe, isNotable: true)
+        }
+    }
+
+    /// A call as its row and its page name it. Once the caregiver has said Palisade got it
+    /// wrong, it is no longer called what Palisade took it for. Gray, and with no sign in a
+    /// row, like an ordinary call: the mark is the caregiver's word, not something to act on.
+    /// The sign is a turned-back arrow and not a flag, because "Flagged" on the Calls page
+    /// already means the calls Palisade stepped into.
+    init(_ call: CallSummary) {
+        if call.markedWrong == true {
+            self.init(
+                title: call.wasSteppedInto ? "Marked as Not a Scam" : "Marked as a Scam",
+                symbol: "arrow.uturn.backward.circle.fill",
+                tint: Theme.watchful,
+                isNotable: false
+            )
+        } else {
+            self.init(call.outcome)
         }
     }
 }

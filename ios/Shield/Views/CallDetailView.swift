@@ -7,10 +7,16 @@ struct CallDetailView: View {
 
     @Environment(ShieldStore.self) private var store
 
+    /// The call as the store has it now. The page was handed its call when it opened, and a
+    /// mark made here, or on another phone, changes the call in the store.
+    private var latest: CallSummary {
+        store.history.first { $0.id == call.id } ?? call
+    }
+
     var body: some View {
         List {
             Section {
-                OutcomeHeader(call: call)
+                OutcomeHeader(call: latest)
                     .padding(.vertical, 5)
             }
             if call.points.count > 1 {
@@ -19,7 +25,7 @@ struct CallDetailView: View {
                         points: call.points,
                         warnAt: store.warnThreshold,
                         endAt: store.endThreshold,
-                        tint: OutcomeLook(call.outcome).tint
+                        tint: OutcomeLook(latest).tint
                     )
                     .padding(.vertical, 5)
                 }
@@ -38,6 +44,9 @@ struct CallDetailView: View {
                     }
                 }
             }
+            if latest.canBeMarked {
+                MarkSection(call: latest)
+            }
             Section {
             } footer: {
                 Label("Palisade keeps what it detected, not what was said. No audio or transcript of this call was stored.", systemImage: "lock.fill")
@@ -55,7 +64,7 @@ private struct OutcomeHeader: View {
     let call: CallSummary
 
     var body: some View {
-        let look = OutcomeLook(call.outcome)
+        let look = OutcomeLook(call)
         VStack(alignment: .leading, spacing: 6) {
             CardLabel(title: look.title, symbol: look.symbol, tint: look.tint)
             Text(callerDescription(call.caller, isDemo: call.isDemo))
@@ -89,6 +98,57 @@ private struct ActionRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The caregiver's say on the call: one switch that marks it as a call Palisade got wrong.
+/// It is a mark and no more. Nothing is retrained, and no number is trusted or blocked.
+private struct MarkSection: View {
+    let call: CallSummary
+
+    @Environment(ShieldStore.self) private var store
+    /// Where the switch was just put, until the server has answered.
+    @State private var asked: Bool?
+    @State private var problem: String?
+
+    var body: some View {
+        Section {
+            Toggle("Palisade Got This Wrong", isOn: isMarked)
+                .disabled(asked != nil)
+                .alert("Couldn’t Save Your Mark", isPresented: isShowingProblem) {
+                    Button("OK") {}
+                } message: {
+                    Text(problem ?? "")
+                }
+        } footer: {
+            Text("Turn this on if the call was \(call.wasSteppedInto ? "not a scam" : "a scam"). Palisade saves your mark with the call.")
+        }
+    }
+
+    private var isMarked: Binding<Bool> {
+        Binding {
+            asked ?? (call.markedWrong == true)
+        } set: { wrong in
+            asked = wrong
+            // Not tied to the page: a mark made just before leaving it is still sent.
+            Task {
+                do {
+                    try await store.markCall(call.id, wrong: wrong)
+                } catch {
+                    problem = error.localizedDescription
+                }
+                // Back to what the store says, which is the old mark if the server refused.
+                asked = nil
+            }
+        }
+    }
+
+    private var isShowingProblem: Binding<Bool> {
+        Binding {
+            problem != nil
+        } set: { isShown in
+            if !isShown { problem = nil }
+        }
     }
 }
 

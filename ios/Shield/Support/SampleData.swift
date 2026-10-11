@@ -110,7 +110,8 @@ extension CallSummary {
         flags: [String] = [],
         actions: [Action] = [],
         timeline: [[Double]] = [],
-        isDemo: Bool = false
+        isDemo: Bool = false,
+        markedWrong: Bool? = false
     ) -> CallSummary {
         CallSummary(
             id: id,
@@ -122,7 +123,8 @@ extension CallSummary {
             peakRisk: peakRisk,
             flagIDs: flags,
             actions: actions,
-            timeline: timeline
+            timeline: timeline,
+            markedWrong: markedWrong
         )
     }
 
@@ -335,10 +337,15 @@ extension ShieldStore {
             let store = preview(history: CallSummary.samples)
             store.tab = .signs
             return store
-        case "detail":
-            let store = preview(history: CallSummary.samples)
+        case "detail", "detail-marked", "detail-ordinary":
+            // "detail-marked" is the first sample call after the caregiver said Palisade got it
+            // wrong. "detail-ordinary" is a call Palisade left alone, where a mark says the opposite.
+            var marked = CallSummary.blocked
+            marked.markedWrong = true
+            let calls = name == "detail-marked" ? [marked] + CallSummary.samples.dropFirst() : CallSummary.samples
+            let store = preview(history: calls)
             store.tab = .calls
-            store.callsPath = [.blocked]
+            store.callsPath = [name == "detail-ordinary" ? calls[2] : calls[0]]
             return store
         case "texts", "texts-paused", "texts-imessage", "texts-imessage-down", "text-held", "text-released", "text-delivered",
              "text-sent-imessage", "alerts", "home-texts":
