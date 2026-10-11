@@ -36,7 +36,7 @@ from messages import MessageHistory
 from gateway import GatewayMessage, GatewayService, address, gateway_router
 from scorer.decision import is_allowlisted, normalize_phone
 from scorer.flags import CALLER, SENIOR
-from scorer.llm import LLMScorer, ScorerPrompt
+from scorer.llm import BackedUpScorer, LLMScorer, ScorerPrompt
 from scorer.messages import MessageScorer
 from scorer.providers import DECISION_APIS, resolve
 from session import CallRegistry, CallSession
@@ -64,22 +64,32 @@ class MessageInput(BaseModel):
         return value
 
 
-def build_llm(settings: Settings) -> Optional[LLMScorer]:
-    if settings.scorer_model.lower() in ("rules", "none"):
-        return None
+def _llm(settings: Settings, model: str, otherwise: str) -> Optional[LLMScorer]:
     try:
         scorer = LLMScorer(
-            settings.scorer_model,
+            model,
             ScorerPrompt.load(settings.scorer_prompt),
             timeout_s=settings.llm_timeout_s,
             early_exit=settings.llm_early_exit,
         )
     except Exception as exc:  # unknown provider, missing key, unreadable prompt
-        log.error("LLM scorer is off, running on rules only: %s", exc)
+        log.error("LLM scorer is off, %s: %s", otherwise, exc)
         return None
-    if resolve(settings.scorer_model)[0] in DECISION_APIS:
-        log.warning("%s is experimental and has not been measured; see docs/jev-testing.md", settings.scorer_model)
+    if resolve(model)[0] in DECISION_APIS:
+        log.warning("%s is experimental; see docs/jev-testing.md", model)
     return scorer
+
+
+def build_llm(settings: Settings) -> Optional[LLMScorer | BackedUpScorer]:
+    """The model that scores next to the rules, with SCORER_BACKUP_MODEL behind it when that is set."""
+    first_model, backup_model = settings.scorer_model, settings.scorer_backup_model
+    if first_model.lower() in ("rules", "none"):
+        return None
+    if not backup_model or backup_model.lower() in ("rules", "none", first_model.lower()):
+        return _llm(settings, first_model, "running on rules only")
+    first = _llm(settings, first_model, f"{backup_model} scores alone")
+    backup = _llm(settings, backup_model, f"{first_model} has no backup" if first else "running on rules only")
+    return BackedUpScorer(first, backup) if first and backup else first or backup
 
 
 def create_app(

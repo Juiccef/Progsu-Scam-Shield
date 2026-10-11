@@ -6,7 +6,7 @@ import pytest
 
 from config import ROOT
 from scorer.flags import FLAG_IDS
-from scorer.llm import LLMScorer, ScorerPrompt, has_decision_fields, parse_reply, parse_result
+from scorer.llm import BackedUpScorer, LLMScorer, ScorerPrompt, has_decision_fields, parse_reply, parse_result
 from scorer.providers import TYPESAFE, VULTR_INFERENCE, ProviderError, make_provider, resolve
 from scorer.providers.openai_compat import OpenAICompatProvider
 from scorer.providers.vultr_decision import (
@@ -459,3 +459,64 @@ def test_a_text_is_asked_about_the_message_not_a_caller():
     assert asked["risk"]["criteria"] != questions(PROMPT.system)["risk"]["criteria"]
     assert "JSON" not in asked["risk"]["instructions"] and "Allowed flags" not in asked["risk"]["instructions"]
     assert "untrusted data" in asked["risk"]["instructions"]
+
+
+# --- a backup model behind the scorer -----------------------------------------------
+
+CALM_REPLY = json.dumps({"risk": 12, "label": "safe", "flags": [], "evidence": [], "explanation": "", "confidence": 0.8})
+
+
+def backed_up(first, backup, **kwargs):
+    return BackedUpScorer(
+        LLMScorer("first-model", PROMPT, provider=first, timeout_s=0.2),
+        LLMScorer("backup-model", PROMPT, provider=backup, timeout_s=0.2),
+        **kwargs,
+    )
+
+
+def test_the_backup_is_not_asked_while_the_first_model_answers():
+    first, backup = FakeProvider(GOOD_REPLY), FakeProvider(CALM_REPLY)
+    scorer = backed_up(first, backup)
+    outcome = asyncio.run(scorer.score("CALLER: Buy gift cards.", 40))
+    assert outcome.error is None and outcome.result.risk == 91
+    assert len(first.calls) == 1 and backup.calls == []
+    assert scorer.model == "first-model, then backup-model"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [{"error": ProviderError("HTTP 529: overloaded")}, {"reply": GOOD_REPLY, "delay": 1.0}, {"reply": "not json"}],
+    ids=["refused", "too slow", "unreadable"],
+)
+def test_the_backup_answers_when_the_first_model_fails(failure):
+    first, backup = FakeProvider(**failure), FakeProvider(CALM_REPLY)
+    outcome = asyncio.run(backed_up(first, backup).score("CALLER: Hello.", 0))
+    assert outcome.error is None and outcome.result.risk == 12
+    assert len(backup.calls) == 1 and backup.calls[0]["messages"][-1] == first.calls[0]["messages"][-1]  # the same question
+    if "delay" in failure:
+        assert outcome.latency_s >= 0.2  # the wait for the first model counts
+
+
+def test_with_both_models_down_the_first_failure_is_the_one_reported():
+    first, backup = FakeProvider(error=ProviderError("HTTP 529")), FakeProvider(error=ProviderError("HTTP 401"))
+    outcome = asyncio.run(backed_up(first, backup).score("CALLER: Hello.", 0))
+    assert outcome.result is None and outcome.error == "provider: HTTP 529"
+
+
+def test_a_model_that_failed_is_left_alone_for_half_a_minute():
+    now = [100.0]
+    first, backup = FakeProvider(error=ProviderError("HTTP 529")), FakeProvider(CALM_REPLY)
+    scorer = backed_up(first, backup, clock=lambda: now[0])
+
+    async def three_passes():
+        await scorer.score("CALLER: one.", 0)  # the first model fails, the backup answers
+        await scorer.score("CALLER: two.", 0)  # inside the half minute: only the backup is asked
+        asked_meanwhile = len(first.calls)
+        now[0] += 31
+        first.error, first.reply = None, GOOD_REPLY
+        return asked_meanwhile, await scorer.score("CALLER: three.", 0)  # tried again, and it answers
+
+    asked_meanwhile, outcome = asyncio.run(three_passes())
+    assert asked_meanwhile == 1 and len(first.calls) == 2 and len(backup.calls) == 2
+    assert outcome.result.risk == 91
+

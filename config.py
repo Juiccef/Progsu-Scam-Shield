@@ -58,6 +58,7 @@ class Settings:
     deepgram_model: str
     # Scorer
     scorer_model: str  # model spec, or "rules" for rules only
+    scorer_backup_model: str  # asked when scorer_model fails or runs out of time; "" for none
     scorer_prompt: Path
     llm_timeout_s: float
     llm_early_exit: bool
@@ -112,6 +113,7 @@ class Settings:
             deepgram_api_key=get("DEEPGRAM_API_KEY"),
             deepgram_model=get("DEEPGRAM_MODEL", "nova-3"),
             scorer_model=get("SCORER_MODEL") or default_scorer_model(env),
+            scorer_backup_model=get("SCORER_BACKUP_MODEL"),
             scorer_prompt=prompt if prompt.is_absolute() else ROOT / prompt,
             llm_timeout_s=float(get("LLM_TIMEOUT_S", "2.5")),
             llm_early_exit=_flag(env.get("LLM_EARLY_EXIT"), True),

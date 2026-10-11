@@ -173,18 +173,19 @@ def sslip_host(ip: str) -> str:
 def server_env(
     local: Mapping[str, Optional[str]], overrides: Mapping[str, Optional[str]], shell: Mapping[str, str], host: str
 ) -> dict[str, str]:
-    """The server's .env: this computer's .env, the lines of .env.vultr on top, and the scorer's API key.
+    """The server's .env: this computer's .env, the lines of .env.vultr on top, and the scorers' API keys.
 
-    That key often lives in the shell profile instead of .env, so it is taken from the
-    environment when neither file has it. No other key is taken from there.
+    Those keys (the scorer's, and its backup's when SCORER_BACKUP_MODEL is set) often live in the
+    shell profile instead of .env, so they are taken from the environment when neither file has
+    them. No other key is taken from there.
     """
     env = {key: value for key, value in {**local, **overrides}.items() if value is not None and key not in NEVER_SENT}
     env["PUBLIC_HOST"] = host
     filled = {key: value for key, value in env.items() if value}
     model = filled.get("SCORER_MODEL") or default_scorer_model({**shell, **filled})
-    if model.lower() not in ("rules", "none"):
+    for model in (model, filled.get("SCORER_BACKUP_MODEL", "")) if model.lower() not in ("rules", "none") else ():
         try:
-            names = key_vars(resolve(model)[0])
+            names = key_vars(resolve(model)[0]) if model else ()
         except ValueError:  # a spec no provider serves: the server says so when it starts
             names = ()
         for name in names:

@@ -156,6 +156,24 @@ def test_jev_is_announced_as_experimental_and_falls_back_without_its_key(tmp_pat
     assert "jev-latest is experimental" in caplog.text
 
 
+def test_a_backup_model_stands_behind_the_scorer(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    settings = make_settings(tmp_path, SCORER_MODEL="claude-haiku-4-5", SCORER_BACKUP_MODEL="jev-latest")
+    assert build_llm(settings).model == "claude-haiku-4-5, then jev-latest"
+    # Without the backup's key the scorer runs alone, and the log says so.
+    monkeypatch.delenv("TYPESAFE_API_KEY")
+    assert build_llm(settings).model == "claude-haiku-4-5" and "claude-haiku-4-5 has no backup" in caplog.text
+    # A scorer that cannot be built at all leaves the backup to score alone.
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    keyless = make_settings(tmp_path, SCORER_MODEL="groq:llama-3.3-70b-versatile", SCORER_BACKUP_MODEL="jev-latest")
+    assert build_llm(keyless).model == "jev-latest" and "jev-latest scores alone" in caplog.text
+    # Rules only stays rules only, and a model is not its own backup.
+    assert build_llm(make_settings(tmp_path, SCORER_MODEL="rules", SCORER_BACKUP_MODEL="jev-latest")) is None
+    assert build_llm(make_settings(tmp_path, SCORER_MODEL="jev-latest", SCORER_BACKUP_MODEL="jev-latest")).model == "jev-latest"
+
+
 def test_incoming_call_gets_disclosure_stream_and_dial(tmp_path):
     with TestClient(create_app(make_settings(tmp_path), stt_factory=None)) as client:
         response = incoming(client)

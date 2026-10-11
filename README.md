@@ -405,10 +405,11 @@ python eval/run_eval.py --models claude-haiku-4-5,vultr-decision:clef-flash --sc
 
 ### Scoring with Jev (experimental)
 
-**An experimental feature, not how Palisade works.** It has never answered a real request and
-has not been measured. Palisade scores with Haiku, and nothing on the server or in the demo
-uses Jev. [docs/jev-testing.md](docs/jev-testing.md) is the test plan that decides whether it
-ever does.
+**An experimental feature, not how Palisade works.** Palisade scores with Haiku, and nothing on
+the server or in the demo uses Jev. It was measured on 2026-10-10: after one round of fixes it
+matches Haiku on the eval sets and on a held-out set, and answers in a quarter of the time. It
+has never scored a real call. [docs/jev-testing.md](docs/jev-testing.md) has the test plan and
+the results.
 
 Jev is TypeSafe AI's decision model, trained with RLCD (reinforcement learning for calibrated
 decisions): its answers are probabilities meant to match how often they turn out right.
@@ -420,7 +421,10 @@ take the same request. On 2026-10-10 Vultr also listed a decision model of the J
 A text is asked about the message, with its own descriptions of the flags and the risk levels
 (`TEXT_FLAGS`, `TEXT_LEVELS` in `scorer/providers/vultr_decision.py`); a call is asked about
 what the CALLER says. Each risk level describes what that level looks like, with no number in
-it, because TypeSafe's guide says the model judges each level alone.
+it, because TypeSafe's guide says the model judges each level alone. No request or threat is
+named in two levels, because where two fit the model splits its answer and crosses neither
+threshold. For a call the middle levels follow the scorer prompt: pressure is the level that
+warns, a scam request is the level that ends the call.
 
 To measure it against Haiku on calls, pushy but genuine calls, injected calls and texts in one go
 (the steps, what to look for and when to switch are in the test plan):
@@ -428,6 +432,30 @@ To measure it against Haiku on calls, pushy but genuine calls, injected calls an
 ```bash
 python eval/compare.py --models rules,claude-haiku-4-5,jev-latest
 ```
+
+`eval/holdout-scripts.json` (14 calls) and `eval/holdout-texts.json` (20 texts) were written
+before the levels were reworded and were not used to choose any wording. Run them last, with
+`--scripts` and `--texts`, and do not tune against them.
+
+### A backup model
+
+`SCORER_BACKUP_MODEL` names a second model that stands behind `SCORER_MODEL`. The first model
+is asked. When it fails or runs out of time, the backup is asked the same thing, and for the
+next half minute only the backup is asked, so a model that is down does not cost its time limit
+on every pass. The rules run either way. Without a backup, a model that is down leaves the
+rules alone, which on the eval scripts end 7 of the 8 scam calls and catch 12 of the 16 scam
+texts.
+
+```bash
+SCORER_MODEL=claude-haiku-4-5
+SCORER_BACKUP_MODEL=jev-latest     # both models' keys have to be set
+```
+
+The startup line and `/health` then read `scorer=claude-haiku-4-5, then jev-latest`, and a
+handover is logged as `LLM scorer handed over to jev-latest (...)`. While the backup is
+answering, the words of the call go to its provider, as they would have gone to the first.
+`python tools/vultr_deploy.py push` sends the backup's key to the server along with the
+scorer's.
 
 ## Privacy and safety
 
