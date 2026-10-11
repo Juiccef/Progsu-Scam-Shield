@@ -20,6 +20,7 @@ the hang-up never talk to Auth0, so a call is protected even if Auth0 is down.
 | C | Send it to the Vultr server and test | You | 10 min |
 | D | Retire the old shared token | You | 5 min |
 | E | Sign-in inside the iPhone app | Built on 2026-10-10; you run and test it | 5 min |
+| F | A sign-in page that is yours: Google keys of your own, and the names on the page | You | 20 min |
 
 Parts A to D give you sign-in on the web dashboard, which is what friends open on their
 phones. The iPhone app's sign-in is built too (part E). It switches itself on when the
@@ -964,6 +965,80 @@ Do this after step 15, so the server already asks for a sign-in.
 
 A token typed into the app's Settings earlier is not used while the server asks for a
 sign-in. It is kept, and comes back into use only if the server stops asking.
+
+---
+
+## Part F: a sign-in page that is yours
+
+Parts A to E leave two marks of a test setup on the sign-in page, and both were seen on
+2026-10-10: a red **Dev Keys** notice ("One or more of your connections are currently using
+Auth0 development keys and should not be used in production"), and the title "Log in to
+dev-xxxxxxxx to continue to Palisade IOS". Judges see them, and so would Apple's reviewer.
+Nothing here touches the server or the app, and nobody has to sign in again.
+
+### Step 19. Give "Continue with Google" keys of your own
+
+Google signs people in on behalf of a "client" that Auth0 registered for testing. This
+step registers one of yours. Google renames these pages now and then; the fields are what
+to look for.
+
+1. Open `console.cloud.google.com`, sign in with a Google account, and create a project
+   called `Palisade` (the project picker at the top, then **New Project**).
+2. In the search box at the top, find **Google Auth Platform** and open it. Click
+   **Get started** and fill in: App name `Palisade`, your email as the support email,
+   Audience **External**, your email again as the contact, agree, **Create**.
+3. Open **Branding**. Under **Authorized domains** add `auth0.com`. Do not upload a logo:
+   with a logo, or with more than the basic scopes, Google holds the app to 100 sign-ins
+   until it has reviewed it.
+4. Open **Audience**. While the status is **Testing**, only the Google accounts you list
+   under **Test users** can sign in. Either list each caregiver's Google address there, or
+   click **Publish app** so that any Google account can. Your server's `CAREGIVER_EMAILS`
+   still decides who gets in.
+5. Open **Clients**, click **Create client**, and choose **Web application**. Name it
+   `Palisade sign-in`. Then, with your own Auth0 domain (the first value in the list at the
+   top of this guide) in place of YOUR-DOMAIN:
+   - **Authorized JavaScript origins:** `https://YOUR-DOMAIN`
+   - **Authorized redirect URIs:** `https://YOUR-DOMAIN/login/callback`
+6. Click **Create**. Copy the **Client ID** and the **Client secret** it shows. The secret
+   is shown in full only now.
+7. In the Auth0 dashboard open **Authentication**, then **Social**, then **google-oauth2**.
+   Paste the two values into **Client ID** and **Client Secret**, and click **Save Changes**.
+8. On that same page click **Try Connection** and sign in with a Google account that is
+   allowed (step 4). Auth0 should show "It works!" with your profile.
+
+### Step 20. Put Palisade's name on the page
+
+1. In the Auth0 dashboard open **Applications**, then **Applications**, then the iPhone
+   app's application. Under **Settings**, change **Name** to `Palisade` and click **Save**.
+   It is the name after "to continue to".
+2. Open **Settings** (the gear at the bottom of the left-hand menu), then **General**. Set
+   **Friendly Name** to `Palisade`. It replaces `dev-xxxxxxxx` after "Log in to". **Support
+   Email** on the same page is shown on Auth0's error pages. Click **Save**.
+
+### Step 21. Check it
+
+Open the iPhone app and tap **Sign In** (or sign out of the dashboard and click Sign In).
+The page should read "Log in to Palisade to continue to Palisade", with no Dev Keys
+notice. "Continue with Google" should now name Palisade on Google's own screen, where it
+named Auth0 before.
+
+### Before an App Store submission
+
+Two of Apple's rules bear on this page. Neither matters until there is a paid Apple
+developer account, which a submission needs anyway. They are written down here so that the
+choice is made on purpose.
+
+- **A sign-in from another company needs one of Apple's kind beside it** (App Review
+  guideline 4.8). With "Continue with Google" on the page, Apple expects Sign in with Apple
+  as well, which only a paid account can add. The other way is to offer Google on the
+  dashboard and not in the app: open the iPhone app's application, then its **Connections**
+  tab, and switch `google-oauth2` off there. Mind that Sign in with Apple can hide a
+  person's real email address, and `CAREGIVER_EMAILS` would then have to hold the address
+  Apple makes up for them.
+- **An app that lets people create an account has to let them delete it** (guideline
+  5.1.1(v)). The page's "Sign up" link creates one, and so does a first sign-in with
+  Google. Either the app gains a Delete Account button with a server route behind it, or
+  sign-ups are switched off (step 6) and accounts are made by you, by invitation.
 
 ---
 
