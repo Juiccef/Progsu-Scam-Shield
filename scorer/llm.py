@@ -13,7 +13,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from .flags import FLAG_IDS, label_for
 from .providers import Provider, ProviderError, make_provider
@@ -184,6 +184,7 @@ class LLMScorer:
         self.prompt = prompt
         self.timeout_s = timeout_s
         self.early_exit = early_exit
+        self.on_failure = "fell back to rules"  # what a failure leads to, for the log line
         self._provider = provider or make_provider(model)
 
     async def score(self, transcript: str, previous_risk: int = 0, *, timeout_s: Optional[float] = None) -> LLMOutcome:
@@ -214,7 +215,9 @@ class LLMScorer:
             error = f"error: {type(exc).__name__}"
         latency_s = time.perf_counter() - started
         if error:
-            log.warning("LLM scorer fell back to rules (%s) model=%s after %.2fs", error.split(":", 1)[0], self.model, latency_s)
+            log.warning(
+                "LLM scorer %s (%s) model=%s after %.2fs", self.on_failure, error.split(":", 1)[0], self.model, latency_s
+            )
         return LLMOutcome(result, latency_s, error)
 
     async def warm_up(self) -> None:
@@ -223,3 +226,50 @@ class LLMScorer:
 
     async def aclose(self) -> None:
         await self._provider.aclose()
+
+
+BACKUP_COOL_OFF_S = 30.0
+
+
+class BackedUpScorer:
+    """A scorer with a second model behind it.
+
+    The first model is asked. When it fails or runs out of time, the backup is asked the same
+    thing, and for the next half minute only the backup is asked, so a model that is down does
+    not cost its whole time limit on every pass. The rules run either way: this only decides
+    which model's number joins theirs.
+    """
+
+    def __init__(
+        self,
+        first: LLMScorer,
+        backup: LLMScorer,
+        *,
+        cool_off_s: float = BACKUP_COOL_OFF_S,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.first = first
+        self.backup = backup
+        self.model = f"{first.model}, then {backup.model}"
+        first.on_failure = f"handed over to {backup.model}"
+        self._cool_off_s = cool_off_s
+        self._clock = clock
+        self._first_again_at = 0.0
+
+    async def score(self, transcript: str, previous_risk: int = 0, *, timeout_s: Optional[float] = None) -> LLMOutcome:
+        waited, failure = 0.0, None
+        if self._clock() >= self._first_again_at:
+            outcome = await self.first.score(transcript, previous_risk, timeout_s=timeout_s)
+            if outcome.error is None:
+                return outcome
+            self._first_again_at = self._clock() + self._cool_off_s
+            waited, failure = outcome.latency_s, outcome.error
+        second = await self.backup.score(transcript, previous_risk, timeout_s=timeout_s)
+        # The time the caller waited includes the first model's failed attempt.
+        return LLMOutcome(second.result, waited + second.latency_s, None if second.error is None else failure or second.error)
+
+    async def warm_up(self) -> None:
+        await asyncio.gather(self.first.warm_up(), self.backup.warm_up())
+
+    async def aclose(self) -> None:
+        await asyncio.gather(self.first.aclose(), self.backup.aclose())

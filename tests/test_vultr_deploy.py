@@ -74,6 +74,13 @@ def test_server_env_takes_the_key_of_the_model_the_server_will_run():
     env = deploy.server_env({}, {"SCORER_MODEL": "vultr-decision:clef-flash"}, shell, "shield.example.com")
     assert env["VULTR_INFERENCE_API_KEY"] == "vk" and "ANTHROPIC_API_KEY" not in env
     assert "ANTHROPIC_API_KEY" not in deploy.server_env({}, {"SCORER_MODEL": "rules"}, shell, "shield.example.com")
+    env = deploy.server_env({}, {"SCORER_MODEL": "jev-latest"}, {**shell, "TYPESAFE_API_KEY": "ts"}, "shield.example.com")
+    assert env["TYPESAFE_API_KEY"] == "ts" and "VULTR_INFERENCE_API_KEY" not in env
+    # A backup model's key goes too, and only that one.
+    backed_up = {"SCORER_MODEL": "claude-haiku-4-5", "SCORER_BACKUP_MODEL": "jev-latest"}
+    env = deploy.server_env({}, backed_up, {**shell, "TYPESAFE_API_KEY": "ts"}, "shield.example.com")
+    assert env["TYPESAFE_API_KEY"] == "ts" and "ANTHROPIC_API_KEY" in env and "VULTR_INFERENCE_API_KEY" not in env
+    assert "TYPESAFE_API_KEY" not in deploy.server_env({}, {"SCORER_MODEL": "rules", "SCORER_BACKUP_MODEL": "jev-latest"}, {**shell, "TYPESAFE_API_KEY": "ts"}, "shield.example.com")
 
 
 def test_rendered_env_reads_back_the_same(tmp_path):

@@ -11,7 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.request_validator import RequestValidator
 
 from config import Settings
-from main import create_app
+from main import build_llm, create_app
 from stt import STTResult
 
 AUTH_TOKEN = "test-auth-token"
@@ -144,6 +144,34 @@ def test_health(tmp_path):
     assert body["ok"] is True
     assert body["scorer_model"] == "rules" and body["stt"] is None and body["actions"] == "dry_run"
     assert AUTH_TOKEN not in json.dumps(body) and SENIOR not in json.dumps(body)
+
+
+def test_jev_is_announced_as_experimental_and_falls_back_without_its_key(tmp_path, monkeypatch, caplog):
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    settings = make_settings(tmp_path, SCORER_MODEL="jev-latest")
+    assert build_llm(settings) is None and "needs TYPESAFE_API_KEY" in caplog.text
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    caplog.clear()
+    assert build_llm(settings).model == "jev-latest"
+    assert "jev-latest is experimental" in caplog.text
+
+
+def test_a_backup_model_stands_behind_the_scorer(tmp_path, monkeypatch, caplog):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    settings = make_settings(tmp_path, SCORER_MODEL="claude-haiku-4-5", SCORER_BACKUP_MODEL="jev-latest")
+    assert build_llm(settings).model == "claude-haiku-4-5, then jev-latest"
+    # Without the backup's key the scorer runs alone, and the log says so.
+    monkeypatch.delenv("TYPESAFE_API_KEY")
+    assert build_llm(settings).model == "claude-haiku-4-5" and "claude-haiku-4-5 has no backup" in caplog.text
+    # A scorer that cannot be built at all leaves the backup to score alone.
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test")
+    keyless = make_settings(tmp_path, SCORER_MODEL="groq:llama-3.3-70b-versatile", SCORER_BACKUP_MODEL="jev-latest")
+    assert build_llm(keyless).model == "jev-latest" and "jev-latest scores alone" in caplog.text
+    # Rules only stays rules only, and a model is not its own backup.
+    assert build_llm(make_settings(tmp_path, SCORER_MODEL="rules", SCORER_BACKUP_MODEL="jev-latest")) is None
+    assert build_llm(make_settings(tmp_path, SCORER_MODEL="jev-latest", SCORER_BACKUP_MODEL="jev-latest")).model == "jev-latest"
 
 
 def test_incoming_call_gets_disclosure_stream_and_dial(tmp_path):

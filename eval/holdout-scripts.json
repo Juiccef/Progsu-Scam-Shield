@@ -1,0 +1,566 @@
+{
+  "meta": {
+    "description": "Held-out calls: written on 2026-10-10 before the reworded Jev levels were tried on anything, and never used to choose wording. All names and amounts are fictional."
+  },
+  "scripts": [
+    {
+      "id": "hold_scam_01_zelle_reversal",
+      "label": "scam",
+      "category": "bank_impersonation",
+      "notes": "Fake Zelle fraud; 'send it to this number to reverse it'; stay on the line; do not call the branch.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hello, this is Marcus with the fraud department at Lakeside National Bank. I'm calling about a payment on your checking account."
+        },
+        {
+          "t": 10,
+          "speaker": "senior",
+          "text": "A payment? What payment?"
+        },
+        {
+          "t": 13,
+          "speaker": "caller",
+          "text": "Someone just sent nine hundred and fifty dollars from your account using Zelle. Did you authorize that?"
+        },
+        {
+          "t": 21,
+          "speaker": "senior",
+          "text": "No, I certainly did not."
+        },
+        {
+          "t": 25,
+          "speaker": "caller",
+          "text": "Okay, I can reverse it, but we have to act right now. Open your banking app and send the same amount to the number I give you. That returns the money to your account."
+        },
+        {
+          "t": 40,
+          "speaker": "senior",
+          "text": "Send money to get it back? Are you sure?"
+        },
+        {
+          "t": 45,
+          "speaker": "caller",
+          "text": "Yes, that is how a reversal works. Please stay on the line with me until it goes through, and don't call the branch, they can't see this department's cases."
+        }
+      ],
+      "trigger_turn": 4
+    },
+    {
+      "id": "hold_scam_02_refund_overpayment",
+      "label": "scam",
+      "category": "tech_support",
+      "notes": "Fake renewal, remote access to 'refund', then the overpayment trick and gift cards.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi, this is the billing team at SafeGuard antivirus. Your yearly subscription renewed today for three hundred ninety nine dollars."
+        },
+        {
+          "t": 10,
+          "speaker": "senior",
+          "text": "I don't remember signing up for that."
+        },
+        {
+          "t": 14,
+          "speaker": "caller",
+          "text": "No problem, I can cancel it and refund you. I just need you to go to your computer and install a small support program so I can fill in the refund form with you."
+        },
+        {
+          "t": 29,
+          "speaker": "senior",
+          "text": "All right, give me a minute."
+        },
+        {
+          "t": 33,
+          "speaker": "caller",
+          "text": "Oh no. I typed the amount wrong and sent you thirty nine hundred dollars instead of three ninety nine. I could lose my job. You need to send the difference back today with gift cards from the pharmacy."
+        },
+        {
+          "t": 50,
+          "speaker": "senior",
+          "text": "Gift cards? For a refund?"
+        },
+        {
+          "t": 53,
+          "speaker": "caller",
+          "text": "Yes, it's the fastest way. Please don't tell the cashier what they are for."
+        }
+      ],
+      "trigger_turn": 2
+    },
+    {
+      "id": "hold_scam_03_jury_duty",
+      "label": "scam",
+      "category": "government_impersonation",
+      "notes": "Missed jury duty, warrant, bond by prepaid card or Bitcoin machine, do not hang up.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "This is Deputy Harris with the county sheriff's office. You failed to appear for jury duty last month and a bench warrant has been issued."
+        },
+        {
+          "t": 12,
+          "speaker": "senior",
+          "text": "Jury duty? I never got anything in the mail."
+        },
+        {
+          "t": 17,
+          "speaker": "caller",
+          "text": "I understand, but the warrant is active. You can clear it today by paying a bond of eleven hundred dollars. Because of the court's rules it has to be a prepaid card or a deposit at a Bitcoin machine."
+        },
+        {
+          "t": 34,
+          "speaker": "senior",
+          "text": "I've never used one of those machines."
+        },
+        {
+          "t": 38,
+          "speaker": "caller",
+          "text": "I will stay on the phone and walk you through it. Do not hang up, or officers will be sent to your home."
+        }
+      ],
+      "trigger_turn": 2
+    },
+    {
+      "id": "hold_scam_04_customs_safe_account",
+      "label": "scam",
+      "category": "government_impersonation",
+      "notes": "Customs package, identity theft, move savings to a 'secure government account', secrecy.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Good morning. I am Agent Reyes with customs and border protection. A package addressed to you was stopped with illegal items inside."
+        },
+        {
+          "t": 10,
+          "speaker": "senior",
+          "text": "That's impossible. I haven't ordered anything from overseas."
+        },
+        {
+          "t": 15,
+          "speaker": "caller",
+          "text": "Your identity may have been stolen. There are also bank accounts opened in your name that are under investigation."
+        },
+        {
+          "t": 24,
+          "speaker": "senior",
+          "text": "Oh dear. What happens now?"
+        },
+        {
+          "t": 28,
+          "speaker": "caller",
+          "text": "To keep your savings from being frozen, you must move them to a secure government account while we investigate. I will give you the account details."
+        },
+        {
+          "t": 40,
+          "speaker": "senior",
+          "text": "Move all of it?"
+        },
+        {
+          "t": 43,
+          "speaker": "caller",
+          "text": "Yes. And this is a federal case, so you cannot talk about it with your family or with anyone at your bank."
+        }
+      ],
+      "trigger_turn": 4
+    },
+    {
+      "id": "hold_scam_05_crypto_investment",
+      "label": "scam",
+      "category": "investment",
+      "notes": "No authority claimed: guaranteed returns, decide tonight, wire or crypto, keep it from family.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi, it's Daniel from Summit Wealth Partners. We spoke a few weeks ago about protecting your retirement savings."
+        },
+        {
+          "t": 9,
+          "speaker": "senior",
+          "text": "I'm not sure I remember."
+        },
+        {
+          "t": 12,
+          "speaker": "caller",
+          "text": "That's okay. I'm calling because a new fund opened this morning. It is guaranteed to double your money in ninety days, there is no risk at all."
+        },
+        {
+          "t": 24,
+          "speaker": "senior",
+          "text": "Guaranteed? That sounds too good."
+        },
+        {
+          "t": 28,
+          "speaker": "caller",
+          "text": "It closes tonight, so you have to decide now. Wire twenty thousand dollars today, or buy the same amount in cryptocurrency and send it to our wallet. I'll hold your spot."
+        },
+        {
+          "t": 42,
+          "speaker": "senior",
+          "text": "I should ask my son first."
+        },
+        {
+          "t": 46,
+          "speaker": "caller",
+          "text": "Honestly, I'd keep it to yourself. Family always talks people out of the best opportunities."
+        }
+      ],
+      "trigger_turn": 4
+    },
+    {
+      "id": "hold_scam_06_marketplace_code",
+      "label": "scam",
+      "category": "verification_code",
+      "notes": "A friendly 'buyer' asks for the code sent to the senior's phone. No authority, no pressure.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi, I'm calling about the recliner you listed for sale online. Is it still available?"
+        },
+        {
+          "t": 8,
+          "speaker": "senior",
+          "text": "Yes it is."
+        },
+        {
+          "t": 10,
+          "speaker": "caller",
+          "text": "Great. There are so many fake sellers, so I'm sending a six digit code to your phone to prove you're a real person. Just read it back to me when you get it."
+        },
+        {
+          "t": 25,
+          "speaker": "senior",
+          "text": "It says it's a Google verification code."
+        },
+        {
+          "t": 29,
+          "speaker": "caller",
+          "text": "That's the one. Go ahead and read me the numbers."
+        }
+      ],
+      "trigger_turn": 2
+    },
+    {
+      "id": "hold_scam_07_public_defender_bail",
+      "label": "scam",
+      "category": "grandparent",
+      "notes": "A 'public defender' for the grandson: cash bail to a courier, then a gag order.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hello, ma'am. My name is Robert Klein, I'm a public defender. I'm representing your grandson, he was in an accident last night and he's in custody."
+        },
+        {
+          "t": 12,
+          "speaker": "senior",
+          "text": "Oh no. Is he all right?"
+        },
+        {
+          "t": 16,
+          "speaker": "caller",
+          "text": "He's shaken but fine. The judge set bail at six thousand dollars in cash. A courier will come to your house this afternoon to collect it."
+        },
+        {
+          "t": 28,
+          "speaker": "senior",
+          "text": "Cash? Can I speak to him?"
+        },
+        {
+          "t": 32,
+          "speaker": "caller",
+          "text": "Not right now. And the judge has put a gag order on the case, so please don't tell anyone in the family about this."
+        }
+      ],
+      "trigger_turn": 2
+    },
+    {
+      "id": "hold_legit_01_medical_collections",
+      "label": "legit",
+      "category": "pushy_genuine",
+      "notes": "A real collection agency: firm, mentions credit reporting, offers a letter, a dispute and the hospital's website.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hello, this is Angela with Northgate Recovery Services. This call is an attempt to collect a debt. Am I speaking with Walter Pierce?"
+        },
+        {
+          "t": 11,
+          "speaker": "senior",
+          "text": "Yes, that's me."
+        },
+        {
+          "t": 13,
+          "speaker": "caller",
+          "text": "Mr. Pierce, I'm calling about a balance of three hundred and twelve dollars from Mercy General Hospital, from your visit in March. It is now ninety days past due."
+        },
+        {
+          "t": 26,
+          "speaker": "senior",
+          "text": "I thought my insurance paid that."
+        },
+        {
+          "t": 30,
+          "speaker": "caller",
+          "text": "I can mail you a letter that shows the charges, and you have thirty days to dispute it in writing. If it is correct, you can pay on the hospital's website or set up a payment plan with us."
+        },
+        {
+          "t": 48,
+          "speaker": "senior",
+          "text": "Send me the letter first."
+        },
+        {
+          "t": 51,
+          "speaker": "caller",
+          "text": "I will. If the balance is still unpaid after that, it may be reported to the credit bureaus, so please look at it soon."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_02_landlord_late_rent",
+      "label": "legit",
+      "category": "pushy_genuine",
+      "notes": "The leasing office: rent is late, a fee, a notice on Friday; portal or a check.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi Mrs. Alvarez, it's Kevin from the Maple Court leasing office."
+        },
+        {
+          "t": 6,
+          "speaker": "senior",
+          "text": "Hello Kevin."
+        },
+        {
+          "t": 8,
+          "speaker": "caller",
+          "text": "I'm calling because we haven't received this month's rent, and it's now ten days late. A late fee of fifty dollars has been added to your account."
+        },
+        {
+          "t": 20,
+          "speaker": "senior",
+          "text": "Oh my, I forgot to mail the check."
+        },
+        {
+          "t": 25,
+          "speaker": "caller",
+          "text": "That happens. If we don't have it by Friday I have to post a notice on your door, so please take care of it this week. You can pay through the resident portal or drop a check at the office."
+        },
+        {
+          "t": 43,
+          "speaker": "senior",
+          "text": "I'll bring a check tomorrow."
+        },
+        {
+          "t": 46,
+          "speaker": "caller",
+          "text": "Perfect. See you then."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_03_bank_confirm_in_app",
+      "label": "legit",
+      "category": "pushy_genuine",
+      "notes": "A real card-services call: card locked, confirm in the app or by the number on the card, no codes taken.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hello, this is the card services team at Harbor Federal Credit Union. We declined a purchase of six hundred and forty dollars at an online electronics store a few minutes ago."
+        },
+        {
+          "t": 14,
+          "speaker": "senior",
+          "text": "I didn't buy anything like that."
+        },
+        {
+          "t": 18,
+          "speaker": "caller",
+          "text": "That's what we suspected. We've locked the card. Please open your Harbor Federal app or call the number on the back of your card to confirm and order a new one."
+        },
+        {
+          "t": 32,
+          "speaker": "senior",
+          "text": "Can't you just do it now?"
+        },
+        {
+          "t": 36,
+          "speaker": "caller",
+          "text": "For your safety we don't take card numbers or codes on calls we make to you. Use the app or the number on your card, and they will take care of it."
+        },
+        {
+          "t": 50,
+          "speaker": "senior",
+          "text": "All right, I'll call them."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_04_pharmacy_insurance_card",
+      "label": "legit",
+      "category": "genuine_asks_for_details",
+      "notes": "The pharmacy asks for the member ID on a new insurance card, or to bring the card in.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi, this is Priya at Greenway Pharmacy calling for Dorothy."
+        },
+        {
+          "t": 6,
+          "speaker": "senior",
+          "text": "This is Dorothy."
+        },
+        {
+          "t": 8,
+          "speaker": "caller",
+          "text": "Your insurance rejected the claim for your blood pressure refill. It looks like the plan changed at the start of the year. Do you have a new insurance card?"
+        },
+        {
+          "t": 21,
+          "speaker": "senior",
+          "text": "I think one came in the mail."
+        },
+        {
+          "t": 26,
+          "speaker": "caller",
+          "text": "Great. Could you read me the member ID on the front, or bring the card with you when you pick up? Otherwise the refill would be eighty dollars without insurance."
+        },
+        {
+          "t": 39,
+          "speaker": "senior",
+          "text": "I'll bring it when I come in."
+        },
+        {
+          "t": 43,
+          "speaker": "caller",
+          "text": "That works. We're open until nine."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_05_daughter_vet_bill",
+      "label": "legit",
+      "category": "pushy_genuine",
+      "notes": "A daughter needs four hundred dollars for the vet, paid to the animal hospital directly.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Hi Mom, it's Sarah."
+        },
+        {
+          "t": 3,
+          "speaker": "senior",
+          "text": "Hi honey, how are you?"
+        },
+        {
+          "t": 7,
+          "speaker": "caller",
+          "text": "I'm okay, but Biscuit swallowed something and I'm at the animal hospital. They need a deposit before surgery and my card is nearly maxed out."
+        },
+        {
+          "t": 18,
+          "speaker": "senior",
+          "text": "Oh, poor Biscuit. How much is it?"
+        },
+        {
+          "t": 22,
+          "speaker": "caller",
+          "text": "Four hundred dollars. Could you call the front desk here and put it on your card? I'll text you the hospital's number, or you can look it up, it's Brookside Animal Hospital. I'll pay you back on Friday."
+        },
+        {
+          "t": 39,
+          "speaker": "senior",
+          "text": "Of course. I'll call them right now."
+        },
+        {
+          "t": 43,
+          "speaker": "caller",
+          "text": "Thank you, Mom. I'll let you know how he does."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_06_property_tax_reminder",
+      "label": "legit",
+      "category": "pushy_genuine",
+      "notes": "The county tax office: a due date and interest after it; website, mail or in person; no payment on the call.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "Good afternoon, this is the Clayton County tax commissioner's office with a courtesy call for Harold Jennings."
+        },
+        {
+          "t": 8,
+          "speaker": "senior",
+          "text": "Speaking."
+        },
+        {
+          "t": 10,
+          "speaker": "caller",
+          "text": "Mr. Jennings, our records show the second half of your property tax, eight hundred and forty dollars, has not been paid. It is due on the thirty first, and interest is added after that date."
+        },
+        {
+          "t": 26,
+          "speaker": "senior",
+          "text": "I thought I mailed that."
+        },
+        {
+          "t": 29,
+          "speaker": "caller",
+          "text": "It may have crossed in the mail. You can check or pay on the county website, by mail, or in person at our office. We don't take payments on this call."
+        },
+        {
+          "t": 43,
+          "speaker": "senior",
+          "text": "I'll check the website."
+        }
+      ]
+    },
+    {
+      "id": "hold_legit_07_alarm_company_passcode",
+      "label": "legit",
+      "category": "genuine_asks_for_details",
+      "notes": "Hard: a real alarm company asks for the verbal passcode to cancel a dispatch.",
+      "turns": [
+        {
+          "t": 0,
+          "speaker": "caller",
+          "text": "This is Sentinel Home Security. We received a burglar alarm signal from your front door two minutes ago. Is everything all right?"
+        },
+        {
+          "t": 10,
+          "speaker": "senior",
+          "text": "Oh, that was me, I forgot to turn it off."
+        },
+        {
+          "t": 16,
+          "speaker": "caller",
+          "text": "No problem. To cancel the dispatch I need your verbal passcode, please."
+        },
+        {
+          "t": 22,
+          "speaker": "senior",
+          "text": "It's bluebird."
+        },
+        {
+          "t": 24,
+          "speaker": "caller",
+          "text": "Thank you, that matches. I've cancelled the police dispatch. Have a good evening."
+        }
+      ]
+    }
+  ]
+}
