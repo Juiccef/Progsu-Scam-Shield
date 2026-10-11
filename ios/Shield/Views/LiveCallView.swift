@@ -155,11 +155,16 @@ private struct CallMonitor: View {
                     .padding(.bottom, 12)
             }
             TranscriptArea(call: call, seniorName: seniorName)
-                .frame(minHeight: 120)
-            // A call Palisade warned about gets no second card when it ends: the header says it
-            // is over, and the warning is still on screen.
-            if call.hasEnded, call.warning == nil {
-                CallOverBar()
+                // Once the call is over nothing more is coming in, and the card under the
+                // transcript has to fit whole: at large text sizes the transcript gives way to it.
+                .frame(minHeight: call.hasEnded ? 0 : 120)
+            // A call that ends on its own says so here, under the last words, whether or not
+            // Palisade warned about it. A warned call used to be left to the header's small
+            // "Call Ended", and in a rehearsal the screen then looked like a call still going.
+            if call.hasEnded {
+                CallOverBar(wasWarned: call.warning != nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                     // Up from the bottom edge, in step with the transcript making room above it.
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -263,15 +268,32 @@ private struct TranscriptArea: View {
     }
 }
 
-/// Shown when a call ends on its own and Palisade never had to warn.
+/// Shown when a call ends on its own: Palisade never had to warn, or warned and went no further.
 private struct CallOverBar: View {
+    /// True when Palisade warned about the call. Its warning is still on screen above.
+    let wasWarned: Bool
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 4) {
-                CardLabel(title: "Call Ended", symbol: "checkmark.circle.fill", tint: Theme.safe)
-                Text("Nothing suspicious was detected.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                if wasWarned {
+                    // Gray: the warning above is what is orange, and this is only how it ended.
+                    CardLabel(title: "Call Ended", symbol: "phone.down.fill", tint: Theme.watchful)
+                    // At the accessibility text sizes the warning above nearly fills a small
+                    // screen, and the two words are what has to be seen.
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        Text("The call ended on its own. Palisade did not end it.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    CardLabel(title: "Call Ended", symbol: "checkmark.circle.fill", tint: Theme.safe)
+                    Text("Nothing suspicious was detected.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.horizontal, 16)
