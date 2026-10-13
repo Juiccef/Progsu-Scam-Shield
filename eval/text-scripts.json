@@ -3,7 +3,7 @@
     "description": "Single text messages for comparing how scorers judge a text sent to the proxy number. Written on 2026-10-10 from commonly documented smishing patterns, not from real traffic. Banks, utilities, people and phone numbers are fictional; well-known brands and agencies appear as scammers impersonate them, or as their real texts read. Links are never opened, by this set or by Palisade.",
     "label": "scam or legit. A scam should be held for the caregiver (risk 30 or more); a legit text should be forwarded (under 30).",
     "hard": "true where a careful reader could hesitate: legit texts with scam vocabulary (a code, a link, a fee, family asking for money), or scams with little in them.",
-    "cautions": "The text rules (scorer/messages.py) were written with parcel fees, account locks and code requests in view, so the rules-only row is optimistic on those. Two texts come from Nabil's spot-check in HANDOFF.md, which the rules are known to get wrong: scam_01 (scores 0) and legit_07 (scores 40)."
+    "cautions": "The text rules (scorer/messages.py) were written with parcel fees, account locks and code requests in view, so the rules-only row is optimistic on those. Two texts come from Nabil's own spot-check, which the rules are known to get wrong: scam_01 (scores 0) and legit_07 (scores 40)."
   },
   "texts": [
     {"id": "scam_01_new_number_mom", "label": "scam", "category": "family_emergency", "hard": true,

@@ -8,7 +8,7 @@
 > dark and at a large text size; the banner gave way to a count on the Texts tab, a buzz
 > and a list on Summary; the pictures linked at the end were retaken from the app as it is
 > now; and "Vultr deployment" means [deploy/README.md](../deploy/README.md), for the server
-> main already runs on. The counts below are the branch's. `HANDOFF.md` has today's.
+> main already runs on. The counts below are the branch's, not today's.
 
 Local validation passes. Merge with forwarding disabled; enable live senior
 forwarding only after the real Twilio/Photon exchange described below succeeds.

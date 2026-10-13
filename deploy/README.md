@@ -168,9 +168,9 @@ Push again. **Every text already waiting is sent the moment forwarding comes on.
   "Delivered" if the phone company reports it.
 
 **Expect "Not Delivered" at first.** The caregiver texts Palisade sends from this number
-are refused by US carriers because the number is not registered (error 30034, see
-HANDOFF.md), and a forwarded text leaves from the same number. Registering it with the
-carriers is done in Twilio's console and takes days.
+are refused by US carriers because the number is not registered (error 30034), and a
+forwarded text leaves from the same number. Registering it with the carriers is done in
+Twilio's console and takes days.
 
 ## What is kept, and for how long
 

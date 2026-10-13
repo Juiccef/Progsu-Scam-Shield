@@ -259,8 +259,8 @@ Anything that looked wrong in the app, or odd in the numbers:
     limit), Haiku could not check 5, 6 and 7 of the 32 texts in three runs, which is where
     its "12 / 0" comes from. With early exit on, or with a 10 s limit, it answers all 32 and
     is 16 / 0 alone. That is main's code, not this branch's.
-11. `README.md`, `HANDOFF.md`, `.env.example` and the warning in `main.py` said Jev had never
-    been measured. Corrected with the second round.
+11. `README.md`, `.env.example` and the warning in `main.py` said Jev had never been
+    measured. Corrected with the second round.
 
 What to change first, in this order, none of it tried: decide END from the probability on the
 top two levels in place of the average; take the overlaps out of levels 2 and 3 of
